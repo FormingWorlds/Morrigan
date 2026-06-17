@@ -14,9 +14,10 @@ def hill_sphere(a_i):
     return a_i*(M/(3*(2*M)))**(1/3) #hill sphere for adjacent planets
 
 a = np.empty(N)
+a[0] = 0.1
 for i in range(N): #allocate initial semi-major axes
-    print(i)
-    a_previous = a[i] + 0.1 #starting semi-major axis
+    pdb.set_trace
+    a_previous = a[i-1] #starting semi-major axis
     hill = hill_sphere(a_previous)
     a[i] = a_previous + 10*hill
 
