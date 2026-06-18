@@ -28,7 +28,7 @@ def hill_sphere(a_i,M):
 
 def allocate_a(M):
     a = np.empty(N)
-    a[0] = 0.1
+    a[0] = 0.1 #AU
     for i in range(1,N): #allocate initial semi-major axes
         a_previous = a[i-1] #starting semi-major axis
         hill = hill_sphere(a_previous,M)
@@ -45,8 +45,8 @@ masses = np.full(N, Mp)
 live_status = np.ones(N, dtype = bool) #set initial status of planets, all are live by definition at the start
 Rp = [planet_radius(i, j) for i,j in zip(masses,densities)]
 
-parameter_names = ['a','e','Mp','Rp','live_status']
-system_information = Table([a,ecc,masses,Rp,live_status],names = parameter_names)
+parameter_names = ['a_AU','e','Mp','Rp','live_status']
+system_information = Table([a/1.5e11,ecc,masses,Rp,live_status],names = parameter_names)
 ascii.write(system_information, 'initial_system.csv', format = 'fixed_width', overwrite = True)
 
 ######EVALAUTE CROSSING TIMESCALE######
