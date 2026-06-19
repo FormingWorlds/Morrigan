@@ -10,17 +10,16 @@ from astropy.io import ascii
 
 #####CONSTANTS######
 G = 6.67e-11 #m^3kg^-1s^-2
-M_sun = 1.9892e33 #grams
-M_earth = 5.9736e27 #grams
+M_sun = 1.9892e30 #kg
+M_earth = 5.9736e24 #kg
 
 ####INITIAL PARAMETERS######
 N = 10 #number of planets
-inner_edge = 0.005 #(AU)
 e = 0.01
 Mp = 0.5*M_earth #planet mass (relative to Mearth)
 Ms = 1*M_sun #stellar mass (relative to Msun)
 max_time = 1e9 #evolution time (years)
-rho_p = 5.5 #planet density g/cm^3
+rho_p = 5500 #planet density kg/m^3
 
 ####ALLOCATE PARAMETERS FOR THE SYSTEM###
 def hill_sphere(a_i,M):
@@ -59,7 +58,7 @@ for i in range(N):
     n[i] = np.sqrt(G*Ms/a[i]**3)
 
 A = np.zeros((N,N)) #empty interaction matrix
-
+laplace = LaplaceCoefficient()
 for i in range(N): 
     for j in range(N): 
         if i == j:
@@ -67,15 +66,14 @@ for i in range(N):
         if a[i] < a[j]:
             alpha = a[i]/a[j]
             alpha_bar = alpha 
-        if a[i] > a[j]:
+        else:
             alpha = a[j]/a[i]
             alpha_bar = 1
 
         #calculate laplacian coefficients, b1,3/2 and b2,3/2
-        laplace = LaplaceCoefficient()
         #(a,s,m,p,q)
-        coeff_m1 = laplace(alpha, 3/2, 1, 1, 0) #m = 1 for A_ii
-        coeff_m2 = laplace(alpha, 3/2, 2, 1, 0) #m = 2 for A_ij
+        coeff_m1 = laplace(alpha, 3/2, 1, 1, 1) #m = 1 for A_ii
+        coeff_m2 = laplace(alpha, 3/2, 2, 1, 1) #m = 2 for A_ij
 
         factor = n[i] * 0.25 * masses[j]/(Ms + masses[i]) * alpha * alpha_bar
         A[i,i] += factor * coeff_m1
@@ -83,4 +81,3 @@ for i in range(N):
 
 print(A)
 
-pdb.set_trace()
