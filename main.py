@@ -18,7 +18,7 @@ N = 10 #number of planets
 e = 0.01
 Mp = 0.5*M_earth #planet mass (relative to Mearth)
 Ms = 1*M_sun #stellar mass (relative to Msun)
-max_time = 1e9 #evolution time (years)
+max_time = 1e9*365*24*60*60 #evolution time (seconds)
 rho_p = 5500 #planet density kg/m^3
 
 ####ALLOCATE PARAMETERS FOR THE SYSTEM###
@@ -48,17 +48,14 @@ parameter_names = ['a_AU','e','Mp','Rp','live_status']
 system_information = Table([a/1.5e11,ecc,masses,Rp,live_status],names = parameter_names)
 ascii.write(system_information, 'initial_system.csv', format = 'fixed_width', overwrite = True)
 
-######EVALAUTE CROSSING TIMESCALE######
-#identify the next time a planet pair will cross
-#if N = 2, pass stability criterion, crossing timescale set to np.inf
-#if N > 2, evaluate every triplet of planets 
+######SECULAR ECCENTRICITY SECTION#####
 
 n = np.empty(N)
 for i in range(N):
     n[i] = np.sqrt(G*Ms/a[i]**3)
 
 A = np.zeros((N,N)) #empty interaction matrix
-laplace = LaplaceCoefficient()
+laplace = LaplaceCoefficient(method = 'Brute')
 for i in range(N): 
     for j in range(N): 
         if i == j:
@@ -79,5 +76,54 @@ for i in range(N):
         A[i,i] += factor * coeff_m1
         A[i,j] = -factor * coeff_m2
 
-print(A)
+# Set initial angles randomly
+varpi = np.random.uniform(0.0, 2.0 * np.pi, N)
+
+h0 = ecc * np.sin(varpi)
+k0 = ecc * np.cos(varpi)
+
+# Solve the eigenvalue problem
+g, S = np.linalg.eig(A)
+g = np.real(g)
+S = np.real(S)
+
+# Solve for integration constants using S
+Csinb = np.linalg.solve(S, h0)
+Ccosb = np.linalg.solve(S, k0)
+
+# Calculate amplitudes (C) and phase angles (beta)
+C = np.sqrt(Csinb**2 + Ccosb**2)
+beta = np.arctan2(Csinb, Ccosb)
+
+# Scale eigenvectors by the amplitudes (columns of ecc_vec)
+ecc_vec = S * C
+
+#####ANCILLARY FUNCTIONS##########
+
+def kepler_P(Mp,a) #period of planetary orbit, used to calculate tau_cross
+    P_squared = (4*np.pi**2*a**3)/(G*(Mp+Ms))
+    return np.sqrt(P_squared)
+
+def esc_ecc(M1,M2,R1,R2,a):
+    numerator = np.sqrt(2*G*(M1+M2)/(R1+R2))
+    denom = np.sqrt((G*Ms)/s)
+    return numerator/denominator
+
+def tau_cross_petit: #evaluates for a planetary triplet?
+    K = 
+    alpha_01, alpha_12 = a[0]/a[1], a[1]/a[2]
+    nu_01, nu_12 = kepler_period(M[0],a[0])/kepler_period(M[1],a[1]) , kepler_period(M[1],a[1])/kepler_period(M[2],a[2])
+    eta = (nu_01 * (1 = nu_12))/(1 - nu_01*nu_12)
+    M = np.sqrt(Mp[0] * Mp[2] + Mp[1] * Mp[2] * eta**2 * alpha_01**(-2) + Mp[0]*Mp[2] * alpha_12**2 * (1 - eta)**2)/Ms
+    delta_01, delta_12 = ((1-ecc[1])*a[1] - (1+ecc[0])*a[0])/a[1] , ((1-ecc[1])*a[1] - (1+ecc[2])*a[2])/a[1]
+    delta = (delta_01 * delta_12) / (delta_01 + delta_12)
+    delta_ov = (6.55 * K * M)**(1/4) (eta*(1-eta))**(3/8)
+    delta_6 = 
+
+    log_arg = -np.log10((32 * np.sqrt(19) * M * np.sqrt(eta * (1 - eta)))/(3*np.sqrt(np.pi)))\
+    + np.log10(delta**6/(delta_ov**6 * (1 - (delta/delta_ov)**4))) + np.sqrt(-np.log(1 - (delta/delta_ov)**4))
+
+    tau_cross = np.exp(log_arg) * kepler_period(M[0],a[0])
+
+    return tau_cross
 
