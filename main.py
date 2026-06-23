@@ -124,13 +124,32 @@ def tau_cross_petit(a,ecc,Mp): #evaluates every planetary triplet for instabilit
 
     return tau_cross
 
-def tau_scat():
+def tau_vis(): #viscous relaxation timescale for an interacting planetary pair
     mu_a = sum(ap)/2 #average semi-major axis of interacting pair
+    mu_e = sum(ecc)/2
     M_T = sum(Mp) #sum of masses
-    impact_parameter = 
+    impact_parameter = abs(ap[1] - ap[0]) 
+
+    #eccentricities at the onset of crossing
+    ecross_i = (np.sqrt(M[1]) * impact_parameter)/((np.sqrt(M[1]) * a[0]) + np.sqrt(M[0]) * a[1]) #eq 6
+    ecross_j = (np.sqrt(M[0]) * impact_parameter)/((np.sqrt(M[0]) * a[0]) + np.sqrt(M[1]) * a[0]) #implied eq 6
+
+    rep_e = max((ecross_i + ecross_j), sum(ecc)) #eq 23 used to calculate lambda in eq 12
+    kep_vel = np.sqrt((G * Ms)/mu_a)
+    ran_vel = rep_e * kep_vel
+    n = 1/(2 * np.pi * rep_e * mu_a**2 * impact_parameter)
+
+    timescale = n * np.pi * G**2 ran_vel * 3
+    return 1/timescale
 
 
+def tau_col():
+    mu_a = sum(ap)/2 #average semi-major axis of interacting pair
+    mu_e = sum(ecc)/2
+    M_T = sum(Mp) #sum of masses
+    R_T = sum(Rp) #sum of radii
+    impact_parameter = abs(ap[1] - ap[0])
 
-def tau_col()
+    
 
 def interaction_wrapper()
