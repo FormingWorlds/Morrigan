@@ -22,8 +22,8 @@ max_time = 1e9*365*24*60*60 #evolution time (seconds)
 rho_p = 5500 #planet density kg/m^3
 
 ####ALLOCATE PARAMETERS FOR THE SYSTEM###
-def hill_sphere(a_i,M):
-    return a_i * ((2*M) / (3 * Ms))**(1/3) #mutual hill radius for adjacent planets
+def hill_sphere(a_i,M_sum):
+    return a_i * ((M_sum) / (3 * Ms))**(1/3) #mutual hill radius for adjacent planets
 
 def allocate_a(M):
     a = np.empty(N)
@@ -37,68 +37,71 @@ def allocate_a(M):
 def planet_radius(mass,density):
     return ((3*mass)/(4 * np.pi*density))**(1/3)
 
+#actually initialising system here with arrays for every parameter
 a = allocate_a(Mp)
 ecc = np.full(N,e)
 densities = np.full(N, rho_p)
 masses = np.full(N, Mp)
 live_status = np.ones(N, dtype = bool) #set initial status of planets, all are live by definition at the start
 Rp = [planet_radius(i, j) for i,j in zip(masses,densities)]
+#
 
 parameter_names = ['a_AU','e','Mp','Rp','live_status']
 system_information = Table([a/1.5e11,ecc,masses,Rp,live_status],names = parameter_names)
-ascii.write(system_information, 'initial_system.csv', format = 'fixed_width', overwrite = True)
+ascii.write(system_information, 'initial_system.csv', format = 'fixed_width', overwrite = True) #store initial system information
 
 ######SECULAR ECCENTRICITY SECTION#####
 
-n = np.empty(N)
-for i in range(N):
-    n[i] = np.sqrt(G*Ms/a[i]**3)
 
-A = np.zeros((N,N)) #empty interaction matrix
-laplace = LaplaceCoefficient(method = 'Brute')
-for i in range(N): 
-    for j in range(N): 
-        if i == j:
-            continue #skip self-interactions
-        if a[i] < a[j]:
-            alpha = a[i]/a[j]
-            alpha_bar = alpha 
-        else:
-            alpha = a[j]/a[i]
-            alpha_bar = 1
+def secular_solution(ap, Mp, ecc, Rp, N):
+    varpi = np.random.uniform(0.0, 2.0 * np.pi, N)
 
-        #calculate laplacian coefficients, b1,3/2 and b2,3/2
-        #(a,s,m,p,q)
-        coeff_m1 = laplace(alpha, 3/2, 1, 1, 1) #m = 1 for A_ii
-        coeff_m2 = laplace(alpha, 3/2, 2, 1, 1) #m = 2 for A_ij
+    h0 = ecc * np.sin(varpi)
+    k0 = ecc * np.cos(varpi)
 
-        factor = n[i] * 0.25 * masses[j]/(Ms + masses[i]) * alpha * alpha_bar
-        A[i,i] += factor * coeff_m1
-        A[i,j] = -factor * coeff_m2
+    mean_motion = np.sqrt(G*Ms/ap**3)
+    A = np.zeros((N,N)) #empty interaction matrix
 
-# Set initial angles randomly
-varpi = np.random.uniform(0.0, 2.0 * np.pi, N)
+    laplace = LaplaceCoefficient(method = 'Brute') #to calculate laplace coefficients
+    for i in range(N): 
+        for j in range(N): 
+            if i == j:
+                continue #skip self-interactions
+            if a[i] < a[j]:
+                alpha = a[i]/a[j]
+                alpha_bar = alpha 
+            else:
+                alpha = a[j]/a[i]
+                alpha_bar = 1
 
-h0 = ecc * np.sin(varpi)
-k0 = ecc * np.cos(varpi)
+            #calculate laplacian coefficients, b1,3/2 and b2,3/2
+            #(a,s,m,p,q)
+            coeff_m1 = laplace(alpha, 3/2, 1, 1, 1) #m = 1 for A_ii
+            coeff_m2 = laplace(alpha, 3/2, 2, 1, 1) #m = 2 for A_ij
 
-# Solve the eigenvalue problem
-g, S = np.linalg.eig(A)
-g = np.real(g)
-S = np.real(S)
+            factor = n[i] * 0.25 * masses[j]/(Ms + masses[i]) * alpha * alpha_bar
+            A[i,i] += factor * coeff_m1
+            A[i,j] = -factor * coeff_m2
 
-# Solve for integration constants using S
-Csinb = np.linalg.solve(S, h0)
-Ccosb = np.linalg.solve(S, k0)
+    #solve the eigenvalue problem
+    g, S = np.linalg.eig(A)
+    g = np.real(g)
+    S = np.real(S)
 
-# Calculate amplitudes (C) and phase angles (beta)
-C = np.sqrt(Csinb**2 + Ccosb**2)
-beta = np.arctan2(Csinb, Ccosb)
+    #solve for integration constants using S
+    Csinb = np.linalg.solve(S, h0)
+    Ccosb = np.linalg.solve(S, k0)
 
-# Scale eigenvectors by the amplitudes (columns of ecc_vec)
-ecc_vec = S * C
+    #calculate amplitudes (C) and phase angles (beta)
+    C = np.sqrt(Csinb**2 + Ccosb**2)
+    beta = np.arctan2(Csinb, Ccosb)
 
-#####ANCILLARY FUNCTIONS##########
+    #scale eigenvectors by the amplitudes (columns of ecc_vec)
+    ecc_vec = S * C
+
+    return ecc_vec, g, beta
+
+#####HELPER FUNCTIONS##########
 
 def kepler_P(Mp,a) #period of planetary orbit, used to calculate tau_cross
     P_squared = (4*np.pi**2*a**3)/(G*(Mp+Ms))
@@ -109,7 +112,7 @@ def esc_ecc(M1,M2,R1,R2,a):
     denom = np.sqrt((G*Ms)/s)
     return numerator/denominator
 
-def tau_cross_petit(a,ecc,Mp): #evaluates every planetary triplet for instability
+def tau_cross_petit(a,ecc,Mp, N_affect): #evaluates every planetary triplet for instability
     K = min(0.5*(N-3) + 1, 3)
     alpha_01, alpha_12 = a[0]/a[1], a[1]/a[2]
     nu_01, nu_12 = kepler_period(M[0],a[0])/kepler_period(M[1],a[1]) , kepler_period(M[1],a[1])/kepler_period(M[2],a[2])
@@ -123,6 +126,19 @@ def tau_cross_petit(a,ecc,Mp): #evaluates every planetary triplet for instabilit
     tau_cross = np.exp(log_arg) * kepler_period(M[0],a[0])
 
     return tau_cross
+
+def interaction_wrapper(ap, Mp, ecc, N_affect): #determine if system is stable, and if not, calculate timescale to instability
+    #N_affect is planets participating in crossing event
+    aM = (Mp[0]*ap[0] + Mp[1]*ap[1]) / (Mp[0] + Mp[1])
+    h = hill_sphere_mutual(Mp[0]+Mp[1], aM) / aM
+    #stability criterion
+    EJbef = 5.0/8.0*(ecc[0]**2 + ecc[1]**2)/h**2 - 3.0/8.0 * ((ap[0]-ap[1])/(h*aM))**2 + 4.5 #eq 28
+
+    if N_affect <= 2 and EJbef < 0.0: #if system is stable return 'infinite' stability
+        return 1e20
+        
+    #otherwise return the crossing timescale from Petit 2020
+    return tau_cross_Petit(ap, Mp, ecc, N_affect)
 
 def tau_vis(): #viscous relaxation timescale for an interacting planetary pair
     mu_a = sum(ap)/2 #average semi-major axis of interacting pair
@@ -150,6 +166,30 @@ def tau_col():
     R_T = sum(Rp) #sum of radii
     impact_parameter = abs(ap[1] - ap[0])
 
-    
+    #eccentricities at the onset of crossing
+    ecross_i = (np.sqrt(M[1]) * impact_parameter)/((np.sqrt(M[1]) * a[0]) + np.sqrt(M[0]) * a[1]) #eq 6
+    ecross_j = (np.sqrt(M[0]) * impact_parameter)/((np.sqrt(M[0]) * a[0]) + np.sqrt(M[1]) * a[0]) #implied eq 6
 
-def interaction_wrapper()
+    rep_e = 0.5 * max(sum(ecc_cross), sum(ecc))
+    kep_vel = np.sqrt(G * Ms / map_val)
+    ran_vel = mecc * vK
+    esc_vel = np.sqrt(2.0 * G * sMp / sRp)
+    n = 1.0 / (2.0 * np.pi * mecc * map_val**2 * bimp)
+
+    #only difference from tau_vis here is the timescale
+    timescale = n * np.pi * (R_T)**2 * (1 + esc_vel**2/ran_vel**2) * ran_vel
+
+    return 1/timescale
+
+def crossing_pair(): #identify crossing pair from triplet, return pair and t_event
+
+def merge_embryo(): #calculate orbital parameters post collision
+
+def orbit_cross_K25(): #determine outcome of crossing event
+    #calculates collosion probability, Pcol
+    #calles merge_embryo if a collision happens
+    #in case of scattering excites the ecc and a_ij, if an ecc > 1, planet is ejected 
+
+def sort_planet(): #clean up system after event
+    #remove ejected or dead ones 
+    #sort by new semi-major axes
