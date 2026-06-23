@@ -22,8 +22,8 @@ max_time = 1e9*365*24*60*60 #evolution time (seconds)
 rho_p = 5500 #planet density kg/m^3
 
 ####ALLOCATE PARAMETERS FOR THE SYSTEM###
-def hill_sphere(a_i,M_sum):
-    return a_i * ((M_sum) / (3 * Ms))**(1/3) #mutual hill radius for adjacent planets
+def hill_sphere(a_i,M):
+    return a_i * ((M) / (3 * Ms))**(1/3) #mutual hill radius for adjacent planets
 
 def allocate_a(M):
     a = np.empty(N)
@@ -43,8 +43,8 @@ ecc = np.full(N,e)
 densities = np.full(N, rho_p)
 masses = np.full(N, Mp)
 live_status = np.ones(N, dtype = bool) #set initial status of planets, all are live by definition at the start
+interact = np.ones(N, dtype = bool) #stores the indices of which planets are participating in an event
 Rp = [planet_radius(i, j) for i,j in zip(masses,densities)]
-#
 
 parameter_names = ['a_AU','e','Mp','Rp','live_status']
 system_information = Table([a/1.5e11,ecc,masses,Rp,live_status],names = parameter_names)
@@ -103,16 +103,19 @@ def secular_solution(ap, Mp, ecc, Rp, N):
 
 #####HELPER FUNCTIONS##########
 
+def hill_sphere_mutual(M_sum, a_mean):
+    return a_mean * (M_sum / (3.0 * Ms))**(1/3)
+
 def kepler_P(Mp,a) #period of planetary orbit, used to calculate tau_cross
     P_squared = (4*np.pi**2*a**3)/(G*(Mp+Ms))
     return np.sqrt(P_squared)
 
 def esc_ecc(M1,M2,R1,R2,a):
-    numerator = np.sqrt(2*G*(M1+M2)/(R1+R2))
+    num = np.sqrt(2*G*(M1+M2)/(R1+R2))
     denom = np.sqrt((G*Ms)/s)
-    return numerator/denominator
+    return num/denom
 
-def tau_cross_petit(a,ecc,Mp, N_affect): #evaluates every planetary triplet for instability
+def tau_cross_petit(a,Mp,ecc, N_affect): #evaluates every planetary triplet for instability
     K = min(0.5*(N-3) + 1, 3)
     alpha_01, alpha_12 = a[0]/a[1], a[1]/a[2]
     nu_01, nu_12 = kepler_period(M[0],a[0])/kepler_period(M[1],a[1]) , kepler_period(M[1],a[1])/kepler_period(M[2],a[2])
@@ -140,7 +143,7 @@ def interaction_wrapper(ap, Mp, ecc, N_affect): #determine if system is stable, 
     #otherwise return the crossing timescale from Petit 2020
     return tau_cross_Petit(ap, Mp, ecc, N_affect)
 
-def tau_vis(): #viscous relaxation timescale for an interacting planetary pair
+def tau_vis(ap,Mp,Rp,ecc): #viscous relaxation timescale for an interacting planetary pair
     mu_a = sum(ap)/2 #average semi-major axis of interacting pair
     mu_e = sum(ecc)/2
     M_T = sum(Mp) #sum of masses
@@ -155,11 +158,10 @@ def tau_vis(): #viscous relaxation timescale for an interacting planetary pair
     ran_vel = rep_e * kep_vel
     n = 1/(2 * np.pi * rep_e * mu_a**2 * impact_parameter)
 
-    timescale = n * np.pi * G**2 ran_vel * 3
+    timescale = n * np.pi * G**2 * ran_vel * 3
     return 1/timescale
 
-
-def tau_col():
+def tau_col(ap,Mp,Rp,ecc):
     mu_a = sum(ap)/2 #average semi-major axis of interacting pair
     mu_e = sum(ecc)/2
     M_T = sum(Mp) #sum of masses
@@ -181,15 +183,55 @@ def tau_col():
 
     return 1/timescale
 
-def crossing_pair(): #identify crossing pair from triplet, return pair and t_event
+def crossing_pair(ap, Mp, Rp, ecc, ecc_vec, g, beta, interact, N, t, t_ref): #identify crossing pair from triplet, return pair and t_event
 
-def merge_embryo(): #calculate orbital parameters post collision
+def merge_embryo(ap, Mp, ecc, live_status): #calculate orbital parameters post collision
+    Mp_new = sum(Mp) #eq 15
+    ap_new = (Mp[0]*ap[0] + Mp[1]*ap[1])/Mp_new #eq 16
 
-def orbit_cross_K25(): #determine outcome of crossing event
+    cos_dvarpi = (ecc[0]**2*ap[0]**2 + ecc[1]**2*ap[1]**2 - (ap[0] - ap[1])**2)/(2*ecc[0]*ecc[1]*ap[0]*ap[1]) #eq 26
+    min_dvarpi = np.arccos(cos_dvarpi) #eq 27
+    dvarpi = np.random.uniform(min_dvarpi, 2*np.pi - min_dvarpi) #random range for dvarpi
+
+    ecc_new = np.sqrt(((Mp[0]**2*ecc[0]**2) + (Mp[1]**2*ecc[1]**2) + 2*Mp[0]*Mp[1]*ecc[0]*ecc[1]*np.cos(dvarpi)) / M_new**2) #eq 17
+
+    if Mp[0] >= Mp[1]: #larger planet consumes smaller one 
+        alive, dead = 0,1
+    else:
+        alive, dead = 1,0
+
+    live_status[dead] = False 
+    ap[alive] = ap_new 
+    Mp[alive] = Mp_new 
+    ecc[alive] = ecc_new 
+
+    return ap,Mp,ecc,live_status
+
+def orbit_cross_K25(ap, Mp, Rp, ecc, interact, live_status, N, icross): #determine outcome of crossing event
     #calculates collosion probability, Pcol
     #calles merge_embryo if a collision happens
     #in case of scattering excites the ecc and a_ij, if an ecc > 1, planet is ejected 
 
-def sort_planet(): #clean up system after event
+def sort_planet(ap, Mp, ecc, Rp, live_status, interact, densities): #clean up system after event
     #remove ejected or dead ones 
+    live_planets = live_status
+    ap = ap[live_planets]
+    Mp = Mp[live_planets]
+    Rp = Rp[live_planets]
+    ecc = ecc[live_planets]
+    densities = densities[live_planets]
+
+    interact = interact[live_planets]
+    live_status = live_status[live_planets]
+
     #sort by new semi-major axes
+    sort_order = np.argsort(ap)
+    ap = ap[sort_order]
+    Mp = Mp[sort_order]
+    ecc = ecc[sort_order]
+    Rp = Rp[sort_order]
+    interact = interact[sort_order]
+    densities = densities[sort_order]
+    live_status = live[sort_order]
+
+    return ap, Mp, ecc, Rp, live_status, interact, densities
