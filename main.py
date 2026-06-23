@@ -20,6 +20,7 @@ Mp = 0.5*M_earth #planet mass (relative to Mearth)
 Ms = 1*M_sun #stellar mass (relative to Msun)
 max_time = 1e9*365*24*60*60 #evolution time (seconds)
 rho_p = 5500 #planet density kg/m^3
+np.random.seed(1) #for reproducability
 
 ####ALLOCATE PARAMETERS FOR THE SYSTEM###
 def hill_sphere(a_i,M):
@@ -152,8 +153,9 @@ def tau_vis(ap,Mp,Rp,ecc): #viscous relaxation timescale for an interacting plan
     #eccentricities at the onset of crossing
     ecross_i = (np.sqrt(M[1]) * impact_parameter)/((np.sqrt(M[1]) * a[0]) + np.sqrt(M[0]) * a[1]) #eq 6
     ecross_j = (np.sqrt(M[0]) * impact_parameter)/((np.sqrt(M[0]) * a[0]) + np.sqrt(M[1]) * a[0]) #implied eq 6
+    ecross = [ecross_i, ecross_j]
 
-    rep_e = max((ecross_i + ecross_j), sum(ecc)) #eq 23 used to calculate lambda in eq 12
+    rep_e = max((sum(ecross)), sum(ecc)) #eq 23 used to calculate lambda in eq 12
     kep_vel = np.sqrt((G * Ms)/mu_a)
     ran_vel = rep_e * kep_vel
     n = 1/(2 * np.pi * rep_e * mu_a**2 * impact_parameter)
@@ -171,6 +173,7 @@ def tau_col(ap,Mp,Rp,ecc):
     #eccentricities at the onset of crossing
     ecross_i = (np.sqrt(M[1]) * impact_parameter)/((np.sqrt(M[1]) * a[0]) + np.sqrt(M[0]) * a[1]) #eq 6
     ecross_j = (np.sqrt(M[0]) * impact_parameter)/((np.sqrt(M[0]) * a[0]) + np.sqrt(M[1]) * a[0]) #implied eq 6
+    ecross = [ecross_i, ecross_j]
 
     rep_e = 0.5 * max(sum(ecc_cross), sum(ecc))
     kep_vel = np.sqrt(G * Ms / map_val)
@@ -208,6 +211,19 @@ def merge_embryo(ap, Mp, ecc, live_status): #calculate orbital parameters post c
     return ap,Mp,ecc,live_status
 
 def orbit_cross_K25(ap, Mp, Rp, ecc, interact, live_status, N, icross): #determine outcome of crossing event
+    #now working with an interacting pair of planets i,j
+    jcross = icross + 1 #sets indices of interacting pair 
+    mean_ap = 0.5*(ap[icross] + ap[jcross]) #average semi-major 
+    e_esc = esc_ecc(Mp[icross],Mp[jcross],Rp[icross],Rp[jcross],mean_ap) #escape eccentricity
+
+    ecross_i = (ap[jcross] - ap[icross]) * np.sqrt(Mp[jcross]) / (ap[icross] * np.sqrt(Mp[jcross]) + ap[jcross] * np.sqrt(Mp[icross])) #eq 6 again
+    ecross_j = (ap[jcross] - ap[icross]) * np.sqrt(Mp[icross]) / (ap[icross] * np.sqrt(Mp[jcross]) + ap[jcross] * np.sqrt(Mp[icross]))
+
+    ecc_cross = [ecross_i, ecross_j] #store together 
+
+    ecc_dum = [max(ecc_cross[0], ecc[icross]), max(ecc_cross[1], ecc[jcross])] #eq 23
+
+
     #calculates collosion probability, Pcol
     #calles merge_embryo if a collision happens
     #in case of scattering excites the ecc and a_ij, if an ecc > 1, planet is ejected 
