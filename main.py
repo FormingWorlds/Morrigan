@@ -109,8 +109,8 @@ def esc_ecc(M1,M2,R1,R2,a):
     denom = np.sqrt((G*Ms)/s)
     return numerator/denominator
 
-def tau_cross_petit: #evaluates for a planetary triplet?
-    K = 
+def tau_cross_petit(a,ecc,Mp): #evaluates every planetary triplet for instability
+    K = min(0.5*(N-3) + 1, 3)
     alpha_01, alpha_12 = a[0]/a[1], a[1]/a[2]
     nu_01, nu_12 = kepler_period(M[0],a[0])/kepler_period(M[1],a[1]) , kepler_period(M[1],a[1])/kepler_period(M[2],a[2])
     eta = (nu_01 * (1 = nu_12))/(1 - nu_01*nu_12)
@@ -118,12 +118,19 @@ def tau_cross_petit: #evaluates for a planetary triplet?
     delta_01, delta_12 = ((1-ecc[1])*a[1] - (1+ecc[0])*a[0])/a[1] , ((1-ecc[1])*a[1] - (1+ecc[2])*a[2])/a[1]
     delta = (delta_01 * delta_12) / (delta_01 + delta_12)
     delta_ov = (6.55 * K * M)**(1/4) (eta*(1-eta))**(3/8)
-    delta_6 = 
 
-    log_arg = -np.log10((32 * np.sqrt(19) * M * np.sqrt(eta * (1 - eta)))/(3*np.sqrt(np.pi)))\
-    + np.log10(delta**6/(delta_ov**6 * (1 - (delta/delta_ov)**4))) + np.sqrt(-np.log(1 - (delta/delta_ov)**4))
-
+    log_arg = -np.log10((32 * np.sqrt(19) * M * np.sqrt(eta * (1 - eta)))/(3*np.sqrt(np.pi))) + np.log10(delta**6/(delta_ov**6 * (1 - (delta/delta_ov)**4))) + np.sqrt(-np.log(1 - (delta/delta_ov)**4))
     tau_cross = np.exp(log_arg) * kepler_period(M[0],a[0])
 
     return tau_cross
 
+def tau_scat():
+    mu_a = sum(ap)/2 #average semi-major axis of interacting pair
+    M_T = sum(Mp) #sum of masses
+    impact_parameter = 
+
+
+
+def tau_col()
+
+def interaction_wrapper()
