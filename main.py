@@ -53,7 +53,6 @@ ascii.write(system_information, 'initial_system.csv', format = 'fixed_width', ov
 
 ######SECULAR ECCENTRICITY SECTION#####
 
-
 def secular_solution(ap, Mp, ecc, Rp, N):
     varpi = np.random.uniform(0.0, 2.0 * np.pi, N)
 
@@ -138,7 +137,7 @@ def interaction_wrapper(ap, Mp, ecc, N_affect): #determine if system is stable, 
     #stability criterion
     EJbef = 5.0/8.0*(ecc[0]**2 + ecc[1]**2)/h**2 - 3.0/8.0 * ((ap[0]-ap[1])/(h*aM))**2 + 4.5 #eq 28
 
-    if N_affect <= 2 and EJbef < 0.0: #if system is stable return 'infinite' stability
+    if N_affect <= 2 and EJbef < 0.0: #if system is stable return 'infinite' stability, 2 planets can still interact
         return 1e20
         
     #otherwise return the crossing timescale from Petit 2020
@@ -177,9 +176,9 @@ def tau_col(ap,Mp,Rp,ecc):
 
     rep_e = 0.5 * max(sum(ecc_cross), sum(ecc))
     kep_vel = np.sqrt(G * Ms / map_val)
-    ran_vel = mecc * vK
-    esc_vel = np.sqrt(2.0 * G * sMp / sRp)
-    n = 1.0 / (2.0 * np.pi * mecc * map_val**2 * bimp)
+    ran_vel = rep_e * kep_vel
+    esc_vel = np.sqrt(2.0 * G * M_T / R_T)
+    n = 1.0 / (2.0 * np.pi * rep_e * mu_a**2 * impact_parameter)
 
     #only difference from tau_vis here is the timescale
     timescale = n * np.pi * (R_T)**2 * (1 + esc_vel**2/ran_vel**2) * ran_vel
@@ -212,21 +211,59 @@ def merge_embryo(ap, Mp, ecc, live_status): #calculate orbital parameters post c
 
 def orbit_cross_K25(ap, Mp, Rp, ecc, interact, live_status, N, icross): #determine outcome of crossing event
     #now working with an interacting pair of planets i,j
-    jcross = icross + 1 #sets indices of interacting pair 
-    mean_ap = 0.5*(ap[icross] + ap[jcross]) #average semi-major 
+    #modifies the arrays of ap,Mp,Rp,ecc,interact,live_status based on what happens
+    jcross = icross + 1 #sets indices of interacting pair, aj>ai always
+    mean_ap = (ap[icross] + ap[jcross])/2 #average semi-major 
     e_esc = esc_ecc(Mp[icross],Mp[jcross],Rp[icross],Rp[jcross],mean_ap) #escape eccentricity
 
     ecross_i = (ap[jcross] - ap[icross]) * np.sqrt(Mp[jcross]) / (ap[icross] * np.sqrt(Mp[jcross]) + ap[jcross] * np.sqrt(Mp[icross])) #eq 6 again
     ecross_j = (ap[jcross] - ap[icross]) * np.sqrt(Mp[icross]) / (ap[icross] * np.sqrt(Mp[jcross]) + ap[jcross] * np.sqrt(Mp[icross]))
 
     ecc_cross = [ecross_i, ecross_j] #store together 
+    #minimum eccentricity of interacting planets to cause a collision
 
-    ecc_dum = [max(ecc_cross[0], ecc[icross]), max(ecc_cross[1], ecc[jcross])] #eq 23
-
+    ecc_encounter = [max(ecc_cross[0], ecc[icross]), max(ecc_cross[1], ecc[jcross])] #eq 23
+    #enforces that the planets ACTUALLY interact (actual eccentricites from ecc[] are secular, not at exact crossing time)
+    #crossing_pair is still just a statistical prediction
+    #ensures the eccentricities used during a crossing are geometrically consistent
+    eij = np.sqrt(ecc_encounter[0]**2 + ecc_encounter[1]**2) #relative eccentricity 
 
     #calculates collosion probability, Pcol
-    #calles merge_embryo if a collision happens
-    #in case of scattering excites the ecc and a_ij, if an ecc > 1, planet is ejected 
+    ln_lambda = 3
+    lambdaa = (2*eij/e_esc)**2 * (1 + (eij**2/e_esc**2)) * (1/ln_lambda) #eq 12
+    p_col = 1 = np.exp(-lambdaa) # eq 14, caps between [0,1]
+
+    #use Monte Carlo approach to say whether or not a collision actually happens
+    #Bernoulli sampling?
+    draw = np.random.uniform(0,1) #draws a random number to compare against p_col
+    if draw < p_col: #merge event
+        count = 0 #keeps track of rejection-sampling structure, and ensures while loop doesnt go forever
+        while True: #keeps sampling until the eccentricity is consistent with the orbits actually overlapping 
+            rayleigh_ecc = rayleigh(1 / np.sqrt(2), ecc_rel / e_esc)
+            #Q: why are these a 2-term max when the paper has 3-term max in equation 24?
+            #eccentricites before event
+            ecc_new_icross = max(rayleigh_ecc * np.sqrt(Mp[jcross]) / np.sqrt(Mp[icross] + Mp[jcross]) * e_esc, ecc[icross])
+            ecc_new_jcross = max(rayleigh_ecc * np.sqrt(Mp[icross]) / np.sqrt(Mp[icross] + Mp[jcross]) * e_esc, ecc[jcross])
+
+            if np.sqrt(ecc_cross[0]**2 + ecc_cross[1]**2) / e_esc > 2.0 or icount > 500:
+                #unable to find a random draw that satisfies the condition, defaul to an orbital overlap of 0.1%
+                #if orbits will never overlap OR took too many interations
+                ecc[icross] = 1.001 * ecc_cross[0]
+                ecc[jcross] = 1.001 * ecc_cross[1]
+                break
+            #check if epicycle amplitudes sum to at least aj-ai (they will overlap)
+            #OVERLAP CONDITION
+            elif ap[icross]*ecc_new_icross + ap[jcross]*ecc_new_jcross >= abs(ap[jcross] - ap[icross]):
+                #yay it worked, update eccentricities 
+                ecc[icross] = ecc_new_icross
+                ecc[jcross] = ecc_new_jcross
+                break
+            else: #if all else, try again with a new random number
+                icount += 1
+
+    else: #scattering event
+
+
 
 def sort_planet(ap, Mp, ecc, Rp, live_status, interact, densities): #clean up system after event
     #remove ejected or dead ones 
