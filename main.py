@@ -106,7 +106,7 @@ def secular_solution(ap, Mp, ecc, Rp, N):
 def hill_sphere_mutual(M_sum, a_mean):
     return a_mean * (M_sum / (3.0 * Ms))**(1/3)
 
-def kepler_P(Mp,a) #period of planetary orbit, used to calculate tau_cross
+def kepler_P(Mp,a): #period of planetary orbit, used to calculate tau_cross
     P_squared = (4*np.pi**2*a**3)/(G*(Mp+Ms))
     return np.sqrt(P_squared)
 
@@ -119,11 +119,11 @@ def tau_cross_petit(a,Mp,ecc, N_affect): #evaluates every planetary triplet for 
     K = min(0.5*(N-3) + 1, 3)
     alpha_01, alpha_12 = a[0]/a[1], a[1]/a[2]
     nu_01, nu_12 = kepler_period(M[0],a[0])/kepler_period(M[1],a[1]) , kepler_period(M[1],a[1])/kepler_period(M[2],a[2])
-    eta = (nu_01 * (1 = nu_12))/(1 - nu_01*nu_12)
+    eta = (nu_01 * (1 - nu_12))/(1 - nu_01*nu_12)
     M = np.sqrt(Mp[0] * Mp[2] + Mp[1] * Mp[2] * eta**2 * alpha_01**(-2) + Mp[0]*Mp[2] * alpha_12**2 * (1 - eta)**2)/Ms
     delta_01, delta_12 = ((1-ecc[1])*a[1] - (1+ecc[0])*a[0])/a[1] , ((1-ecc[1])*a[1] - (1+ecc[2])*a[2])/a[1]
     delta = (delta_01 * delta_12) / (delta_01 + delta_12)
-    delta_ov = (6.55 * K * M)**(1/4) (eta*(1-eta))**(3/8)
+    delta_ov = (6.55 * K * M)**(1/4) * (eta*(1-eta))**(3/8)
 
     log_arg = -np.log10((32 * np.sqrt(19) * M * np.sqrt(eta * (1 - eta)))/(3*np.sqrt(np.pi))) + np.log10(delta**6/(delta_ov**6 * (1 - (delta/delta_ov)**4))) + np.sqrt(-np.log(1 - (delta/delta_ov)**4))
     tau_cross = np.exp(log_arg) * kepler_period(M[0],a[0])
@@ -185,7 +185,7 @@ def tau_col(ap,Mp,Rp,ecc):
 
     return 1/timescale
 
-def crossing_pair(ap, Mp, Rp, ecc, ecc_vec, g, beta, interact, N, t, t_ref): #identify crossing pair from triplet, return pair and t_event
+#def crossing_pair(ap, Mp, Rp, ecc, ecc_vec, g, beta, interact, N, t, t_ref): #identify crossing pair from triplet, return pair and t_event
 
 def merge_embryo(ap, Mp, ecc, live_status): #calculate orbital parameters post collision
     Mp_new = sum(Mp) #eq 15
@@ -231,7 +231,7 @@ def orbit_cross_K25(ap, Mp, Rp, ecc, interact, live_status, N, icross): #determi
     #calculates collosion probability, Pcol
     ln_lambda = 3
     lambdaa = (2*eij/e_esc)**2 * (1 + (eij**2/e_esc**2)) * (1/ln_lambda) #eq 12
-    p_col = 1 = np.exp(-lambdaa) # eq 14, caps between [0,1]
+    p_col = 1 - np.exp(-lambdaa) # eq 14, caps between [0,1]
 
     #use Monte Carlo approach to say whether or not a collision actually happens
     #Bernoulli sampling?
