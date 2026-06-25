@@ -155,11 +155,11 @@ def tau_vis(ap,Mp,Rp,ecc): #viscous relaxation timescale for an interacting plan
     ecross = [ecross_i, ecross_j]
 
     rep_e = max((sum(ecross)), sum(ecc)) #eq 23 used to calculate lambda in eq 12
-    kep_vel = np.sqrt((G * Ms)/mu_a)
-    ran_vel = rep_e * kep_vel
-    n = 1/(2 * np.pi * rep_e * mu_a**2 * impact_parameter)
+    kep_vel = np.sqrt((G * Ms)/mu_a) #eq 10
+    ran_vel = rep_e * kep_vel #before eq 9
+    n = 1/(2 * np.pi * rep_e * mu_a**2 * impact_parameter) #eq 8
 
-    timescale = n * np.pi * G**2 * ran_vel * 3
+    timescale = n * np.pi * G**2 * ran_vel * 3 #
     return 1/timescale
 
 def tau_col(ap,Mp,Rp,ecc):
@@ -181,11 +181,66 @@ def tau_col(ap,Mp,Rp,ecc):
     n = 1.0 / (2.0 * np.pi * rep_e * mu_a**2 * impact_parameter)
 
     #only difference from tau_vis here is the timescale
-    timescale = n * np.pi * (R_T)**2 * (1 + esc_vel**2/ran_vel**2) * ran_vel
+    timescale = n * np.pi * (R_T)**2 * (1 + esc_vel**2/ran_vel**2) * ran_vel #eq 11
 
     return 1/timescale
 
-#def crossing_pair(ap, Mp, Rp, ecc, ecc_vec, g, beta, interact, N, t, t_ref): #identify crossing pair from triplet, return pair and t_event
+def crossing_pair(ap, Mp, Rp, ecc, ecc_vec, g, beta, interact, N, t, t_ref): #identify crossing pair from triplet, return pair and t_event
+    #evaluate tau_cross for all planets
+    Tcross = np.full(N - 1, 1e20) #initial array to eventually store the predicted crossing times for every pair, initialised at 'never'
+    Naffect = np.ones(N, dtype=int) #the interacting planets, used to compute K factor in eq 5
+    interacting_pair = np.arange(N - 1) #stores which pair of the triplet interact
+
+    #calculate current orbital separation
+    bKmin = 2.5 #from fortran but where does this come from otherwise?
+    bKij = np.empty(N - 1)
+    for i in range(N-1)
+        a_mean = 0.5 * (ap[i] + ap[i+1])
+        #maximum separation before ejection
+        rKij = ecc_esc(a_mean, Mp[i], Mp[i+1], Rp[i], Rp[i+1]) * a_mean #physical separation
+        bKij[i]  = (ap(i+1)-ap(i))/rKij #current gap relative to physical separation
+
+    #2-body case
+    if Np == 2:
+        aM = (Mp[0]*ap[0] + Mp[1]*ap[1]) / (Mp[0] + Mp[1]) #mean semi-major axis
+        h = hill_sphere_mutual(Mp[0]+Mp[1], aM) / aM
+        #checking for stability again here
+        EJbef = 5.0/8.0*(ecc[0]**2 + ecc[1]**2)/h**2 - 3.0/8.0 * ((ap[0]-ap[1])/(h*aM))**2 + 4.5
+        if EJbef > 0.0: #system is stable
+            return 0, 1.5 * t #no crossing, punts event forward indefinitely to end simulation
+
+    #calculate orbit crossing time for each pair with the original eccentricities
+    for i in range(Np - 2):
+        if not all(interact[i:i+3]):
+            continue #skip triplets where a planet is not live or interacting 
+        
+        #determine 'packed planets'
+        group = np.zeros(Np, dtype=bool)
+        #true if conditions are satisfied, otherwise false
+        group[:i+1] = (bKij[:i+1] < bKmin) & interact[:i+1]
+        group[i+1:] = (bKij[i:Np-1] < bKmin) & interact[i+1:]
+
+        #'let up to 2 neighboring planets inside and outside the triplet affect the number of resonances'
+        #find indices of planets to the left (i_in) and right (i_out) of the triplet
+        non_group_in = np.where(~group[:i+1])[0] #indices if planets not in the triplet, flips boolean
+        if len(non_group_in) == 0 or all(group[:i+1]): #if there are no planets, or all of them are packed
+            i_in = 0
+        else: #otherwise, i_in is the index of the planet closest to inner edge of triplet
+            i_in = min(non_group_in[-1] + 1, i)
+        
+        #similarly for outer planet
+        non_group_out = np.where(~group[i+1:])[0]
+        if len(non_group_out) == 0 or all(group[i+1:]):
+            i_out = Np - 1 #if everything is packed, the group extends to the end of the system
+        else: #index of planet closest to outer edge of the triplet
+            i_out = max(non_group_out[0] + i, i + 1)
+
+        #numerical factor to account for the assumption that resonance density in a N-body system is K times larger than in the 3-planet case
+        #scales up 3-planet system to N-planet system 
+        Naffect_val = max(i_out - i_in + 1, 3) #eq 5
+        Naffect[i] = Naffect_val
+
+    return icross, t_event #inner planet index, event time
 
 def merge_embryo(ap, Mp, ecc, live_status): #calculate orbital parameters post collision
     Mp_new = sum(Mp) #eq 15
