@@ -212,7 +212,7 @@ def merge_embryo(ap, Mp, ecc, live_status): #calculate orbital parameters post c
 def orbit_cross_K25(ap, Mp, Rp, ecc, interact, live_status, N, icross): #determine outcome of crossing event
     #now working with an interacting pair of planets i,j
     #modifies the arrays of ap,Mp,Rp,ecc,interact,live_status based on what happens
-    jcross = icross + 1 #sets indices of interacting pair, aj>ai always
+    jcross = icross + 1 #sets indices of interacting pair, aj>ai always, +1 to be able to index a pair later
     mean_ap = (ap[icross] + ap[jcross])/2 #average semi-major 
     e_esc = esc_ecc(Mp[icross],Mp[jcross],Rp[icross],Rp[jcross],mean_ap) #escape eccentricity
 
@@ -261,9 +261,38 @@ def orbit_cross_K25(ap, Mp, Rp, ecc, interact, live_status, N, icross): #determi
             else: #if all else, try again with a new random number
                 icount += 1
 
+        #call merge_embryo function to update parameters for interacting pair
+        #jcross+1 to include that planet in the interacting pair
+        ap_merge, Mp_merge, ecc_merge, live_status_merge = merge_embryo(ap[icross:jcross+1], Mp[icross:jcross+1], ecc[icross:jcross+1], live_status[icross:jcross+1])
+
+        #update system
+        ap[icross:jcross+1] = ap_merge
+        Mp[icross:jcross+1] = Mp_merge 
+        ecc[icross:jcross+1] = ecc_merge 
+        live_status[icross:jcross+1] = live_status_merge #smaller planet dies
+
     else: #scattering event
+        rayleigh_ecc = rayleigh(1.0 / np.sqrt(2.0), 0.0) #0 because no truncation at geometric overlap constraint as for merge case 
+        #assuming energy equipartition
+        #taken from fortran code, why is it not a max() anymore as before with merging?
+        ecc[icross] = rayleigh_ecc * np.sqrt(Mp[jcross]) / np.sqrt(Mp[icross] + Mp[jcross]) * e_esc
+        ecc[jcross] = rayleigh_ecc * np.sqrt(Mp[icross]) / np.sqrt(Mp[icross] + Mp[jcross]) * e_esc
 
+        ilarge = icross if ecc[icross] >= ecc[jcross] else jcross #identify which planet was excited more
+        ismall = jcross if ecc[icross] >= ecc[jcross] else icross
 
+        if max(ecc[icross], ecc[jcross]) >= 1.0: #planet got bumped out
+            ap[ismall] = Mp[ismall] / (Mp[ismall] / ap[ismall] + Mp[ilarge] / ap[ilarge])
+            ecc[ismall] = 1.0 - ap[ismall] / mma
+        else: #'normal' scattering conditions
+            #'change in orbital separation is assumed to be equal to the sum of the excited epicycle amplitude'
+            #db = delta_a essentially how much the orbit is shifted either in or out 
+            db = ecc[icross] * ap[icross] + ecc[jcross] * ap[jcross] #delta b_ij eq 18
+            ap[icross] = ap[icross] - Mp[jcross] / (Mp[icross] + Mp[jcross]) * db #eq 19
+            ap[jcross] = ap[jcross] + Mp[icross] / (Mp[icross] + Mp[jcross]) * db #eq 20
+
+    if ap[icross] < 0.0: #inner planet fell into star oops
+        live_status[icross] = False #it's now dead
 
 def sort_planet(ap, Mp, ecc, Rp, live_status, interact, densities): #clean up system after event
     #remove ejected or dead ones 
