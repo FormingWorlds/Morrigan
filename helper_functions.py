@@ -1,0 +1,18 @@
+import numpy as np 
+
+def hill_sphere_mutual(M_sum, a_mean):
+    return a_mean * (M_sum / (3.0 * Ms))**(1/3)
+
+def kepler_period(Mp,a): #period of planetary orbit, used to calculate tau_cross
+    P_squared = (4*np.pi**2*a**3)/(G*(Mp+Ms))
+    return np.sqrt(P_squared)
+
+def rayleigh(sigma, xmin):
+    Umin = 1.0 - np.exp(-0.5 * xmin**2 / sigma**2)
+    dum = np.random.uniform(Umin, 1.0 - 1e-10)
+    return sigma * np.sqrt(-2.0 * np.log(1.0 - dum))
+
+def esc_ecc(M1,M2,R1,R2,a):
+    num = np.sqrt(2*G*(M1+M2)/(R1+R2))
+    denom = np.sqrt((G*Ms)/a)
+    return num/denom

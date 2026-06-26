@@ -1,0 +1,88 @@
+import numpy as np 
+from merge_embryo.py import merge_embryo
+from helper_functions.py import rayleigh, esc_ecc
+
+def orbit_cross_K25(ap, Mp, Rp, ecc, interact, live_status, N, icross): #determine outcome of crossing event
+    #now working with an interacting pair of planets i,j
+    #modifies the arrays of ap,Mp,Rp,ecc,interact,live_status based on what happens
+    jcross = icross + 1 #sets indices of interacting pair, aj>ai always, +1 to be able to index a pair later
+    mean_ap = (ap[icross] + ap[jcross])/2 #average semi-major 
+    e_esc = esc_ecc(Mp[icross],Mp[jcross],Rp[icross],Rp[jcross],mean_ap) #escape eccentricity
+
+    ecross_i = (ap[jcross] - ap[icross]) * np.sqrt(Mp[jcross]) / (ap[icross] * np.sqrt(Mp[jcross]) + ap[jcross] * np.sqrt(Mp[icross])) #eq 6 again
+    ecross_j = (ap[jcross] - ap[icross]) * np.sqrt(Mp[icross]) / (ap[icross] * np.sqrt(Mp[jcross]) + ap[jcross] * np.sqrt(Mp[icross]))
+
+    ecc_cross = [ecross_i, ecross_j] #store together 
+    #minimum eccentricity of interacting planets to cause a collision
+
+    ecc_encounter = [max(ecc_cross[0], ecc[icross]), max(ecc_cross[1], ecc[jcross])] #eq 23
+    #enforces that the planets ACTUALLY interact (actual eccentricites from ecc[] are secular, not at exact crossing time)
+    #crossing_pair is still just a statistical prediction
+    #ensures the eccentricities used during a crossing are geometrically consistent
+    eij = np.sqrt(ecc_encounter[0]**2 + ecc_encounter[1]**2) #relative eccentricity 
+
+    #calculates collosion probability, Pcol
+    ln_lambda = 3
+    lambdaa = (2*eij/e_esc)**2 * (1 + (eij**2/e_esc**2)) * (1/ln_lambda) #eq 12
+    p_col = 1 - np.exp(-lambdaa) # eq 14, caps between [0,1]
+
+    #use Monte Carlo approach to say whether or not a collision actually happens
+    #Bernoulli sampling?
+    draw = np.random.uniform(0,1) #draws a random number to compare against p_col
+    if draw < p_col: #merge event
+        count = 0 #keeps track of rejection-sampling structure, and ensures while loop doesnt go forever
+        while True: #keeps sampling until the eccentricity is consistent with the orbits actually overlapping 
+            rayleigh_ecc = rayleigh(1 / np.sqrt(2), eij / e_esc)
+            #Q: why are these a 2-term max when the paper has 3-term max in equation 24?
+            #eccentricites before event
+            ecc_new_icross = max(rayleigh_ecc * np.sqrt(Mp[jcross]) / np.sqrt(Mp[icross] + Mp[jcross]) * e_esc, ecc[icross])
+            ecc_new_jcross = max(rayleigh_ecc * np.sqrt(Mp[icross]) / np.sqrt(Mp[icross] + Mp[jcross]) * e_esc, ecc[jcross])
+
+            if np.sqrt(ecc_cross[0]**2 + ecc_cross[1]**2) / e_esc > 2.0 or count > 500:
+                #unable to find a random draw that satisfies the condition, defaul to an orbital overlap of 0.1%
+                #if orbits will never overlap OR took too many interations
+                ecc[icross] = 1.001 * ecc_cross[0]
+                ecc[jcross] = 1.001 * ecc_cross[1]
+                break
+            #check if epicycle amplitudes sum to at least aj-ai (they will overlap)
+            #OVERLAP CONDITION
+            elif ap[icross]*ecc_new_icross + ap[jcross]*ecc_new_jcross >= abs(ap[jcross] - ap[icross]):
+                #yay it worked, update eccentricities 
+                ecc[icross] = ecc_new_icross
+                ecc[jcross] = ecc_new_jcross
+                break
+            else: #if all else, try again with a new random number
+                count += 1
+
+        #call merge_embryo function to update parameters for interacting pair
+        #jcross+1 to include that planet in the interacting pair
+        ap_merge, Mp_merge, ecc_merge, live_status_merge = merge_embryo(ap[icross:jcross+1], Mp[icross:jcross+1], ecc[icross:jcross+1], live_status[icross:jcross+1])
+
+        #update system
+        ap[icross:jcross+1] = ap_merge
+        Mp[icross:jcross+1] = Mp_merge 
+        ecc[icross:jcross+1] = ecc_merge 
+        live_status[icross:jcross+1] = live_status_merge #smaller planet dies
+
+    else: #scattering event
+        rayleigh_ecc = rayleigh(1.0 / np.sqrt(2.0), 0.0) #0 because no truncation at geometric overlap constraint as for merge case 
+        #assuming energy equipartition
+        #taken from fortran code, why is it not a max() anymore as before with merging?
+        ecc[icross] = rayleigh_ecc * np.sqrt(Mp[jcross]) / np.sqrt(Mp[icross] + Mp[jcross]) * e_esc
+        ecc[jcross] = rayleigh_ecc * np.sqrt(Mp[icross]) / np.sqrt(Mp[icross] + Mp[jcross]) * e_esc
+
+        ilarge = icross if ecc[icross] >= ecc[jcross] else jcross #identify which planet was excited more
+        ismall = jcross if ecc[icross] >= ecc[jcross] else icross
+
+        if max(ecc[icross], ecc[jcross]) >= 1.0: #planet got bumped out
+            ap[ismall] = Mp[ismall] / (Mp[ismall] / ap[ismall] + Mp[ilarge] / ap[ilarge])
+            ecc[ismall] = 1.0 - ap[ismall] / mma
+        else: #'normal' scattering conditions
+            #'change in orbital separation is assumed to be equal to the sum of the excited epicycle amplitude'
+            #db = delta_a essentially how much the orbit is shifted either in or out 
+            db = ecc[icross] * ap[icross] + ecc[jcross] * ap[jcross] #delta b_ij eq 18
+            ap[icross] = ap[icross] - Mp[jcross] / (Mp[icross] + Mp[jcross]) * db #eq 19
+            ap[jcross] = ap[jcross] + Mp[icross] / (Mp[icross] + Mp[jcross]) * db #eq 20
+
+    if ap[icross] < 0.0: #inner planet fell into star oops
+        live_status[icross] = False #it's now dead
