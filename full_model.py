@@ -1,0 +1,471 @@
+import numpy as np 
+import matplotlib.pyplot as plt 
+import pandas as pd 
+from pylaplace import LaplaceCoefficient 
+import pdb 
+from astropy.table import Table
+from astropy.io import ascii
+
+#####CONSTANTS######
+G = 6.67e-11 #m^3kg^-1s^-2
+M_sun = 1.9892e30 #kg
+M_earth = 5.9736e24 #kg
+
+####VARIABLES TO RUN SIMULATION####
+t = 0.0
+t_ref = 0.0
+t_event = 0.0
+flag_event = 1 
+a_min = 0.005 * 1.5e11 #defines when a planet has fallen into the star 
+max_time = 1e9*365*24*60*60 #evolution time (seconds)
+
+####INITIAL PARAMETERS######
+N = 10 #number of planets
+e = 0.01
+Mp = 0.5*M_earth #planet mass (relative to Mearth)
+Ms = 1*M_sun #stellar mass (relative to Msun)
+rho_p = 5500 #planet density kg/m^3
+np.random.seed(1) #for reproducability
+
+####ALLOCATE PARAMETERS FOR THE SYSTEM###
+def hill_sphere(a_i,M):
+    return a_i * ((M) / (3 * Ms))**(1/3) #mutual hill radius for adjacent planets
+
+def allocate_a(M):
+    a = np.empty(N)
+    a[0] = 0.1 #AU
+    for i in range(1,N): #allocate initial semi-major axes
+        a_previous = a[i-1] #starting semi-major axis
+        hill = hill_sphere(a_previous,M)
+        a[i] = a_previous + 10*hill #planets are spaced out by 10 hill radii
+    return a*1.5e11 #convert to [m] to stay in SI!
+
+def planet_radius(mass,density):
+    return ((3*mass)/(4 * np.pi*density))**(1/3)
+
+#actually initialising system here with arrays for every parameter
+a = allocate_a(Mp)
+ecc = np.full(N,e)
+densities = np.full(N, rho_p)
+masses = np.full(N, Mp)
+live_status = np.ones(N, dtype = bool) #set initial status of planets, all are live by definition at the start
+interact = np.ones(N, dtype = bool) #stores the indices of which planets are participating in an event
+Rp = np.array([planet_radius(i, j) for i,j in zip(masses,densities)])
+
+parameter_names = ['a_AU','e','Mp','Rp','live_status']
+system_information = Table([a/1.5e11,ecc,masses,Rp,live_status],names = parameter_names)
+ascii.write(system_information, 'initial_system.csv', format = 'fixed_width', overwrite = True) #store initial system information
+
+######SECULAR ECCENTRICITY SECTION#####
+
+def secular_solution(ap, Mp, ecc, Rp, N):
+    varpi = np.random.uniform(0.0, 2.0 * np.pi, N)
+    try:
+        h0 = ecc * np.sin(varpi)
+        k0 = ecc * np.cos(varpi)
+        print('worked')
+    except:
+        pdb.set_trace()
+
+    mean_motion = np.sqrt(G*Ms/ap**3)
+    A = np.zeros((N,N)) #empty interaction matrix
+
+    laplace = LaplaceCoefficient(method = 'Brute') #to calculate laplace coefficients
+    for i in range(N): 
+        for j in range(N): 
+            if i == j:
+                continue #skip self-interactions
+            if a[i] < a[j]:
+                alpha = a[i]/a[j]
+                alpha_bar = alpha 
+            else:
+                alpha = a[j]/a[i]
+                alpha_bar = 1
+
+            #calculate laplacian coefficients, b1,3/2 and b2,3/2
+            #(a,s,m,p,q)
+            coeff_m1 = laplace(alpha, 3/2, 1, 1, 1) #m = 1 for A_ii
+            coeff_m2 = laplace(alpha, 3/2, 2, 1, 1) #m = 2 for A_ij
+
+            factor = mean_motion[i] * 0.25 * masses[j]/(Ms + masses[i]) * alpha * alpha_bar
+            A[i,i] += factor * coeff_m1
+            A[i,j] = -factor * coeff_m2
+
+    #solve the eigenvalue problem
+    g, S = np.linalg.eig(A)
+    g = np.real(g)
+    S = np.real(S)
+
+    #solve for integration constants using S
+    Csinb = np.linalg.solve(S, h0)
+    Ccosb = np.linalg.solve(S, k0)
+
+    #calculate amplitudes (C) and phase angles (beta)
+    C = np.sqrt(Csinb**2 + Ccosb**2)
+    beta = np.arctan2(Csinb, Ccosb)
+
+    #scale eigenvectors by the amplitudes (columns of ecc_vec)
+    ecc_vec = S * C
+
+    return ecc_vec, g, beta
+
+#####HELPER FUNCTIONS##########
+
+def hill_sphere_mutual(M_sum, a_mean):
+    return a_mean * (M_sum / (3.0 * Ms))**(1/3)
+
+def kepler_period(Mp,a): #period of planetary orbit, used to calculate tau_cross
+    P_squared = (4*np.pi**2*a**3)/(G*(Mp+Ms))
+    return np.sqrt(P_squared)
+
+def rayleigh(sigma, xmin):
+    Umin = 1.0 - np.exp(-0.5 * xmin**2 / sigma**2)
+    dum = np.random.uniform(Umin, 1.0 - 1e-10)
+    return sigma * np.sqrt(-2.0 * np.log(1.0 - dum))
+
+def esc_ecc(M1,M2,R1,R2,a):
+    num = np.sqrt(2*G*(M1+M2)/(R1+R2))
+    denom = np.sqrt((G*Ms)/a)
+    return num/denom
+
+def tau_cross_petit(a,Mp,ecc, N_affect): #evaluates every planetary triplet for instability
+    K = min(0.5*(N_affect-3) + 1, 3)
+    alpha_01, alpha_12 = a[0]/a[1], a[1]/a[2]
+
+    nu_01, nu_12 = alpha_01**1.5, alpha_12**1.5 #different from paper appendix B
+    
+    eta = (nu_01 * (1 - nu_12))/(1 - nu_01*nu_12)
+    M = np.sqrt(Mp[0] * Mp[2] + Mp[1] * Mp[2] * eta**2 * alpha_01**(-2) + Mp[0]*Mp[2] * alpha_12**2 * (1 - eta)**2)/Ms
+    delta_01, delta_12 = 1.0 - ecc[1] - (1.0 + ecc[0]) * alpha_01 , 1.0 - ecc[2] - (1.0 + ecc[1]) * alpha_12 #also different from paper, but noted in the code
+
+    if delta_01 < 0.0 or delta_12 < 0.0:
+        return 0.0
+
+    delta = (delta_01 * delta_12) / (delta_01 + delta_12)
+    delta_ov = (6.55 * K * M)**(1/4) * (eta*(1-eta))**(3/8)
+
+    if delta >= delta_ov: #tau cross approaches infinity
+        return 1e20
+
+    log_arg = -np.log10((32 * np.sqrt(19) * M * np.sqrt(eta * (1 - eta)))/(3*np.sqrt(np.pi))) + np.log10(delta**6/(delta_ov**6 * (1 - (delta/delta_ov)**4))) + np.sqrt(-np.log(1 - (delta/delta_ov)**4))
+    tau_cross = np.exp(log_arg) * kepler_period(Mp[0],a[0])
+
+    return tau_cross
+
+def interaction_wrapper(ap, Mp, ecc, N_affect): #determine if system is stable, and if not, calculate timescale to instability
+    #N_affect is planets participating in crossing event
+    aM = (Mp[0]*ap[0] + Mp[1]*ap[1]) / (Mp[0] + Mp[1])
+    h = hill_sphere_mutual(Mp[0]+Mp[1], aM) / aM
+    #stability criterion
+    EJbef = 5.0/8.0*(ecc[0]**2 + ecc[1]**2)/h**2 - 3.0/8.0 * ((ap[0]-ap[1])/(h*aM))**2 + 4.5 #eq 28
+
+    if N_affect <= 2 and EJbef < 0.0: #if system is stable return 'infinite' stability, 2 planets can still interact
+        return 1e20
+        
+    #otherwise return the crossing timescale from Petit 2020
+    return tau_cross_petit(ap, Mp, ecc, N_affect)
+
+def tau_vis(ap,Mp,Rp,ecc): #viscous relaxation timescale for an interacting planetary pair
+    mu_a = sum(ap)/2 #average semi-major axis of interacting pair
+    mu_e = sum(ecc)/2
+    M_T = sum(Mp) #sum of masses
+    impact_parameter = abs(ap[1] - ap[0]) 
+
+    #eccentricities at the onset of crossing
+    ecross_i = (np.sqrt(Mp[1]) * impact_parameter)/((np.sqrt(Mp[1]) * a[0]) + np.sqrt(Mp[0]) * a[1]) #eq 6
+    ecross_j = (np.sqrt(Mp[0]) * impact_parameter)/((np.sqrt(Mp[0]) * a[0]) + np.sqrt(Mp[1]) * a[0]) #implied eq 6
+    ecross = [ecross_i, ecross_j]
+
+    rep_e = max((sum(ecross)), sum(ecc)) #eq 23 used to calculate lambda in eq 12
+    kep_vel = np.sqrt((G * Ms)/mu_a) #eq 10
+    ran_vel = rep_e * kep_vel #before eq 9
+    n = 1/(2 * np.pi * rep_e * mu_a**2 * impact_parameter) #eq 8
+
+    timescale = n * np.pi * G**2 * ran_vel * 3 #
+    return 1/timescale
+
+def tau_col(ap,Mp,Rp,ecc):
+    mu_a = sum(ap)/2 #average semi-major axis of interacting pair
+    mu_e = sum(ecc)/2
+    M_T = sum(Mp) #sum of masses
+    R_T = sum(Rp) #sum of radii
+    impact_parameter = abs(ap[1] - ap[0])
+
+    #eccentricities at the onset of crossing
+    ecross_i = (np.sqrt(Mp[1]) * impact_parameter)/((np.sqrt(Mp[1]) * a[0]) + np.sqrt(Mp[0]) * a[1]) #eq 6
+    ecross_j = (np.sqrt(Mp[0]) * impact_parameter)/((np.sqrt(Mp[0]) * a[0]) + np.sqrt(Mp[1]) * a[0]) #implied eq 6
+    ecross = [ecross_i, ecross_j]
+
+    rep_e = 0.5 * max(sum(ecross), sum(ecc))
+    kep_vel = np.sqrt(G * Ms / mu_a)
+    ran_vel = rep_e * kep_vel
+    esc_vel = np.sqrt(2.0 * G * M_T / R_T)
+    n = 1.0 / (2.0 * np.pi * rep_e * mu_a**2 * impact_parameter)
+
+    #only difference from tau_vis here is the timescale
+    timescale = n * np.pi * (R_T)**2 * (1 + esc_vel**2/ran_vel**2) * ran_vel #eq 11
+
+    return 1/timescale
+
+def crossing_pair(ap, Mp, Rp, ecc, ecc_vec, g, beta, interact, N, t, t_ref): #identify crossing pair from triplet, return pair and t_event
+    #evaluate tau_cross for all planets
+    Tcross = np.full(N - 1, 1e20) #initial array to eventually store the predicted crossing times for every pair, initialised at 'never'
+    Naffect = np.ones(N, dtype=int) #the interacting planets, used to compute K factor in eq 5
+    interacting_pair = np.arange(N - 1) #stores which pair of the triplet interact
+
+    #calculate current orbital separation
+    bKmin = 2.5 #result from N-body simulation, Kokubo et al 2025
+    bKij = np.empty(N - 1)
+    for i in range(N-1):
+        a_mean = 0.5 * (ap[i] + ap[i+1])
+        #maximum separation before ejection
+        rKij = esc_ecc(a_mean, Mp[i], Mp[i+1], Rp[i], Rp[i+1]) * a_mean #physical separation
+        bKij[i]  = (ap[i+1]-ap[i])/rKij #current gap relative to physical separation
+
+    #2-body case
+    if N == 2:
+        aM = (Mp[0]*ap[0] + Mp[1]*ap[1]) / (Mp[0] + Mp[1]) #mean semi-major axis
+        h = hill_sphere_mutual(Mp[0]+Mp[1], aM) / aM
+        #checking for stability again here
+        EJbef = 5.0/8.0*(ecc[0]**2 + ecc[1]**2)/h**2 - 3.0/8.0 * ((ap[0]-ap[1])/(h*aM))**2 + 4.5
+        if EJbef > 0.0: #system is stable
+            return 0, 1.5 * t #no crossing, punts event forward indefinitely to end simulation
+
+    #calculate orbit crossing time for each pair with the original eccentricities
+    for i in range(N - 2):
+        if not all(interact[i:i+3]):
+            continue #skip triplets where a planet is not live or interacting 
+        
+        #determine 'packed planets'
+        group = np.zeros(N, dtype=bool)
+        #true if conditions are satisfied, otherwise false
+        group[:i+1] = (bKij[:i+1] < bKmin) & interact[:i+1]
+        group[i+1:] = (bKij[i:N-1] < bKmin) & interact[i+1:]
+
+        #'let up to 2 neighboring planets inside and outside the triplet affect the number of resonances'
+        #find indices of planets to the left (i_in) and right (i_out) of the triplet
+        non_group_in = np.where(~group[:i+1])[0] #indices if planets not in the triplet, flips boolean
+        if len(non_group_in) == 0 or all(group[:i+1]): #if there are no planets, or all of them are packed
+            i_in = 0
+        else: #otherwise, i_in is the index of the planet closest to inner edge of triplet
+            i_in = min(non_group_in[-1] + 1, i)
+        
+        #similarly for outer planet
+        non_group_out = np.where(~group[i+1:])[0]
+        if len(non_group_out) == 0 or all(group[i+1:]):
+            i_out = Np - 1 #if everything is packed, the group extends to the end of the system
+        else: #index of planet closest to outer edge of the triplet
+            i_out = max(non_group_out[0] + i, i + 1)
+
+        #numerical factor to account for the assumption that resonance density in a N-body system is K times larger than in the 3-planet case
+        #scales up 3-planet system to N-planet system 
+        Naffect_val = max(i_out - i_in + 1, 3) #eq 5
+        Naffect[i] = Naffect_val
+
+        #chooses interacting pair from the triplet 
+        d1 = (1.0 - ecc[i+1])*ap[i+1] - (1.0 + ecc[i])*ap[i] #eq 4, closest physical distance so not normalised 
+        d2 = (1.0 - ecc[i+2])*ap[i+2] - (1.0 + ecc[i+1])*ap[i+1]
+        pair_index = i if d1 <= d2 else i+1
+        interacting_pair[i] = pair_index
+        
+        #eccentricity at overlap eq6
+        ecc_cross = [np.sqrt(Mp[pair_index+1]) * abs(ap[pair_index+1]-ap[pair_index]) / (np.sqrt(Mp[pair_index+1])*ap[pair_index] + np.sqrt(Mp[pair_index])*ap[pair_index+1]),np.sqrt(Mp[pair_index]) * abs(ap[pair_index+1]-ap[pair_index]) / (np.sqrt(Mp[pair_index+1])*ap[pair_index] + np.sqrt(Mp[pair_index])*ap[pair_index+1])]
+        
+        #as before, the eccentricity can't be lower than eccentricity actually required for an overlap
+        ecc_cross[0] = max(ecc[pair_index], ecc_cross[0]) #eq 23
+        ecc_cross[1] = max(ecc[pair_index+1], ecc_cross[1])
+        
+        #calculate interaction timescales for every triplet, calling timescale functions from above
+        viscous_timescale = tau_vis(ap[pair_index:pair_index+2], Mp[pair_index:pair_index+2], Rp[pair_index:pair_index+2], ecc_cross)
+        collision_timescale = tau_col(ap[pair_index:pair_index+2], Mp[pair_index:pair_index+2], Rp[pair_index:pair_index+2], ecc_cross)
+        
+        #correction with secular perturbations, eq 21
+        ecc_dmy = [np.sqrt(np.sum(ecc_vec[i, :]**2)),np.sqrt(np.sum(ecc_vec[i+1, :]**2)),np.sqrt(np.sum(ecc_vec[i+2, :]**2))]
+        
+        #passes the TRIPLETS ap, Mp, ecc to the wrapper function to calculate crossing timescale 
+        crossing_timescale = interaction_wrapper(ap[i:i+3], Mp[i:i+3], ecc_dmy, Naffect_val)
+        #predicted crossing timescale is 'current' time t + predicted next interaction + duration of the interaction
+        Tcross[i] = t + crossing_timescale + min(viscous_timescale, collision_timescale)
+        
+    idmy_min = np.argmin(Tcross) #index of minimum crossing time
+    t_event = Tcross[idmy_min]
+    icross = interacting_pair[idmy_min] 
+
+    return icross, t_event #inner planet index, event time
+
+def merge_embryo(ap, Mp, ecc, live_status): #calculate orbital parameters post collision
+    Mp_new = sum(Mp) #eq 15
+    ap_new = (Mp[0]*ap[0] + Mp[1]*ap[1])/Mp_new #eq 16
+
+    cos_dvarpi = (ecc[0]**2*ap[0]**2 + ecc[1]**2*ap[1]**2 - (ap[0] - ap[1])**2)/(2*ecc[0]*ecc[1]*ap[0]*ap[1]) #eq 26
+    min_dvarpi = np.arccos(cos_dvarpi) #eq 27
+    dvarpi = np.random.uniform(min_dvarpi, 2*np.pi - min_dvarpi) #random range for dvarpi
+
+    ecc_new = np.sqrt(((Mp[0]**2*ecc[0]**2) + (Mp[1]**2*ecc[1]**2) + 2*Mp[0]*Mp[1]*ecc[0]*ecc[1]*np.cos(dvarpi)) / Mp_new**2) #eq 17
+
+    if Mp[0] >= Mp[1]: #larger planet consumes smaller one 
+        alive, dead = 0,1
+    else:
+        alive, dead = 1,0
+
+    live_status[dead] = False 
+    ap[alive] = ap_new 
+    Mp[alive] = Mp_new 
+    ecc[alive] = ecc_new 
+
+    return ap,Mp,ecc,live_status
+
+def orbit_cross_K25(ap, Mp, Rp, ecc, interact, live_status, N, icross): #determine outcome of crossing event
+    #now working with an interacting pair of planets i,j
+    #modifies the arrays of ap,Mp,Rp,ecc,interact,live_status based on what happens
+    jcross = icross + 1 #sets indices of interacting pair, aj>ai always, +1 to be able to index a pair later
+    mean_ap = (ap[icross] + ap[jcross])/2 #average semi-major 
+    e_esc = esc_ecc(Mp[icross],Mp[jcross],Rp[icross],Rp[jcross],mean_ap) #escape eccentricity
+
+    ecross_i = (ap[jcross] - ap[icross]) * np.sqrt(Mp[jcross]) / (ap[icross] * np.sqrt(Mp[jcross]) + ap[jcross] * np.sqrt(Mp[icross])) #eq 6 again
+    ecross_j = (ap[jcross] - ap[icross]) * np.sqrt(Mp[icross]) / (ap[icross] * np.sqrt(Mp[jcross]) + ap[jcross] * np.sqrt(Mp[icross]))
+
+    ecc_cross = [ecross_i, ecross_j] #store together 
+    #minimum eccentricity of interacting planets to cause a collision
+
+    ecc_encounter = [max(ecc_cross[0], ecc[icross]), max(ecc_cross[1], ecc[jcross])] #eq 23
+    #enforces that the planets ACTUALLY interact (actual eccentricites from ecc[] are secular, not at exact crossing time)
+    #crossing_pair is still just a statistical prediction
+    #ensures the eccentricities used during a crossing are geometrically consistent
+    eij = np.sqrt(ecc_encounter[0]**2 + ecc_encounter[1]**2) #relative eccentricity 
+
+    #calculates collosion probability, Pcol
+    ln_lambda = 3
+    lambdaa = (2*eij/e_esc)**2 * (1 + (eij**2/e_esc**2)) * (1/ln_lambda) #eq 12
+    p_col = 1 - np.exp(-lambdaa) # eq 14, caps between [0,1]
+
+    #use Monte Carlo approach to say whether or not a collision actually happens
+    #Bernoulli sampling?
+    draw = np.random.uniform(0,1) #draws a random number to compare against p_col
+    if draw < p_col: #merge event
+        count = 0 #keeps track of rejection-sampling structure, and ensures while loop doesnt go forever
+        while True: #keeps sampling until the eccentricity is consistent with the orbits actually overlapping 
+            rayleigh_ecc = rayleigh(1 / np.sqrt(2), eij / e_esc)
+            #Q: why are these a 2-term max when the paper has 3-term max in equation 24?
+            #eccentricites before event
+            ecc_new_icross = max(rayleigh_ecc * np.sqrt(Mp[jcross]) / np.sqrt(Mp[icross] + Mp[jcross]) * e_esc, ecc[icross])
+            ecc_new_jcross = max(rayleigh_ecc * np.sqrt(Mp[icross]) / np.sqrt(Mp[icross] + Mp[jcross]) * e_esc, ecc[jcross])
+
+            if np.sqrt(ecc_cross[0]**2 + ecc_cross[1]**2) / e_esc > 2.0 or count > 500:
+                #unable to find a random draw that satisfies the condition, defaul to an orbital overlap of 0.1%
+                #if orbits will never overlap OR took too many interations
+                ecc[icross] = 1.001 * ecc_cross[0]
+                ecc[jcross] = 1.001 * ecc_cross[1]
+                break
+            #check if epicycle amplitudes sum to at least aj-ai (they will overlap)
+            #OVERLAP CONDITION
+            elif ap[icross]*ecc_new_icross + ap[jcross]*ecc_new_jcross >= abs(ap[jcross] - ap[icross]):
+                #yay it worked, update eccentricities 
+                ecc[icross] = ecc_new_icross
+                ecc[jcross] = ecc_new_jcross
+                break
+            else: #if all else, try again with a new random number
+                count += 1
+
+        #call merge_embryo function to update parameters for interacting pair
+        #jcross+1 to include that planet in the interacting pair
+        ap_merge, Mp_merge, ecc_merge, live_status_merge = merge_embryo(ap[icross:jcross+1], Mp[icross:jcross+1], ecc[icross:jcross+1], live_status[icross:jcross+1])
+
+        #update system
+        ap[icross:jcross+1] = ap_merge
+        Mp[icross:jcross+1] = Mp_merge 
+        ecc[icross:jcross+1] = ecc_merge 
+        live_status[icross:jcross+1] = live_status_merge #smaller planet dies
+
+    else: #scattering event
+        rayleigh_ecc = rayleigh(1.0 / np.sqrt(2.0), 0.0) #0 because no truncation at geometric overlap constraint as for merge case 
+        #assuming energy equipartition
+        #taken from fortran code, why is it not a max() anymore as before with merging?
+        ecc[icross] = rayleigh_ecc * np.sqrt(Mp[jcross]) / np.sqrt(Mp[icross] + Mp[jcross]) * e_esc
+        ecc[jcross] = rayleigh_ecc * np.sqrt(Mp[icross]) / np.sqrt(Mp[icross] + Mp[jcross]) * e_esc
+
+        ilarge = icross if ecc[icross] >= ecc[jcross] else jcross #identify which planet was excited more
+        ismall = jcross if ecc[icross] >= ecc[jcross] else icross
+
+        if max(ecc[icross], ecc[jcross]) >= 1.0: #planet got bumped out
+            ap[ismall] = Mp[ismall] / (Mp[ismall] / ap[ismall] + Mp[ilarge] / ap[ilarge])
+            ecc[ismall] = 1.0 - ap[ismall] / mma
+        else: #'normal' scattering conditions
+            #'change in orbital separation is assumed to be equal to the sum of the excited epicycle amplitude'
+            #db = delta_a essentially how much the orbit is shifted either in or out 
+            db = ecc[icross] * ap[icross] + ecc[jcross] * ap[jcross] #delta b_ij eq 18
+            ap[icross] = ap[icross] - Mp[jcross] / (Mp[icross] + Mp[jcross]) * db #eq 19
+            ap[jcross] = ap[jcross] + Mp[icross] / (Mp[icross] + Mp[jcross]) * db #eq 20
+
+    if ap[icross] < 0.0: #inner planet fell into star oops
+        live_status[icross] = False #it's now dead
+
+def sort_planet(ap, Mp, ecc, Rp, live_status, interact, densities): #clean up system after event
+    #remove ejected or dead ones 
+    live_planets = live_status
+    ap = ap[live_planets]
+    Mp = Mp[live_planets]
+    Rp = Rp[live_planets]
+    ecc = ecc[live_planets]
+    densities = densities[live_planets]
+
+    interact = interact[live_planets]
+    live_status = live_status[live_planets]
+
+    #sort by new semi-major axes
+    sort_order = np.argsort(ap)
+    ap = ap[sort_order]
+    Mp = Mp[sort_order]
+    ecc = ecc[sort_order]
+    Rp = Rp[sort_order]
+    interact = interact[sort_order]
+    densities = densities[sort_order]
+    live_status = live_status[sort_order]
+
+    return ap, Mp, ecc, Rp, live_status, interact, densities
+
+#timestep when not at or during an event
+def time_step(t, t_event):
+    dt = 0.1*(t+1.0e2*365*24*60*60) #timestep in seconds
+    dt = min(dt,abs(t_event - t) + 1.0)
+    return dt
+
+#actually run simulation down here
+while t <= max_time and N > 1:
+    if flag_event == 1: #only recompute secular solution and crossing pair when something has changed
+        a, masses, ecc, Rp, live_status, interact, densities = sort_planet(a, masses, ecc, Rp, live_status, interact, densities)
+        ecc_vec, g, beta = secular_solution(a, masses, ecc, Rp, N)
+        t_ref = t #time for crossing_pair
+
+        icross, t_event = crossing_pair(a, masses, Rp, ecc, ecc_vec, g, beta, interact, N, t, t_ref)
+        flag_event = 0 #event done, do not recalculate secular/crossing otherwise 
+
+    dt = time_step(t, t_event)
+    t += dt #adjust time to account for event
+    
+    #propagate secular eccentricities
+    h_t = np.zeros(N)
+    k_t = np.zeros(N)
+    for i in range(N):
+        h_t[i] = np.sum(ecc_vec[i, :] * np.sin(g * (t - t_ref) + beta)) # eq A10
+        k_t[i] = np.sum(ecc_vec[i, :] * np.cos(g * (t - t_ref) + beta)) 
+    ecc = np.sqrt(h_t**2 + k_t**2) # eq 3 finally!
+    
+    #check for crossings/close encounters
+    if t >= t_event:
+        flag_event = 1
+        orbit_cross_K25(a, masses, Rp, ecc, interact, live_status, N, icross)
+    
+    #update planet radius
+    Rp = np.array([planet_radius(masses[i], densities[i]) for i in range(N)])
+    
+    #remove planets too close to the star
+    for i in range(N):
+        if (1.0 - ecc[i]) * a[i] < a_min:
+            live[i] = False
+            flag_event = 1
+
+
+#save final system information
+system_information = Table([a/1.5e11, ecc, masses, Rp, live_status], names=parameter_names)
+ascii.write(system_information, 'final_system.csv', format='fixed_width', overwrite=True)
