@@ -1,6 +1,6 @@
 import numpy as np 
-from merge_embryo.py import merge_embryo
-from helper_functions.py import rayleigh, esc_ecc
+from merge_embryo import merge_embryo
+from helper_functions import rayleigh, esc_ecc
 
 def orbit_cross_K25(ap, Mp, Rp, ecc, interact, live_status, N, icross): #determine outcome of crossing event
     #now working with an interacting pair of planets i,j

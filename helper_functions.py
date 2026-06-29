@@ -1,5 +1,13 @@
 import numpy as np 
 
+#####CONSTANTS######
+G = 6.67e-11 #m^3kg^-1s^-2
+M_sun = 1.9892e30 #kg
+M_earth = 5.9736e24 #kg
+
+Ms = 1*M_sun #stellar mass (relative to Msun)
+
+
 def hill_sphere_mutual(M_sum, a_mean):
     return a_mean * (M_sum / (3.0 * Ms))**(1/3)
 
@@ -16,3 +24,9 @@ def esc_ecc(M1,M2,R1,R2,a):
     num = np.sqrt(2*G*(M1+M2)/(R1+R2))
     denom = np.sqrt((G*Ms)/a)
     return num/denom
+
+def planet_radius(mass,density):
+    return ((3*mass)/(4 * np.pi*density))**(1/3)
+
+def hill_sphere(a_i,M):
+    return a_i * ((M) / (3 * Ms))**(1/3) #mutual hill radius for adjacent planets

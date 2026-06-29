@@ -1,6 +1,6 @@
 import numpy as np 
-from helper_functions.py import esc_ecc, hill_sphere_mutual 
-from tau_cross.py import tau_vis, tau_col, interaction_wrapper 
+from helper_functions import esc_ecc, hill_sphere_mutual 
+from tau_cross import tau_vis, tau_col, interaction_wrapper 
 
 def crossing_pair(ap, Mp, Rp, ecc, ecc_vec, g, beta, interact, N, t, t_ref): #identify crossing pair from triplet, return pair and t_event
     #evaluate tau_cross for all planets

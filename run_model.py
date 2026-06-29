@@ -1,18 +1,18 @@
 import numpy as np 
 import matplotlib.pyplot as plt 
 import pandas as pd 
-from pylaplace import LaplaceCoefficient 
 import pdb 
 from astropy.table import Table
 from astropy.io import ascii
 
-from tau_cross.py import * 
-from helper_functions.py import * 
-from merge_embryo.py import * 
-from secular_solution.py import * 
-from crossing_pair.py import * 
-from orbit_cross_K25.py import * 
-from sort_planet.py import *
+#import functions
+from helper_functions import * 
+from tau_cross import * 
+from merge_embryo import * 
+from secular_solution import * 
+from crossing_pair import * 
+from orbit_cross_K25 import * 
+from sort_planet import *
 
 #####CONSTANTS######
 G = 6.67e-11 #m^3kg^-1s^-2
@@ -36,8 +36,6 @@ rho_p = 5500 #planet density kg/m^3
 np.random.seed(1) #for reproducability
 
 ####ALLOCATE PARAMETERS FOR THE SYSTEM###
-def hill_sphere(a_i,M):
-    return a_i * ((M) / (3 * Ms))**(1/3) #mutual hill radius for adjacent planets
 
 def allocate_a(M):
     a = np.empty(N)
@@ -47,9 +45,6 @@ def allocate_a(M):
         hill = hill_sphere(a_previous,M)
         a[i] = a_previous + 10*hill #planets are spaced out by 10 hill radii
     return a*1.5e11 #convert to [m] to stay in SI!
-
-def planet_radius(mass,density):
-    return ((3*mass)/(4 * np.pi*density))**(1/3)
 
 #actually initialising system here with arrays for every parameter
 a = allocate_a(Mp)
@@ -62,7 +57,8 @@ Rp = np.array([planet_radius(i, j) for i,j in zip(masses,densities)])
 
 parameter_names = ['a_AU','e','Mp','Rp','live_status']
 system_information = Table([a/1.5e11,ecc,masses,Rp,live_status],names = parameter_names)
-ascii.write(system_information, 'initial_system.csv', format = 'fixed_width', overwrite = True) #store initial system information
+ascii.write(system_information, 'initial_system.csv', format = 'fixed_width', overwrite = True) 
+#store initial system information
 
 #timestep when not at or during an event
 def time_step(t, t_event):
@@ -70,7 +66,7 @@ def time_step(t, t_event):
     dt = min(dt,abs(t_event - t) + 1.0)
     return dt
 
-#actually run simulation down here
+#run simulation
 while t <= max_time and N > 1:
     if flag_event == 1: #only recompute secular solution and crossing pair when something has changed
         a, masses, ecc, Rp, live_status, interact, densities = sort_planet(a, masses, ecc, Rp, live_status, interact, densities)

@@ -1,5 +1,12 @@
 import numpy as np 
-from helper_functions.py import kepler_period, hill_sphere_mutual, 
+from helper_functions import kepler_period, hill_sphere_mutual
+
+#####CONSTANTS######
+G = 6.67e-11 #m^3kg^-1s^-2
+M_sun = 1.9892e30 #kg
+M_earth = 5.9736e24 #kg
+
+Ms = 1*M_sun #stellar mass (relative to Msun)
 
 def tau_cross_petit(a,Mp,ecc, N_affect): #evaluates every planetary triplet for instability
     K = min(0.5*(N_affect-3) + 1, 3)
@@ -45,8 +52,8 @@ def tau_vis(ap,Mp,Rp,ecc): #viscous relaxation timescale for an interacting plan
     impact_parameter = abs(ap[1] - ap[0]) 
 
     #eccentricities at the onset of crossing
-    ecross_i = (np.sqrt(Mp[1]) * impact_parameter)/((np.sqrt(Mp[1]) * a[0]) + np.sqrt(Mp[0]) * a[1]) #eq 6
-    ecross_j = (np.sqrt(Mp[0]) * impact_parameter)/((np.sqrt(Mp[0]) * a[0]) + np.sqrt(Mp[1]) * a[0]) #implied eq 6
+    ecross_i = (np.sqrt(Mp[1]) * impact_parameter)/((np.sqrt(Mp[1]) * ap[0]) + np.sqrt(Mp[0]) * ap[1]) #eq 6
+    ecross_j = (np.sqrt(Mp[0]) * impact_parameter)/((np.sqrt(Mp[0]) * ap[0]) + np.sqrt(Mp[1]) * ap[0]) #implied eq 6
     ecross = [ecross_i, ecross_j]
 
     rep_e = max((sum(ecross)), sum(ecc)) #eq 23 used to calculate lambda in eq 12
@@ -65,8 +72,8 @@ def tau_col(ap,Mp,Rp,ecc):
     impact_parameter = abs(ap[1] - ap[0])
 
     #eccentricities at the onset of crossing
-    ecross_i = (np.sqrt(Mp[1]) * impact_parameter)/((np.sqrt(Mp[1]) * a[0]) + np.sqrt(Mp[0]) * a[1]) #eq 6
-    ecross_j = (np.sqrt(Mp[0]) * impact_parameter)/((np.sqrt(Mp[0]) * a[0]) + np.sqrt(Mp[1]) * a[0]) #implied eq 6
+    ecross_i = (np.sqrt(Mp[1]) * impact_parameter)/((np.sqrt(Mp[1]) * ap[0]) + np.sqrt(Mp[0]) * ap[1]) #eq 6
+    ecross_j = (np.sqrt(Mp[0]) * impact_parameter)/((np.sqrt(Mp[0]) * ap[0]) + np.sqrt(Mp[1]) * ap[0]) #implied eq 6
     ecross = [ecross_i, ecross_j]
 
     rep_e = 0.5 * max(sum(ecross), sum(ecc))
