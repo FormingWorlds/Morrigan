@@ -4,6 +4,7 @@ import pandas as pd
 import pdb 
 from astropy.table import Table
 from astropy.io import ascii
+import os 
 
 #import functions
 from helper_functions import * 
@@ -26,9 +27,10 @@ t_event = 0.0
 flag_event = 1 
 a_min = 0.005 * 1.5e11 #defines when a planet has fallen into the star 
 max_time = 1e9*365*24*60*60 #evolution time (seconds)
-
+save_directory = 'jun29'
+os.makedirs(save_directory, exist_ok=True) #creates directory if it doesnt already exist
 ####INITIAL PARAMETERS######
-N = 20 #number of planets
+N = 10 #number of planets
 e = 0.01
 Mp = 0.5*M_earth #planet mass (relative to Mearth)
 Ms = 1*M_sun #stellar mass (relative to Msun)
@@ -57,7 +59,7 @@ Rp = np.array([planet_radius(i, j) for i,j in zip(masses,densities)])
 
 parameter_names = ['a_AU','e','Mp','Rp','live_status']
 system_information = Table([a/1.5e11,ecc,masses,Rp,live_status],names = parameter_names)
-ascii.write(system_information, 'initial_system.csv', format = 'fixed_width', overwrite = True) 
+ascii.write(system_information, save_directory+'/initial_system.csv', format = 'fixed_width', overwrite = True) 
 #store initial system information
 
 #timestep when not at or during an event
@@ -105,4 +107,4 @@ while t <= max_time and N > 1:
 
 #save final system information
 system_information = Table([a/1.5e11, ecc, masses, Rp, live_status], names=parameter_names)
-ascii.write(system_information, 'final_system.csv', format='fixed_width', overwrite=True)
+ascii.write(system_information, save_directory+'/final_system.csv', format='fixed_width', overwrite=True)
