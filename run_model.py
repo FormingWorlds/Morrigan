@@ -33,7 +33,7 @@ e = 0.01
 Mp = 0.5*M_earth #planet mass (relative to Mearth)
 Ms = 1*M_sun #stellar mass (relative to Msun)
 rho_p = 5500 #planet density kg/m^3
-np.random.seed(1) #for reproducability
+#np.random.seed(1) #for reproducability
 
 ####ALLOCATE PARAMETERS FOR THE SYSTEM###
 
@@ -70,6 +70,7 @@ def time_step(t, t_event):
 while t <= max_time and N > 1:
     if flag_event == 1: #only recompute secular solution and crossing pair when something has changed
         a, masses, ecc, Rp, live_status, interact, densities = sort_planet(a, masses, ecc, Rp, live_status, interact, densities)
+        N = len(a) #number of planets changes after an event!
         ecc_vec, g, beta = secular_solution(a, masses, ecc, Rp, N)
         t_ref = t #time for crossing_pair
 
@@ -98,7 +99,7 @@ while t <= max_time and N > 1:
     #remove planets too close to the star
     for i in range(N):
         if (1.0 - ecc[i]) * a[i] < a_min:
-            live[i] = False
+            live_status[i] = False
             flag_event = 1
 
 

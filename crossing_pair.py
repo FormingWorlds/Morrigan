@@ -48,7 +48,7 @@ def crossing_pair(ap, Mp, Rp, ecc, ecc_vec, g, beta, interact, N, t, t_ref): #id
         #similarly for outer planet
         non_group_out = np.where(~group[i+1:])[0]
         if len(non_group_out) == 0 or all(group[i+1:]):
-            i_out = Np - 1 #if everything is packed, the group extends to the end of the system
+            i_out = N - 1 #if everything is packed, the group extends to the end of the system
         else: #index of planet closest to outer edge of the triplet
             i_out = max(non_group_out[0] + i, i + 1)
 

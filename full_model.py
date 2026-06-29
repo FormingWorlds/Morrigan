@@ -29,7 +29,7 @@ np.random.seed(1) #for reproducability
 
 ####ALLOCATE PARAMETERS FOR THE SYSTEM###
 def hill_sphere(a_i,M):
-    return a_i * ((M) / (3 * Ms))**(1/3) #mutual hill radius for adjacent planets
+    return a_i * ((2*M) / (3 * Ms))**(1/3) #mutual hill radius for adjacent planets
 
 def allocate_a(M):
     a = np.empty(N)
@@ -114,8 +114,8 @@ def secular_solution(ap, Mp, ecc, Rp, N):
 def hill_sphere_mutual(M_sum, a_mean):
     return a_mean * (M_sum / (3.0 * Ms))**(1/3)
 
-def kepler_period(Mp,a): #period of planetary orbit, used to calculate tau_cross
-    P_squared = (4*np.pi**2*a**3)/(G*(Mp+Ms))
+def kepler_period(a): #period of planetary orbit, used to calculate tau_cross
+    P_squared = (4*np.pi**2*a**3)/(G*Ms)
     return np.sqrt(P_squared)
 
 def rayleigh(sigma, xmin):
@@ -253,7 +253,7 @@ def crossing_pair(ap, Mp, Rp, ecc, ecc_vec, g, beta, interact, N, t, t_ref): #id
         #similarly for outer planet
         non_group_out = np.where(~group[i+1:])[0]
         if len(non_group_out) == 0 or all(group[i+1:]):
-            i_out = Np - 1 #if everything is packed, the group extends to the end of the system
+            i_out = N - 1 #if everything is packed, the group extends to the end of the system
         else: #index of planet closest to outer edge of the triplet
             i_out = max(non_group_out[0] + i, i + 1)
 
