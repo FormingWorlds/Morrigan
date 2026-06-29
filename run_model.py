@@ -28,7 +28,7 @@ a_min = 0.005 * 1.5e11 #defines when a planet has fallen into the star
 max_time = 1e9*365*24*60*60 #evolution time (seconds)
 
 ####INITIAL PARAMETERS######
-N = 10 #number of planets
+N = 20 #number of planets
 e = 0.01
 Mp = 0.5*M_earth #planet mass (relative to Mearth)
 Ms = 1*M_sun #stellar mass (relative to Msun)
