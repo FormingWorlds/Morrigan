@@ -40,15 +40,20 @@ plt.tight_layout()
 plt.savefig(directory+'/top_level.png', dpi = 300)
 plt.close()
 
-test = full_system[full_system['id'] == 0]
 
-for p in range(initial_N): #(index, element)
+
+for p in range(initial_N): 
     planet = full_system[full_system['id'] == p]
-    plt.plot(planet['t'], planet['a_AU'])
+    plt.grid(alpha = 0.5)
+    plt.plot(planet['t']/365/24/60/60, planet['a_AU'], label = f'Planet {p}')
 
-plt.savefig(directory+'a_tracks.png', dpi = 300)
+plt.legend(ncol = 2, loc = 'upper right')
+plt.xlabel('Time (yr)')
+plt.ylabel('Semi-major axis (AU)')
+plt.xscale('log')
+plt.tight_layout()
+plt.savefig(directory+'/a_tracks.png', dpi = 300)
 plt.close()
-
-    
+ 
 
 

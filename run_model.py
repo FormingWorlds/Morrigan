@@ -114,7 +114,7 @@ while t <= max_time and N > 1:
     #check for crossings/close encounters
     if t >= t_event:
         flag_event = 1
-        orbit_cross_K25(a, masses, Rp, ecc, interact, live_status, N, icross)
+        orbit_cross_K25(a, masses, Rp, ecc, interact, live_status, N, planet_id, icross)
         snapshot(t, a, masses, ecc, Rp, live_status, planet_id, N, event=True) #capture state of system right after event
     
     #update planet radius
