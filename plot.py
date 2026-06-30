@@ -2,10 +2,12 @@ import numpy as np
 import matplotlib.pyplot as plt 
 from astropy.table import Table
 from astropy.io import ascii
+import pdb
 
-directory = 'jun29'
+directory = 'test'
 initial_system = ascii.read(directory+'/initial_system.csv', format = 'fixed_width')
 final_system = ascii.read(directory+'/final_system.csv', format = 'fixed_width')
+full_system = ascii.read(directory+'/full_system.csv', format = 'fixed_width')
 initial_N = len(initial_system['a_AU'])
 final_N = len(final_system['a_AU'])
 
@@ -30,10 +32,23 @@ ax[1,0].set_xlabel('Mass ($M_\oplus$)')
 ax[1,0].set_ylabel('Planets in system')
 
 ax[1,1].grid(alpha=0.5)
-ax[1,1].scatter(initial_system['Rp']/6371e3, range(initial_N), marker = '+', color = 'purple', label = 'Initial system')
-ax[1,1].scatter(final_system['Rp']/6371e3, range(final_N), marker = 'x', color = 'green', label = 'Final system')
+ax[1,1].scatter(initial_system['Rp']/6.371e6, range(initial_N), marker = '+', color = 'purple', label = 'Initial system')
+ax[1,1].scatter(final_system['Rp']/6.371e6, range(final_N), marker = 'x', color = 'green', label = 'Final system')
 ax[1,1].set_xlabel('Radius ($R_\oplus$)')
 
-
 plt.tight_layout()
-plt.savefig(directory+'/test.png', dpi = 300)
+plt.savefig(directory+'/top_level.png', dpi = 300)
+plt.close()
+
+test = full_system[full_system['id'] == 0]
+
+for p in range(initial_N): #(index, element)
+    planet = full_system[full_system['id'] == p]
+    plt.plot(planet['t'], planet['a_AU'])
+
+plt.savefig(directory+'a_tracks.png', dpi = 300)
+plt.close()
+
+    
+
+
