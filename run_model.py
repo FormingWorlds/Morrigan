@@ -5,6 +5,7 @@ import pdb
 from astropy.table import Table
 from astropy.io import ascii
 import os 
+import time 
 
 #import functions
 from helper_functions import * 
@@ -26,11 +27,11 @@ t_ref = 0.0
 t_event = 0.0
 flag_event = 1 
 a_min = 0.005 * 1.5e11 #defines when a planet has fallen into the star 
-max_time = 1e9*365*24*60*60 #evolution time (seconds)
-save_directory = 'jun29'
+max_time = 5e9*365*24*60*60 #evolution time (seconds)
+save_directory = 'test'
 os.makedirs(save_directory, exist_ok=True) #creates directory if it doesnt already exist
 ####INITIAL PARAMETERS######
-N = 10 #number of planets
+N = 20 #number of planets
 e = 0.01
 Mp = 0.5*M_earth #planet mass (relative to Mearth)
 Ms = 1*M_sun #stellar mass (relative to Msun)
@@ -56,9 +57,10 @@ masses = np.full(N, Mp)
 live_status = np.ones(N, dtype = bool) #set initial status of planets, all are live by definition at the start
 interact = np.ones(N, dtype = bool) #stores the indices of which planets are participating in an event
 Rp = np.array([planet_radius(i, j) for i,j in zip(masses,densities)])
+planet_id = np.arange(N) #persistent id for a particular planet to track its evolution
 
-parameter_names = ['a_AU','e','Mp','Rp','live_status']
-system_information = Table([a/1.5e11,ecc,masses,Rp,live_status],names = parameter_names)
+parameter_names = ['id','a_AU','e','Mp','Rp','live_status']
+system_information = Table([planet_id,a/1.5e11,ecc,masses,Rp,live_status],names = parameter_names)
 ascii.write(system_information, save_directory+'/initial_system.csv', format = 'fixed_width', overwrite = True) 
 #store initial system information
 
@@ -68,10 +70,29 @@ def time_step(t, t_event):
     dt = min(dt,abs(t_event - t) + 1.0)
     return dt
 
+#for tracking individual planet trajectories
+planet_id = np.arange(len(masses))  # persistent IDs, assigned once at t=0
+next_id = len(masses)
+
+history = []
+#stores timestep information about the system
+def snapshot(t, a, masses, ecc, Rp, live_status, planet_id, N, event=False):
+    history.append({'t': t, 'id': planet_id[:N].copy(), 'a': a[:N].copy()/1.5e11, 'masses': masses[:N].copy(),
+        'ecc': ecc[:N].copy(),'Rp': Rp[:N].copy(),'live_status': live_status[:N].copy(),'event': event,})
+
+
+output_interval = max_time / 1000.0  #when not at an event, store information every 1000 step
+next_output = 0.0
+
+# initial snapshot at t=0
+snapshot(t, a, masses, ecc, Rp, live_status, planet_id, N, event=False)
+next_output += output_interval
+
+start = time.time()
 #run simulation
 while t <= max_time and N > 1:
     if flag_event == 1: #only recompute secular solution and crossing pair when something has changed
-        a, masses, ecc, Rp, live_status, interact, densities = sort_planet(a, masses, ecc, Rp, live_status, interact, densities)
+        a, masses, ecc, Rp, live_status, interact, densities, planet_id = sort_planet(a, masses, ecc, Rp, live_status, interact, densities, planet_id)
         N = len(a) #number of planets changes after an event!
         ecc_vec, g, beta = secular_solution(a, masses, ecc, Rp, N)
         t_ref = t #time for crossing_pair
@@ -94,6 +115,7 @@ while t <= max_time and N > 1:
     if t >= t_event:
         flag_event = 1
         orbit_cross_K25(a, masses, Rp, ecc, interact, live_status, N, icross)
+        snapshot(t, a, masses, ecc, Rp, live_status, planet_id, N, event=True) #capture state of system right after event
     
     #update planet radius
     Rp = np.array([planet_radius(masses[i], densities[i]) for i in range(N)])
@@ -104,7 +126,31 @@ while t <= max_time and N > 1:
             live_status[i] = False
             flag_event = 1
 
+    if t >= next_output:
+        snapshot(t, a, masses, ecc, Rp, live_status, planet_id, N, event=False)
+        next_output += output_interval
+
+snapshot(t, a, masses, ecc, Rp, live_status, planet_id, N, event=False) #final system information
+
+def data_to_table(history):
+    t_col, id_col, a_col, m_col, e_col, rp_col, alive_col, event_col = [], [], [], [], [], [], [], []
+    for h in history:
+        n = len(h['id'])
+        t_col.extend([h['t']] * n)
+        id_col.extend(h['id'])
+        a_col.extend(h['a'])
+        m_col.extend(h['masses'])
+        e_col.extend(h['ecc'])
+        rp_col.extend(h['Rp'])
+        alive_col.extend(h['live_status'])
+        event_col.extend([h['event']] * n)
+    return Table([t_col, id_col, a_col, m_col, e_col, rp_col, alive_col, event_col],names=['t', 'id', 'a_AU', 'Mp', 'ecc', 'Rp', 'live_status', 'event'])
+
+ascii.write(data_to_table(history), save_directory+'/full_system.csv', format = 'fixed_width', overwrite = True)
 
 #save final system information
-system_information = Table([a/1.5e11, ecc, masses, Rp, live_status], names=parameter_names)
+system_information = Table([planet_id, a/1.5e11, ecc, masses, Rp, live_status], names=parameter_names)
 ascii.write(system_information, save_directory+'/final_system.csv', format='fixed_width', overwrite=True)
+
+end = time.time()
+print(f'Runtime = ',round((end-start)/60, 3))
