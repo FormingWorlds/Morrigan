@@ -1,5 +1,5 @@
 import numpy as np 
-from helper_functions import kepler_period, hill_sphere_mutual
+from helper_functions import *
 
 #####CONSTANTS######
 G = 6.67e-11 #m^3kg^-1s^-2
@@ -15,7 +15,7 @@ def tau_cross_petit(a,Mp,ecc, N_affect): #evaluates every planetary triplet for 
     nu_01, nu_12 = alpha_01**1.5, alpha_12**1.5 #different from paper appendix B
     
     eta = (nu_01 * (1 - nu_12))/(1 - nu_01*nu_12)
-    M = np.sqrt(Mp[0] * Mp[2] + Mp[1] * Mp[2] * eta**2 * alpha_01**(-2) + Mp[0]*Mp[2] * alpha_12**2 * (1 - eta)**2)/Ms
+    M = np.sqrt(Mp[0] * Mp[2] + Mp[1] * Mp[2] * eta**2 * alpha_01**(-2) + Mp[0]*Mp[1] * alpha_12**2 * (1 - eta)**2)/Ms
     delta_01, delta_12 = 1.0 - ecc[1] - (1.0 + ecc[0]) * alpha_01 , 1.0 - ecc[2] - (1.0 + ecc[1]) * alpha_12 #also different from paper, but noted in the code
 
     if delta_01 < 0.0 or delta_12 < 0.0:
@@ -28,14 +28,14 @@ def tau_cross_petit(a,Mp,ecc, N_affect): #evaluates every planetary triplet for 
         return 1e20
 
     log_arg = -np.log10((32 * np.sqrt(19) * M * np.sqrt(eta * (1 - eta)))/(3*np.sqrt(np.pi))) + np.log10(delta**6/(delta_ov**6 * (1 - (delta/delta_ov)**4))) + np.sqrt(-np.log(1 - (delta/delta_ov)**4))
-    tau_cross = np.exp(log_arg) * kepler_period(Mp[0],a[0])
+    tau_cross = 10**(log_arg) * kepler_period(Mp[0],a[0])
 
     return tau_cross
 
 def interaction_wrapper(ap, Mp, ecc, N_affect): #determine if system is stable, and if not, calculate timescale to instability
     #N_affect is planets participating in crossing event
     aM = (Mp[0]*ap[0] + Mp[1]*ap[1]) / (Mp[0] + Mp[1])
-    h = hill_sphere_mutual(Mp[0]+Mp[1], aM) / aM
+    h = hill_sphere(Mp[0]+Mp[1], aM) / aM
     #stability criterion
     EJbef = 5.0/8.0*(ecc[0]**2 + ecc[1]**2)/h**2 - 3.0/8.0 * ((ap[0]-ap[1])/(h*aM))**2 + 4.5 #eq 28
 
@@ -47,7 +47,7 @@ def interaction_wrapper(ap, Mp, ecc, N_affect): #determine if system is stable, 
 
 def tau_vis(ap,Mp,Rp,ecc): #viscous relaxation timescale for an interacting planetary pair
     mu_a = sum(ap)/2 #average semi-major axis of interacting pair
-    mu_e = sum(ecc)/2
+    mu_e = np.sqrt(ecc[0]**2 + ecc[1]**2)
     M_T = sum(Mp) #sum of masses
     impact_parameter = abs(ap[1] - ap[0]) 
 
@@ -61,12 +61,12 @@ def tau_vis(ap,Mp,Rp,ecc): #viscous relaxation timescale for an interacting plan
     ran_vel = rep_e * kep_vel #before eq 9
     n = 1/(2 * np.pi * rep_e * mu_a**2 * impact_parameter) #eq 8
 
-    timescale = n * np.pi * G**2 * ran_vel * 3 #
+    timescale = (n * np.pi * G**2 * 3 * M_T**2)/ran_vel**3 #check with paper
     return 1/timescale
 
 def tau_col(ap,Mp,Rp,ecc):
     mu_a = sum(ap)/2 #average semi-major axis of interacting pair
-    mu_e = sum(ecc)/2
+    mu_e = np.sqrt(ecc[0]**2 + ecc[1]**2)
     M_T = sum(Mp) #sum of masses
     R_T = sum(Rp) #sum of radii
     impact_parameter = abs(ap[1] - ap[0])

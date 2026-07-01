@@ -1,6 +1,6 @@
 import numpy as np 
-from helper_functions import esc_ecc, hill_sphere_mutual 
-from tau_cross import tau_vis, tau_col, interaction_wrapper 
+from helper_functions import *
+from tau_cross import *
 
 def crossing_pair(ap, Mp, Rp, ecc, ecc_vec, g, beta, interact, N, t, t_ref): #identify crossing pair from triplet, return pair and t_event
     #evaluate tau_cross for all planets
@@ -20,7 +20,7 @@ def crossing_pair(ap, Mp, Rp, ecc, ecc_vec, g, beta, interact, N, t, t_ref): #id
     #2-body case
     if N == 2:
         aM = (Mp[0]*ap[0] + Mp[1]*ap[1]) / (Mp[0] + Mp[1]) #mean semi-major axis
-        h = hill_sphere_mutual(Mp[0]+Mp[1], aM) / aM
+        h = hill_sphere(Mp[0]+Mp[1], aM) / aM
         #checking for stability again here
         EJbef = 5.0/8.0*(ecc[0]**2 + ecc[1]**2)/h**2 - 3.0/8.0 * ((ap[0]-ap[1])/(h*aM))**2 + 4.5
         if EJbef > 0.0: #system is stable

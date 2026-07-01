@@ -7,10 +7,6 @@ M_earth = 5.9736e24 #kg
 
 Ms = 1*M_sun #stellar mass (relative to Msun)
 
-
-def hill_sphere_mutual(M_sum, a_mean):
-    return a_mean * (M_sum / (3.0 * Ms))**(1/3)
-
 def kepler_period(Mp,a): #period of planetary orbit, used to calculate tau_cross
     P_squared = (4*np.pi**2*a**3)/(G*(Mp+Ms))
     return np.sqrt(P_squared)

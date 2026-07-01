@@ -6,6 +6,7 @@ from astropy.table import Table
 from astropy.io import ascii
 import os 
 import time 
+import toml 
 
 #import functions
 from helper_functions import * 
@@ -15,29 +16,28 @@ from secular_solution import *
 from crossing_pair import * 
 from orbit_cross_K25 import * 
 from sort_planet import *
+from constants import * 
 
-#####CONSTANTS######
-G = 6.67e-11 #m^3kg^-1s^-2
-M_sun = 1.9892e30 #kg
-M_earth = 5.9736e24 #kg
+with open('initialise.toml', 'r') as f:
+    config = toml.load(f)
 
-####VARIABLES TO RUN SIMULATION####
-t = 0.0
-t_ref = 0.0
-t_event = 0.0
-flag_event = 1 
-a_min = 0.005 * 1.5e11 #defines when a planet has fallen into the star 
-max_time = 5e9*365*24*60*60 #evolution time (seconds)
-save_directory = 'test'
+t = config['run_simulation']['t']
+t_ref = config['run_simulation']['t_ref']
+t_event = config['run_simulation']['t_event']
+flag_event = config['run_simulation']['flag_event'] 
+
+a_min = config['run_simulation']['a_min'] * au2km #defines when a planet has fallen into the star 
+max_time = config['run_simulation']['max_time'] * gyr2sec #evolution time gyr converted to seconds
+save_directory = config['run_simulation']['save_directory']
 os.makedirs(save_directory, exist_ok=True) #creates directory if it doesnt already exist
-####INITIAL PARAMETERS######
-N = 20 #number of planets
-e = 0.01
-Mp = 0.5*M_earth #planet mass (relative to Mearth)
-Ms = 1*M_sun #stellar mass (relative to Msun)
-rho_p = 5500 #planet density kg/m^3
-#np.random.seed(1) #for reproducability
 
+N = config['init_par']['N'] #number of planets
+e = config['init_par']['e'] #initial eccentricity
+Mp = config['init_par']['Mp'] * M_earth #planet mass (relative to Mearth)
+Ms = config['init_par']['Ms'] * M_sun #stellar mass (relative to Msun)
+rho_p = config['init_par']['rho_p'] #planet density kg/m^3
+
+#np.random.seed(config['run_simulation']['random_seed']) #to exactly reproduce a result
 ####ALLOCATE PARAMETERS FOR THE SYSTEM###
 
 def allocate_a(M):
@@ -153,4 +153,4 @@ system_information = Table([planet_id, a/1.5e11, ecc, masses, Rp, live_status], 
 ascii.write(system_information, save_directory+'/final_system.csv', format='fixed_width', overwrite=True)
 
 end = time.time()
-print(f'Runtime = ',round((end-start)/60, 3))
+print(f'Runtime = ',round((end-start), 3),'s')

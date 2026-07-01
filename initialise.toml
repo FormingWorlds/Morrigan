@@ -1,0 +1,21 @@
+['run_simulation']
+#dont change these ones 
+t = 0.0
+t_ref = 0.0
+t_event = 0.0
+flag_event = 1 
+#^^^^^^^
+
+a_min = 0.005 #defines when a planet has fallen into the star 
+max_time = 5e9 #evolution time (gyr)
+save_directory = 'test'
+random_seed = 1 #to reproduce results exactly
+
+['init_par']
+#modify these to change simulation conditions
+N = 10 #number of planets
+e = 0.01
+Mp = 0.5 #planet mass (relative to Mearth)
+Ms = 1 #stellar mass (relative to Msun)
+rho_p = 5500 #planet density kg/m^3
+#^^^^^^^
