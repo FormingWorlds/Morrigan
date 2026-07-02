@@ -44,12 +44,24 @@ plt.close()
 
 for p in range(initial_N): 
     planet = full_system[full_system['id'] == p]
+    if len(planet) == 0:
+        continue
+    t_yr = planet['t']/365/24/60/60
+    a = planet['a_AU']
+    e = planet['ecc']
+    
     plt.grid(alpha = 0.5)
-    plt.plot(planet['t']/365/24/60/60, planet['a_AU'], label = f'Planet {p}')
+    line, = plt.plot(t_yr, a, label = f'Planet {p}')
+    color = line.get_color()
+    
+    # Plot pericenter/apocenter boundaries and fill the orbital sweep region
+    plt.plot(t_yr, a * (1.0 - e), linestyle=':', alpha=0.4, color=color)
+    plt.plot(t_yr, a * (1.0 + e), linestyle=':', alpha=0.4, color=color)
+    plt.fill_between(t_yr, a * (1.0 - e), a * (1.0 + e), alpha=0.1, color=color)
 
 plt.legend(ncol = 2, loc = 'upper right')
 plt.xlabel('Time (yr)')
-plt.ylabel('Semi-major axis (AU)')
+plt.ylabel('Radial range swept out by orbit (AU)')
 plt.xscale('log')
 plt.tight_layout()
 plt.savefig(directory+'/a_tracks.png', dpi = 300)
