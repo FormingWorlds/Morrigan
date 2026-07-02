@@ -26,7 +26,7 @@ t_ref = config['run_simulation']['t_ref']
 t_event = config['run_simulation']['t_event']
 flag_event = config['run_simulation']['flag_event'] 
 
-a_min = config['run_simulation']['a_min'] * au2km #defines when a planet has fallen into the star 
+a_min = config['run_simulation']['a_min'] * au2m #defines when a planet has fallen into the star 
 max_time = config['run_simulation']['max_time'] * gyr2sec #evolution time gyr converted to seconds
 save_directory = config['run_simulation']['save_directory']
 os.makedirs(save_directory, exist_ok=True) #creates directory if it doesnt already exist
@@ -45,7 +45,7 @@ def allocate_a(M):
     a[0] = 0.1 #AU
     for i in range(1,N): #allocate initial semi-major axes
         a_previous = a[i-1] #starting semi-major axis
-        hill = hill_sphere(a_previous,M,Ms)
+        hill = hill_sphere(a_previous,2*M,Ms)
         a[i] = a_previous + 10*hill #planets are spaced out by 10 hill radii
     return a*au2km #convert to [m] to stay in SI!
 

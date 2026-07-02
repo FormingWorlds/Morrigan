@@ -1,8 +1,8 @@
 import numpy as np 
 from constants import *
 
-def kepler_period(Mp,Ms,a): #period of planetary orbit, used to calculate tau_cross
-    P_squared = (4*np.pi**2*a**3)/(G*(Mp+Ms))
+def kepler_period(Mp, Ms, a):
+    P_squared = (4*np.pi**2*a**3)/(G*Ms)   # matches Fortran: only stellar mass
     return np.sqrt(P_squared)
 
 def rayleigh(sigma, xmin):

@@ -53,7 +53,7 @@ def tau_vis(ap,Mp,Rp,Ms,ecc): #viscous relaxation timescale for an interacting p
 
     #eccentricities at the onset of crossing
     ecross_i = (np.sqrt(Mp[1]) * impact_parameter)/((np.sqrt(Mp[1]) * ap[0]) + np.sqrt(Mp[0]) * ap[1]) #eq 6
-    ecross_j = (np.sqrt(Mp[0]) * impact_parameter)/((np.sqrt(Mp[0]) * ap[0]) + np.sqrt(Mp[1]) * ap[0]) #implied eq 6
+    ecross_j = (np.sqrt(Mp[0]) * impact_parameter)/((np.sqrt(Mp[0]) * ap[0]) + np.sqrt(Mp[1]) * ap[1]) #implied eq 6
     ecross = [ecross_i, ecross_j]
 
     rep_e = max((sum(ecross)), sum(ecc)) #eq 23 used to calculate lambda in eq 12
@@ -73,7 +73,7 @@ def tau_col(ap,Mp,Rp,Ms,ecc):
 
     #eccentricities at the onset of crossing
     ecross_i = (np.sqrt(Mp[1]) * impact_parameter)/((np.sqrt(Mp[1]) * ap[0]) + np.sqrt(Mp[0]) * ap[1]) #eq 6
-    ecross_j = (np.sqrt(Mp[0]) * impact_parameter)/((np.sqrt(Mp[0]) * ap[0]) + np.sqrt(Mp[1]) * ap[0]) #implied eq 6
+    ecross_j = (np.sqrt(Mp[0]) * impact_parameter)/((np.sqrt(Mp[0]) * ap[0]) + np.sqrt(Mp[1]) * ap[1]) #implied eq 6
     ecross = [ecross_i, ecross_j]
 
     rep_e = 0.5 * max(sum(ecross), sum(ecc))

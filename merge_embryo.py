@@ -2,7 +2,7 @@ import numpy as np
 
 def merge_embryo(ap, Mp, Ms, ecc, live_status): #calculate orbital parameters post collision
     Mp_new = sum(Mp) #eq 15
-    ap_new = (Mp[0]*ap[0] + Mp[1]*ap[1])/Mp_new #eq 16
+    ap_new = Mp_new/(Mp[0]/ap[0] + Mp[1]/ap[1]) #eq 16
 
     if ap[1]*(1.0 - ecc[1]**2) < ap[0]*(1.0 - ecc[0]**2):
         min_dvarpi = 0.0
