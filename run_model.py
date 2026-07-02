@@ -47,7 +47,7 @@ def allocate_a(M):
         a_previous = a[i-1] #starting semi-major axis
         hill = hill_sphere(a_previous,2*M,Ms)
         a[i] = a_previous + 10*hill #planets are spaced out by 10 hill radii
-    return a*au2km #convert to [m] to stay in SI!
+    return a*au2m #convert to [m] to stay in SI!
 
 #actually initialising system here with arrays for every parameter
 a = allocate_a(Mp)
@@ -60,7 +60,7 @@ Rp = np.array([planet_radius(i, j) for i,j in zip(masses,densities)])
 planet_id = np.arange(N) #persistent id for a particular planet to track its evolution
 
 parameter_names = ['id','a_AU','e','Mp','Rp','live_status']
-system_information = Table([planet_id,a/au2km,ecc,masses,Rp,live_status],names = parameter_names)
+system_information = Table([planet_id,a/au2m,ecc,masses,Rp,live_status],names = parameter_names)
 ascii.write(system_information, save_directory+'/initial_system.csv', format = 'fixed_width', overwrite = True) 
 #store initial system information
 

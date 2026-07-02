@@ -7,7 +7,7 @@ flag_event = 1
 #^^^^^^^
 
 a_min = 0.005 #defines when a planet has fallen into the star 
-max_time = 5e9 #evolution time (gyr)
+max_time = 5 #evolution time (gyr)
 save_directory = 'test'
 random_seed = 1 #to reproduce results exactly
 
