@@ -2,7 +2,7 @@
 *.csv
 *.png
 main2.py
-
+RUN.sh
 # VS Code workspace config
 *.code-workspace
 
