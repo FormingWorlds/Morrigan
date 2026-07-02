@@ -2,7 +2,7 @@ import numpy as np
 from helper_functions import *
 from tau_cross import *
 
-def crossing_pair(ap, Mp, Rp, ecc, ecc_vec, g, beta, interact, N, t, t_ref): #identify crossing pair from triplet, return pair and t_event
+def crossing_pair(ap, Mp, Rp, Ms, ecc, ecc_vec, g, beta, interact, N, t, t_ref): #identify crossing pair from triplet, return pair and t_event
     #evaluate tau_cross for all planets
     Tcross = np.full(N - 1, 1e20) #initial array to eventually store the predicted crossing times for every pair, initialised at 'never'
     Naffect = np.ones(N, dtype=int) #the interacting planets, used to compute K factor in eq 5
@@ -14,13 +14,13 @@ def crossing_pair(ap, Mp, Rp, ecc, ecc_vec, g, beta, interact, N, t, t_ref): #id
     for i in range(N-1):
         a_mean = 0.5 * (ap[i] + ap[i+1])
         #maximum separation before ejection
-        rKij = esc_ecc(a_mean, Mp[i], Mp[i+1], Rp[i], Rp[i+1]) * a_mean #physical separation
+        rKij = esc_ecc(Ms, Mp[i], Mp[i+1], Rp[i], Rp[i+1], a_mean) * a_mean #physical separation
         bKij[i]  = (ap[i+1]-ap[i])/rKij #current gap relative to physical separation
 
     #2-body case
     if N == 2:
         aM = (Mp[0]*ap[0] + Mp[1]*ap[1]) / (Mp[0] + Mp[1]) #mean semi-major axis
-        h = hill_sphere(Mp[0]+Mp[1], aM) / aM
+        h = hill_sphere(aM,Mp[0]+Mp[1],Ms) / aM
         #checking for stability again here
         EJbef = 5.0/8.0*(ecc[0]**2 + ecc[1]**2)/h**2 - 3.0/8.0 * ((ap[0]-ap[1])/(h*aM))**2 + 4.5
         if EJbef > 0.0: #system is stable
@@ -71,14 +71,14 @@ def crossing_pair(ap, Mp, Rp, ecc, ecc_vec, g, beta, interact, N, t, t_ref): #id
         ecc_cross[1] = max(ecc[pair_index+1], ecc_cross[1])
         
         #calculate interaction timescales for every triplet, calling timescale functions from above
-        viscous_timescale = tau_vis(ap[pair_index:pair_index+2], Mp[pair_index:pair_index+2], Rp[pair_index:pair_index+2], ecc_cross)
-        collision_timescale = tau_col(ap[pair_index:pair_index+2], Mp[pair_index:pair_index+2], Rp[pair_index:pair_index+2], ecc_cross)
+        viscous_timescale = tau_vis(ap[pair_index:pair_index+2], Mp[pair_index:pair_index+2], Rp[pair_index:pair_index+2], Ms, ecc_cross)
+        collision_timescale = tau_col(ap[pair_index:pair_index+2], Mp[pair_index:pair_index+2], Rp[pair_index:pair_index+2], Ms, ecc_cross)
         
         #correction with secular perturbations, eq 21
         ecc_dmy = [np.sqrt(np.sum(ecc_vec[i, :]**2)),np.sqrt(np.sum(ecc_vec[i+1, :]**2)),np.sqrt(np.sum(ecc_vec[i+2, :]**2))]
         
         #passes the TRIPLETS ap, Mp, ecc to the wrapper function to calculate crossing timescale 
-        crossing_timescale = interaction_wrapper(ap[i:i+3], Mp[i:i+3], ecc_dmy, Naffect_val)
+        crossing_timescale = interaction_wrapper(ap[i:i+3], Mp[i:i+3], Ms, ecc_dmy, Naffect_val)
         #predicted crossing timescale is 'current' time t + predicted next interaction + duration of the interaction
         Tcross[i] = t + crossing_timescale + min(viscous_timescale, collision_timescale)
         

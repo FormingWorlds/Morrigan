@@ -8,7 +8,7 @@ import os
 import time 
 import toml 
 
-#import functions
+#import functions and constants
 from helper_functions import * 
 from tau_cross import * 
 from merge_embryo import * 
@@ -45,9 +45,9 @@ def allocate_a(M):
     a[0] = 0.1 #AU
     for i in range(1,N): #allocate initial semi-major axes
         a_previous = a[i-1] #starting semi-major axis
-        hill = hill_sphere(a_previous,M)
+        hill = hill_sphere(a_previous,M,Ms)
         a[i] = a_previous + 10*hill #planets are spaced out by 10 hill radii
-    return a*1.5e11 #convert to [m] to stay in SI!
+    return a*au2km #convert to [m] to stay in SI!
 
 #actually initialising system here with arrays for every parameter
 a = allocate_a(Mp)
@@ -60,7 +60,7 @@ Rp = np.array([planet_radius(i, j) for i,j in zip(masses,densities)])
 planet_id = np.arange(N) #persistent id for a particular planet to track its evolution
 
 parameter_names = ['id','a_AU','e','Mp','Rp','live_status']
-system_information = Table([planet_id,a/1.5e11,ecc,masses,Rp,live_status],names = parameter_names)
+system_information = Table([planet_id,a/au2km,ecc,masses,Rp,live_status],names = parameter_names)
 ascii.write(system_information, save_directory+'/initial_system.csv', format = 'fixed_width', overwrite = True) 
 #store initial system information
 
@@ -94,10 +94,10 @@ while t <= max_time and N > 1:
     if flag_event == 1: #only recompute secular solution and crossing pair when something has changed
         a, masses, ecc, Rp, live_status, interact, densities, planet_id = sort_planet(a, masses, ecc, Rp, live_status, interact, densities, planet_id)
         N = len(a) #number of planets changes after an event!
-        ecc_vec, g, beta = secular_solution(a, masses, ecc, Rp, N)
+        ecc_vec, g, beta = secular_solution(a, masses, ecc, Rp, Ms, N)
         t_ref = t #time for crossing_pair
 
-        icross, t_event = crossing_pair(a, masses, Rp, ecc, ecc_vec, g, beta, interact, N, t, t_ref)
+        icross, t_event = crossing_pair(a, masses, Rp, Ms, ecc, ecc_vec, g, beta, interact, N, t, t_ref)
         flag_event = 0 #event done, do not recalculate secular/crossing otherwise 
 
     dt = time_step(t, t_event)
@@ -114,7 +114,7 @@ while t <= max_time and N > 1:
     #check for crossings/close encounters
     if t >= t_event:
         flag_event = 1
-        orbit_cross_K25(a, masses, Rp, ecc, interact, live_status, N, planet_id, icross)
+        orbit_cross_K25(a, masses, Rp, Ms, ecc, interact, live_status, N, planet_id, icross)
         snapshot(t, a, masses, ecc, Rp, live_status, planet_id, N, event=True) #capture state of system right after event
     
     #update planet radius

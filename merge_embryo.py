@@ -1,6 +1,6 @@
 import numpy as np
 
-def merge_embryo(ap, Mp, ecc, live_status): #calculate orbital parameters post collision
+def merge_embryo(ap, Mp, Ms, ecc, live_status): #calculate orbital parameters post collision
     Mp_new = sum(Mp) #eq 15
     ap_new = (Mp[0]*ap[0] + Mp[1]*ap[1])/Mp_new #eq 16
 

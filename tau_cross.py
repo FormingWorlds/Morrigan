@@ -8,7 +8,7 @@ M_earth = 5.9736e24 #kg
 
 Ms = 1*M_sun #stellar mass (relative to Msun)
 
-def tau_cross_petit(a,Mp,ecc, N_affect): #evaluates every planetary triplet for instability
+def tau_cross_petit(a,Mp,Ms,ecc, N_affect): #evaluates every planetary triplet for instability
     K = min(0.5*(N_affect-3) + 1, 3)
     alpha_01, alpha_12 = a[0]/a[1], a[1]/a[2]
 
@@ -28,14 +28,14 @@ def tau_cross_petit(a,Mp,ecc, N_affect): #evaluates every planetary triplet for 
         return 1e20
 
     log_arg = -np.log10((32 * np.sqrt(19) * M * np.sqrt(eta * (1 - eta)))/(3*np.sqrt(np.pi))) + np.log10(delta**6/(delta_ov**6 * (1 - (delta/delta_ov)**4))) + np.sqrt(-np.log(1 - (delta/delta_ov)**4))
-    tau_cross = 10**(log_arg) * kepler_period(Mp[0],a[0])
+    tau_cross = 10**(log_arg) * kepler_period(Mp[0],Ms,a[0])
 
     return tau_cross
 
-def interaction_wrapper(ap, Mp, ecc, N_affect): #determine if system is stable, and if not, calculate timescale to instability
+def interaction_wrapper(ap, Mp, Ms, ecc, N_affect): #determine if system is stable, and if not, calculate timescale to instability
     #N_affect is planets participating in crossing event
     aM = (Mp[0]*ap[0] + Mp[1]*ap[1]) / (Mp[0] + Mp[1])
-    h = hill_sphere(Mp[0]+Mp[1], aM) / aM
+    h = hill_sphere(aM,Mp[0]+Mp[1],Ms) / aM
     #stability criterion
     EJbef = 5.0/8.0*(ecc[0]**2 + ecc[1]**2)/h**2 - 3.0/8.0 * ((ap[0]-ap[1])/(h*aM))**2 + 4.5 #eq 28
 
@@ -43,9 +43,9 @@ def interaction_wrapper(ap, Mp, ecc, N_affect): #determine if system is stable, 
         return 1e20
         
     #otherwise return the crossing timescale from Petit 2020
-    return tau_cross_petit(ap, Mp, ecc, N_affect)
+    return tau_cross_petit(ap, Mp, Ms, ecc, N_affect)
 
-def tau_vis(ap,Mp,Rp,ecc): #viscous relaxation timescale for an interacting planetary pair
+def tau_vis(ap,Mp,Rp,Ms,ecc): #viscous relaxation timescale for an interacting planetary pair
     mu_a = sum(ap)/2 #average semi-major axis of interacting pair
     mu_e = np.sqrt(ecc[0]**2 + ecc[1]**2)
     M_T = sum(Mp) #sum of masses
@@ -64,7 +64,7 @@ def tau_vis(ap,Mp,Rp,ecc): #viscous relaxation timescale for an interacting plan
     timescale = (n * np.pi * G**2 * 3 * M_T**2)/ran_vel**3 #check with paper
     return 1/timescale
 
-def tau_col(ap,Mp,Rp,ecc):
+def tau_col(ap,Mp,Rp,Ms,ecc):
     mu_a = sum(ap)/2 #average semi-major axis of interacting pair
     mu_e = np.sqrt(ecc[0]**2 + ecc[1]**2)
     M_T = sum(Mp) #sum of masses

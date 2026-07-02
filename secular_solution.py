@@ -1,15 +1,8 @@
 import numpy as np 
 from pylaplace import LaplaceCoefficient 
+from constants import *
 
-
-#####CONSTANTS######
-G = 6.67e-11 #m^3kg^-1s^-2
-M_sun = 1.9892e30 #kg
-M_earth = 5.9736e24 #kg
-
-Ms = 1*M_sun #stellar mass (relative to Msun)
-
-def secular_solution(ap, Mp, ecc, Rp, N):
+def secular_solution(ap, Mp, ecc, Rp, Ms, N):
     varpi = np.random.uniform(0.0, 2.0 * np.pi, N)
 
     h0 = ecc * np.sin(varpi)

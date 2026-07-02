@@ -2,12 +2,12 @@ import numpy as np
 from merge_embryo import merge_embryo
 from helper_functions import rayleigh, esc_ecc
 
-def orbit_cross_K25(ap, Mp, Rp, ecc, interact, live_status, N, planet_id, icross): #determine outcome of crossing event
+def orbit_cross_K25(ap, Mp, Rp, Ms, ecc, interact, live_status, N, planet_id, icross): #determine outcome of crossing event
     #now working with an interacting pair of planets i,j
     #modifies the arrays of ap,Mp,Rp,ecc,interact,live_status based on what happens
     jcross = icross + 1 #sets indices of interacting pair, aj>ai always, +1 to be able to index a pair later
     mean_ap = (ap[icross] + ap[jcross])/2 #average semi-major 
-    e_esc = esc_ecc(Mp[icross],Mp[jcross],Rp[icross],Rp[jcross],mean_ap) #escape eccentricity
+    e_esc = esc_ecc(Ms,Mp[icross],Mp[jcross],Rp[icross],Rp[jcross],mean_ap) #escape eccentricity
 
     ecross_i = (ap[jcross] - ap[icross]) * np.sqrt(Mp[jcross]) / (ap[icross] * np.sqrt(Mp[jcross]) + ap[jcross] * np.sqrt(Mp[icross])) #eq 6 again
     ecross_j = (ap[jcross] - ap[icross]) * np.sqrt(Mp[icross]) / (ap[icross] * np.sqrt(Mp[jcross]) + ap[jcross] * np.sqrt(Mp[icross]))
@@ -57,7 +57,7 @@ def orbit_cross_K25(ap, Mp, Rp, ecc, interact, live_status, N, planet_id, icross
         #call merge_embryo function to update parameters for interacting pair
         #jcross+1 to include that planet in the interacting pair
         print(f"[COLLISION] Planets {planet_id[icross]} and {planet_id[jcross]} merged")
-        ap_merge, Mp_merge, ecc_merge, live_status_merge = merge_embryo(ap[icross:jcross+1], Mp[icross:jcross+1], ecc[icross:jcross+1], live_status[icross:jcross+1])
+        ap_merge, Mp_merge, ecc_merge, live_status_merge = merge_embryo(ap[icross:jcross+1], Mp[icross:jcross+1], Ms, ecc[icross:jcross+1], live_status[icross:jcross+1])
 
         #update system
         ap[icross:jcross+1] = ap_merge
