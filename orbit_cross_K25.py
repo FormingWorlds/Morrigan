@@ -7,7 +7,7 @@ def orbit_cross_K25(ap, Mp, Rp, Ms, ecc, interact, live_status, N, planet_id, ic
     #modifies the arrays of ap,Mp,Rp,ecc,interact,live_status based on what happens
     jcross = icross + 1 #sets indices of interacting pair, aj>ai always, +1 to be able to index a pair later
  
-    #mass-weighted mean semi-major axis of the pair (used for EJbef and the ejection formula)
+    #mass-weighted mean semi-major axis of the pair (used for EJbef stability condition and the ejection formula)
     aM = (Mp[icross]*ap[icross] + Mp[jcross]*ap[jcross]) / (Mp[icross] + Mp[jcross])
     h = hill_sphere(aM, Mp[icross]+Mp[jcross], Ms) / aM
     EJbef = 5.0/8.0*(ecc[icross]**2 + ecc[jcross]**2)/h**2 - 3.0/8.0 * ((ap[icross]-ap[jcross])/(h*aM))**2 + 4.5
