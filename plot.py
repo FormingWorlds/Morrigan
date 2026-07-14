@@ -3,8 +3,15 @@ import matplotlib.pyplot as plt
 from astropy.table import Table
 from astropy.io import ascii
 import pdb
+import toml
+import os 
 
-directory = 'test'
+with open('initialise.toml', 'r') as f:
+    config = toml.load(f)
+
+directory = config['run_simulation']['save_directory']
+os.makedirs(directory, exist_ok=True)
+
 initial_system = ascii.read(directory+'/initial_system.csv', format = 'fixed_width')
 final_system = ascii.read(directory+'/final_system.csv', format = 'fixed_width')
 full_system = ascii.read(directory+'/full_system.csv', format = 'fixed_width')
@@ -39,7 +46,6 @@ ax[1,1].set_xlabel('Radius ($R_\oplus$)')
 plt.tight_layout()
 plt.savefig(directory+'/top_level.png', dpi = 300)
 plt.close()
-
 
 
 for p in range(initial_N): 
