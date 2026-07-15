@@ -60,7 +60,7 @@ def plot_stats(directory):
         full_system = ascii.read(directory+f'/data/full_system_{n:02d}.csv', format = 'fixed_width')
         #pull remaining planets from each system
         batch = batch_summary[batch_summary['run_idx'] == n]
-        n_survivors = int(batch['n_survivors'])
+        n_survivors = int(batch['n_survivors'][0])
         #data for the planets left after simulation
         remaining_system = full_system[-n_survivors:]
 
