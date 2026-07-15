@@ -72,6 +72,9 @@ def run_once(run_idx, config):
     #sub-directories for data tables and figures respectively
     os.makedirs(save_directory+'/data', exist_ok = True)
     os.makedirs(save_directory+'/figures', exist_ok = True)
+    os.makedirs(save_directory + '/figures/tracks', exist_ok = True)
+    os.makedirs(save_directory + '/figures/stats', exist_ok = True)
+    os.makedirs(save_directory + '/figures/orbits', exist_ok = True)
 
     N = config['init_par']['N'] #number of planets
     e = config['init_par']['e'] #initial eccentricity
@@ -175,7 +178,6 @@ if __name__ == '__main__':
         results = pool.map(worker, range(ndisk))
     end = time.time()
  
-    summary = pd.DataFrame(results)
-    summary.to_csv(os.path.join(config['run_simulation']['save_directory'], 'batch_summary.csv'), index=False)
- 
+    summary = Table(rows=results, names=['run_idx', 'runtime_s', 'n_survivors'])
+    ascii.write(summary, os.path.join(config['run_simulation']['save_directory'], 'batch_summary.csv'), format='fixed_width', overwrite=True) 
     print(f'Ran {ndisk} realizations on {nproc} processes in {round(end - start, 3)}s')
