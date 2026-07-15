@@ -1,6 +1,9 @@
 import numpy as np
+from mass_loss import * 
+import pdb 
 
-def merge_embryo(ap, Mp, Ms, ecc, live_status): #calculate orbital parameters post collision
+def merge_embryo(ap, Mp, Ms, ecc, v_c, live_status): #calculate orbital parameters post collision
+    #Mp is a list containing interacting pair masses
     Mp_new = sum(Mp) #eq 15
     ap_new = Mp_new/(Mp[0]/ap[0] + Mp[1]/ap[1]) #eq 16
 

@@ -23,7 +23,6 @@ from constants import *
 with open('initialise.toml', 'r') as f:
     config = toml.load(f)
 
-#np.random.seed(config['run_simulation']['random_seed']) #to exactly reproduce a result
 ####ALLOCATE PARAMETERS FOR THE SYSTEM###
 
 def allocate_a(N,Ms,M):
@@ -57,6 +56,7 @@ def data_to_table(history):
 
 def run_once(run_idx, config):
 
+    #import settings from .toml file
     base_seed = config['run_simulation'].get('random_seed', 0)
     np.random.seed(base_seed + run_idx) #unique seed for each planetary system to reproduce results exactly
 
@@ -152,7 +152,7 @@ def run_once(run_idx, config):
             snapshot(t, a, masses, ecc, Rp, live_status, planet_id, N, event=False)
             next_output += output_interval
 
-    snapshot(t, a, masses, ecc, Rp, live_status, planet_id, N, event=False) #final system information
+    snapshot(t, a, masses, ecc, Rp, live_status, planet_id, N, event=False) #final system snapshot
 
     ascii.write(data_to_table(history), os.path.join(save_directory+'/data', f'full_system_{run_idx:02d}.csv'), format = 'fixed_width', overwrite = True)
 
@@ -164,20 +164,35 @@ if __name__ == '__main__':
     with open('initialise.toml', 'r') as f:
         config = toml.load(f)
  
-    #number of systems to run
-    ndisk = config.get('batch', {}).get('ndisk', 100)
-    #number of cores to use, leaves one free 
-    nproc = config.get('batch', {}).get('nproc', max(1, cpu_count() - 1))
+    #number of systems to run (defaults to a single run)
+    ndisk = config.get('batch', {}).get('ndisk', 1)
  
     os.makedirs(config['run_simulation']['save_directory'], exist_ok=True)
  
-    worker = partial(run_once, config=config)
+    if ndisk <= 1:
+        #single run so skip multiprocessing entirely, allows for debugging
+        start = time.time()
+        result = run_once(0, config)
+        end = time.time()
  
-    start = time.time()
-    with Pool(processes=nproc) as pool:
-        results = pool.map(worker, range(ndisk))
-    end = time.time()
+        summary = Table(rows=[result], names=['run_idx', 'runtime_s', 'n_survivors'])
+        ascii.write(summary, os.path.join(config['run_simulation']['save_directory'], 'batch_summary.csv'),
+                    format='fixed_width', overwrite=True)
+        print(f'Ran 1 system in {round(end - start, 3)}s')
  
-    summary = Table(rows=results, names=['run_idx', 'runtime_s', 'n_survivors'])
-    ascii.write(summary, os.path.join(config['run_simulation']['save_directory'], 'batch_summary.csv'), format='fixed_width', overwrite=True) 
-    print(f'Ran {ndisk} realizations on {nproc} processes in {round(end - start, 3)}s')
+    else:
+        #number of cores to use, leaves one free by default
+        nproc = config.get('batch', {}).get('nproc', max(1, cpu_count() - 1))
+ 
+        worker = partial(run_once, config=config)
+ 
+        start = time.time()
+        with Pool(processes=nproc) as pool:
+            results = pool.map(worker, range(ndisk))
+        end = time.time()
+ 
+        summary = Table(rows=results, names=['run_idx', 'runtime_s', 'n_survivors'])
+        ascii.write(summary, os.path.join(config['run_simulation']['save_directory'], 'batch_summary.csv'),
+                    format='fixed_width', overwrite=True)
+        print(f'Ran {ndisk} systems in {round(end - start, 3)}s')
+

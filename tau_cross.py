@@ -86,3 +86,11 @@ def tau_col(ap,Mp,Rp,Ms,ecc):
     timescale = n * np.pi * (R_T)**2 * (1 + esc_vel**2/ran_vel**2) * ran_vel #eq 11
 
     return 1/timescale
+
+def collision_velocity(ap, Mp, Rp, Ms, ecc):
+    mu_a = sum(ap) / 2
+    kep_vel = np.sqrt(G * Ms / mu_a)
+    rep_e = np.sqrt(ecc[0]**2 + ecc[1]**2)  # same as eij in orbit_cross_K25
+    v_inf = rep_e * kep_vel
+    v_esc = np.sqrt(2 * G * (Mp[0] + Mp[1]) / (Rp[0] + Rp[1]))
+    return np.sqrt(v_inf**2 + v_esc**2)

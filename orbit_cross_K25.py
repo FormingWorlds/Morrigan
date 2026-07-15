@@ -62,10 +62,12 @@ def orbit_cross_K25(ap, Mp, Rp, Ms, ecc, interact, live_status, N, planet_id, ic
             else: #if all else, try again with a new random number
                 count += 1
  
+        #velocity at collision, calculated from energy conservation
+        v_c = collision_velocity(ap[icross:jcross+1], Mp[icross:jcross+1], Rp[icross:jcross+1], Ms, ecc[icross:jcross+1])
         #call merge_embryo function to update parameters for interacting pair
         #jcross+1 to include that planet in the interacting pair
         #print(f"[COLLISION] Planets {planet_id[icross]} and {planet_id[jcross]} merged")
-        ap_merge, Mp_merge, ecc_merge, live_status_merge = merge_embryo(ap[icross:jcross+1], Mp[icross:jcross+1], Ms, ecc[icross:jcross+1], live_status[icross:jcross+1])
+        ap_merge, Mp_merge, ecc_merge, live_status_merge = merge_embryo(ap[icross:jcross+1], Mp[icross:jcross+1], Ms, ecc[icross:jcross+1], v_c, live_status[icross:jcross+1])
  
         #update system
         ap[icross:jcross+1] = ap_merge
