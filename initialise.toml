@@ -20,7 +20,7 @@ nproc = 8
 #modify these to change simulation conditions
 N = 10 #number of planets
 e = 0.01
-Mp = 0.5 #planet mass (relative to Mearth)
+Mp = 1 #planet mass (relative to Mearth)
 Ms = 1 #stellar mass (relative to Msun)
 rho_p = 5500 #planet density kg/m^3
 #^^^^^^^

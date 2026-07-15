@@ -5,6 +5,7 @@ from astropy.io import ascii
 import pdb
 import toml
 import os 
+from constants import *
 
 with open('initialise.toml', 'r') as f:
     config = toml.load(f)
@@ -67,18 +68,32 @@ def plot_stats(directory):
         fig, ax = plt.subplots(figsize=(7, 7))
         theta = np.linspace(0, 2 * np.pi, 300)
         c = ['palevioletred', 'steelblue', 'midnightblue', 'mediumseagreen', 'black']
-        for a, e, f in zip(remaining_system['a_AU'], remaining_system['ecc'], range(len(remaining_system['ecc']))):
+
+        masses = remaining_system['Mp']/M_earth
+        # scale marker sizes relative to masses in this system (area ~ mass, so use sqrt)
+        size_min, size_max = 80, 600
+        if masses.max() > masses.min():
+            marker_sizes = size_min + (np.sqrt(masses) - np.sqrt(masses.min())) / \
+                            (np.sqrt(masses.max()) - np.sqrt(masses.min())) * (size_max - size_min)
+        else:
+            marker_sizes = np.full(len(masses), (size_min + size_max) / 2)
+
+        for a, e, mp, ms, f in zip(remaining_system['a_AU'], remaining_system['ecc'], masses, marker_sizes, range(len(remaining_system['ecc']))):
             r = a * (1 - e**2) / (1 + e * np.cos(theta))
             x = r * np.cos(theta)
             y = r * np.sin(theta)
-            ax.plot(x, y, lw=3, color = c[f], label = f'e = {round(e,3)}')
+            ax.plot(x, y, lw=3, color=c[f], label=f'e = {round(e,3)}, Mp = {mp}' + r' $M_\oplus$')
+
+            # mark planet position at periapsis (theta=0)
+            r_peri = a * (1 - e)
+            ax.scatter(r_peri, 0, s=ms, color=c[f], edgecolor='k', zorder=6)
 
         ax.plot(0, 0, marker='*', color='gold', markersize=15, markeredgecolor='orange', zorder=5)
         ax.set_aspect('equal')
         ax.set_xlabel('x (AU)')
         ax.set_ylabel('y (AU)')
         plt.grid()
-        plt.legend()
+        plt.legend(loc = 'upper right')
         plt.tight_layout()
         plt.savefig(directory+f'/figures/orbits/orbits_{n:02d}.png', dpi = 500)
         plt.close()
@@ -87,13 +102,14 @@ def plot_stats(directory):
         batch_planets.append(len(remaining_system['id']))
         batch_a.append(remaining_system['a_AU'][0])
         batch_ecc.append(remaining_system['ecc'][0])
-        batch_mp.append(remaining_system['Mp'][0])
+        batch_mp.append(remaining_system['Mp'][0]/M_earth)
 
     mean_N, std_N = np.mean(batch_planets), np.std(batch_planets)
     mean_a, std_a = np.mean(batch_a), np.std(batch_a)
     mean_ecc, std_ecc = np.mean(batch_ecc), np.std(batch_ecc)
+    mean_M, std_M = np.mean(batch_mp), np.std(batch_mp)
 
-    fig,ax = plt.subplots(1,2)
+    fig,ax = plt.subplots(1,3, figsize = (15,7))
 
     ax[0].errorbar(mean_a, mean_N, std_N, std_a, fmt = 'o', color = 'steelblue', capsize = 3)
     ax[0].set_xlabel('Semi-major axis (AU)')
@@ -102,6 +118,11 @@ def plot_stats(directory):
     ax[1].set_xlabel('Eccentricity')
     ax[0].set_ylabel('Remaining planets')
     ax[1].grid()
+    
+    ax[2].errorbar(mean_M, mean_N, std_N, std_M, fmt = 'o', color = 'midnightblue', capsize = 3)
+    ax[2].set_xlabel('M$_p$ ($M_\oplus$)')
+    ax[2].grid()
+    
 
     plt.tight_layout()
     plt.savefig(directory+'/figures/stats/all_stats.png', dpi = 500)
