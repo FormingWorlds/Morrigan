@@ -77,7 +77,7 @@ def tau_col(ap,Mp,Rp,Ms,ecc):
     ecross = [ecross_i, ecross_j]
 
     rep_e = 0.5 * max(sum(ecross), sum(ecc))
-    kep_vel = np.sqrt(G * Ms / mu_a)
+    kep_vel = np.sqrt((G * Ms) / mu_a)
     ran_vel = rep_e * kep_vel
     esc_vel = np.sqrt(2.0 * G * M_T / R_T)
     n = 1.0 / (2.0 * np.pi * rep_e * mu_a**2 * impact_parameter)
