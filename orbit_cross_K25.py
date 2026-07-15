@@ -64,7 +64,7 @@ def orbit_cross_K25(ap, Mp, Rp, Ms, ecc, interact, live_status, N, planet_id, ic
  
         #call merge_embryo function to update parameters for interacting pair
         #jcross+1 to include that planet in the interacting pair
-        print(f"[COLLISION] Planets {planet_id[icross]} and {planet_id[jcross]} merged")
+        #print(f"[COLLISION] Planets {planet_id[icross]} and {planet_id[jcross]} merged")
         ap_merge, Mp_merge, ecc_merge, live_status_merge = merge_embryo(ap[icross:jcross+1], Mp[icross:jcross+1], Ms, ecc[icross:jcross+1], live_status[icross:jcross+1])
  
         #update system
@@ -85,14 +85,14 @@ def orbit_cross_K25(ap, Mp, Rp, Ms, ecc, interact, live_status, N, planet_id, ic
         ismall = jcross if ecc[icross] >= ecc[jcross] else icross
  
         if max(ecc[icross], ecc[jcross]) >= 1.0: #planet got bumped out
-            print(f"[EJECTION] Planet {planet_id[ismall]} was ejected")
+            #print(f"[EJECTION] Planet {planet_id[ismall]} was ejected")
             ap[ismall] = Mp[ismall] / (Mp[ismall] / ap[ismall] + Mp[ilarge] / ap[ilarge])
             ecc[ismall] = 1.0 - ap[ismall] / aM #mass-weighted mean, matches Fortran's aM (not the simple mean mma)
             live_status[ismall] = False
         else: #'normal' scattering conditions
             #'change in orbital separation is assumed to be equal to the sum of the excited epicycle amplitude'
             #db = delta_a essentially how much the orbit is shifted either in or out 
-            print(f"[SCATTERING] Planets {planet_id[icross]} and {planet_id[jcross]} scattered")
+            #print(f"[SCATTERING] Planets {planet_id[icross]} and {planet_id[jcross]} scattered")
             db = ecc[icross] * ap[icross] + ecc[jcross] * ap[jcross] #delta b_ij eq 18
             ap[icross] = ap[icross] - Mp[jcross] / (Mp[icross] + Mp[jcross]) * db #eq 19
             ap[jcross] = ap[jcross] + Mp[icross] / (Mp[icross] + Mp[jcross]) * db #eq 20

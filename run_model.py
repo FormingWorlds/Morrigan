@@ -69,6 +69,9 @@ def run_once(run_idx, config):
     max_time = config['run_simulation']['max_time'] * gyr2sec #evolution time gyr converted to seconds
     save_directory = config['run_simulation']['save_directory']
     os.makedirs(save_directory, exist_ok=True) #creates directory if it doesnt already exist
+    #sub-directories for data tables and figures respectively
+    os.makedirs(save_directory+'/data', exist_ok = True)
+    os.makedirs(save_directory+'/figures', exist_ok = True)
 
     N = config['init_par']['N'] #number of planets
     e = config['init_par']['e'] #initial eccentricity
@@ -148,7 +151,7 @@ def run_once(run_idx, config):
 
     snapshot(t, a, masses, ecc, Rp, live_status, planet_id, N, event=False) #final system information
 
-    ascii.write(data_to_table(history), os.path.join(save_directory, f'full_system_{run_idx:02d}.csv'), format = 'fixed_width', overwrite = True)
+    ascii.write(data_to_table(history), os.path.join(save_directory+'/data', f'full_system_{run_idx:02d}.csv'), format = 'fixed_width', overwrite = True)
 
     end = time.time()
     runtime = round((end-start), 3)
