@@ -8,12 +8,17 @@ flag_event = 1
 
 a_min = 0.005 #defines when a planet has fallen into the star 
 max_time = 5 #evolution time (gyr)
-save_directory = 'N_2'
+save_directory = 'july15'
 random_seed = 1 #to reproduce results exactly
+
+#parameters to run in parallel for multiple systems
+['batch']
+ndisk = 20
+nproc = 8
 
 ['init_par']
 #modify these to change simulation conditions
-N = 2 #number of planets
+N = 10 #number of planets
 e = 0.01
 Mp = 0.5 #planet mass (relative to Mearth)
 Ms = 1 #stellar mass (relative to Msun)
