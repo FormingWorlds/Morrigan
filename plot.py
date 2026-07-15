@@ -54,6 +54,7 @@ def plot_stats(directory):
     batch_planets = []
     batch_a = []
     batch_ecc = []
+    batch_mp = []
     for n in range(ndisk):
         full_system = ascii.read(directory+f'/data/full_system_{n:02d}.csv', format = 'fixed_width')
         #pull remaining planets from each system
@@ -86,6 +87,7 @@ def plot_stats(directory):
         batch_planets.append(len(remaining_system['id']))
         batch_a.append(remaining_system['a_AU'][0])
         batch_ecc.append(remaining_system['ecc'][0])
+        batch_mp.append(remaining_system['Mp'][0])
 
     mean_N, std_N = np.mean(batch_planets), np.std(batch_planets)
     mean_a, std_a = np.mean(batch_a), np.std(batch_a)
@@ -103,6 +105,34 @@ def plot_stats(directory):
 
     plt.tight_layout()
     plt.savefig(directory+'/figures/stats/all_stats.png', dpi = 500)
+    plt.close()
+
+    #comparison plots for every simulation run 
+    fig,ax = plt.subplots()
+    ax.grid(alpha = 0.5)
+    ax.scatter(batch_a, batch_ecc, marker = 'o', s = 50, color = 'midnightblue')
+    ax.set_ylabel('ecc')
+    ax.set_xlabel('a (AU)')
+    plt.tight_layout()
+    plt.savefig(directory+'/figures/stats/ea.png', dpi = 500)
+    plt.close()
+
+    fig,ax = plt.subplots()
+    ax.grid(alpha = 0.5)
+    ax.scatter(batch_mp, batch_ecc, marker = '*', s = 50, color = 'palevioletred')
+    ax.set_ylabel('ecc')
+    ax.set_xlabel('Mp ($\oplus$)')
+    plt.tight_layout()
+    plt.savefig(directory+'/figures/stats/eMp.png', dpi = 500)
+    plt.close()
+
+    fig,ax = plt.subplots()
+    ax.grid(alpha = 0.5)
+    ax.scatter(batch_a, batch_mp, marker = '+', s = 50, color = 'steelblue')
+    ax.set_xlabel('a (AU)')
+    ax.set_ylabel('Mp ($\oplus$)')
+    plt.tight_layout()
+    plt.savefig(directory+'/figures/stats/Mpa.png', dpi = 500)   
     plt.close()
 
 
