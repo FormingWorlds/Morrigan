@@ -23,14 +23,16 @@ from constants import *
 with open('initialise.toml', 'r') as f:
     config = toml.load(f)
 
+inner_edge = config['init_par']['inner_edge']
 ####ALLOCATE PARAMETERS FOR THE SYSTEM###
 
-def allocate_a(N,Ms,M):
+#need to modify this function to work with different starting planetary masses
+def allocate_a(N,Ms,masses):
     a = np.empty(N)
     a[0] = 0.1 #AU
     for i in range(1,N): #allocate initial semi-major axes
         a_previous = a[i-1] #starting semi-major axis
-        hill = hill_sphere(a_previous,2*M,Ms)
+        hill = hill_sphere(a_previous,masses[i-1]+masses[i],Ms) #mutual hill radius of the adjacent pair
         a[i] = a_previous + 10*hill #planets are spaced out by 10 hill radii
     return a*au2m #convert to [m] to stay in SI!
 
@@ -58,7 +60,7 @@ def run_once(run_idx, config):
 
     #import settings from .toml file
     base_seed = config['run_simulation'].get('random_seed', 0)
-    np.random.seed(base_seed + run_idx) #unique seed for each planetary system to reproduce results exactly
+    np.random.seed(base_seed + run_idx) #unique seed for each planetary system to reproduce individual results exactly
 
     t = config['run_simulation']['t']
     t_ref = config['run_simulation']['t_ref']
@@ -78,15 +80,19 @@ def run_once(run_idx, config):
 
     N = config['init_par']['N'] #number of planets
     e = config['init_par']['e'] #initial eccentricity
-    Mp = config['init_par']['Mp'] * M_earth #planet mass (relative to Mearth)
+    masses = np.array(config['init_par']['Mp']) * M_earth
+
+    if N != len(masses):
+        print('Initial mass allocation and number of planets are mismatched!')
+        quit()
+
     Ms = config['init_par']['Ms'] * M_sun #stellar mass (relative to Msun)
     rho_p = config['init_par']['rho_p'] #planet density kg/m^3  
 
     #actually initialising system here with arrays for every parameter
-    a = allocate_a(N,Ms,Mp)
+    a = allocate_a(N,Ms,masses)
     ecc = np.full(N,e)
     densities = np.full(N, rho_p)
-    masses = np.full(N, Mp)
     live_status = np.ones(N, dtype = bool) #set initial status of planets, all are live by definition at the start
     interact = np.ones(N, dtype = bool) #stores the indices of which planets are participating in an event
     Rp = np.array([planet_radius(i, j) for i,j in zip(masses,densities)])
