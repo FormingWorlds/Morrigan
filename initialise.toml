@@ -8,7 +8,7 @@ flag_event = 1
 
 a_min = 0.005 #defines when a planet has fallen into the star 
 max_time = 1 #evolution time (gyr)
-save_directory = 'test_jul20'
+save_directory = 'validation'
 random_seed = 1 #to reproduce results exactly
 
 #parameters to run in parallel for multiple systems

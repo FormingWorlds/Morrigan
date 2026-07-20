@@ -3,6 +3,7 @@
 *.png
 main2.py
 RUN.sh
+initialise.toml
 # VS Code workspace config
 *.code-workspace
 
