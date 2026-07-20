@@ -29,7 +29,7 @@ inner_edge = config['init_par']['inner_edge']
 #need to modify this function to work with different starting planetary masses
 def allocate_a(N,Ms,masses):
     a = np.empty(N)
-    a[0] = 0.1 #AU
+    a[0] = inner_edge #AU
     for i in range(1,N): #allocate initial semi-major axes
         a_previous = a[i-1] #starting semi-major axis
         hill = hill_sphere(a_previous,masses[i-1]+masses[i],Ms) #mutual hill radius of the adjacent pair
@@ -83,7 +83,7 @@ def run_once(run_idx, config):
     masses = np.array(config['init_par']['Mp']) * M_earth
 
     if N != len(masses):
-        print('Initial mass allocation and number of planets are mismatched!')
+        print('Initial mass allocation and number of planets in system are mismatched!')
         quit()
 
     Ms = config['init_par']['Ms'] * M_sun #stellar mass (relative to Msun)

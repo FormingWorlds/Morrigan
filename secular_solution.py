@@ -10,12 +10,16 @@ def secular_solution(ap, Mp, ecc, Rp, Ms, N):
 
     mean_motion = np.sqrt(G*Ms/ap**3)
     A = np.zeros((N,N)) #empty interaction matrix
+    apo = (1.0 + ecc) * ap
+    peri = (1.0 - ecc) * ap
 
     laplace = LaplaceCoefficient(method = 'Brute') #to calculate laplace coefficients
     for i in range(N): 
         for j in range(N): 
             if i == j:
                 continue #skip self-interactions
+            if min(apo[i], apo[j]) > max(peri[i], peri[j]):
+                continue #skip overlapping orbits
             if ap[i] < ap[j]:
                 alpha = ap[i]/ap[j]
                 alpha_bar = alpha 

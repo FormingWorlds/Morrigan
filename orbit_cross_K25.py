@@ -1,6 +1,8 @@
 import numpy as np 
-from merge_embryo import merge_embryo
-from helper_functions import rayleigh, esc_ecc, hill_sphere
+from merge_embryo import *
+from helper_functions import *
+from mass_loss import *
+from tau_cross import *
  
 def orbit_cross_K25(ap, Mp, Rp, Ms, ecc, interact, live_status, N, planet_id, icross): #determine outcome of crossing event
     #now working with an interacting pair of planets i,j
@@ -88,7 +90,9 @@ def orbit_cross_K25(ap, Mp, Rp, Ms, ecc, interact, live_status, N, planet_id, ic
  
         if max(ecc[icross], ecc[jcross]) >= 1.0: #planet got bumped out
             #print(f"[EJECTION] Planet {planet_id[ismall]} was ejected")
+            #planet with smaller excited eccentricity remains in the system, and orbital parameters are recalculated
             ap[ismall] = Mp[ismall] / (Mp[ismall] / ap[ismall] + Mp[ilarge] / ap[ilarge])
+            #in K25 pt 2, this is ap[ismall] / aM - 1 
             ecc[ismall] = 1.0 - ap[ismall] / aM #mass-weighted mean, matches Fortran's aM (not the simple mean mma)
             live_status[ismall] = False
         else: #'normal' scattering conditions

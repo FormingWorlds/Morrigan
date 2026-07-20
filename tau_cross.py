@@ -56,13 +56,13 @@ def tau_vis(ap,Mp,Rp,Ms,ecc): #viscous relaxation timescale for an interacting p
     ecross_j = (np.sqrt(Mp[0]) * impact_parameter)/((np.sqrt(Mp[0]) * ap[0]) + np.sqrt(Mp[1]) * ap[1]) #implied eq 6
     ecross = [ecross_i, ecross_j]
 
-    rep_e = max((sum(ecross)), sum(ecc)) #eq 23 used to calculate lambda in eq 12
+    rep_e = 0.5 * max((sum(ecross)), sum(ecc)) #eq 23 used to calculate lambda in eq 12
     kep_vel = np.sqrt((G * Ms)/mu_a) #eq 10
     ran_vel = rep_e * kep_vel #before eq 9
     n = 1/(2 * np.pi * rep_e * mu_a**2 * impact_parameter) #eq 8
 
-    timescale = (n * np.pi * G**2 * 3 * M_T**2)/ran_vel**3 #check with paper
-    return 1/timescale
+    timescale = ran_vel**3 / (n * np.pi * G**2 * M_T**2) # matches Fortran (no factor of 3)
+    return timescale
 
 def tau_col(ap,Mp,Rp,Ms,ecc):
     mu_a = sum(ap)/2 #average semi-major axis of interacting pair
