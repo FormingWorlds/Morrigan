@@ -73,6 +73,7 @@ def run_once(run_idx, config):
     os.makedirs(save_directory, exist_ok=True) #creates directory if it doesnt already exist
     #sub-directories for data tables and figures respectively
     os.makedirs(save_directory+'/data', exist_ok = True)
+    os.makedirs(save_directory+'/data/mergers', exist_ok = True)
     os.makedirs(save_directory+'/figures', exist_ok = True)
     os.makedirs(save_directory + '/figures/tracks', exist_ok = True)
     os.makedirs(save_directory + '/figures/stats', exist_ok = True)
@@ -103,6 +104,7 @@ def run_once(run_idx, config):
     next_id = len(masses)
 
     history = []
+    mergers = [] #specifically stores info about merge events, one row is one merge
     #stores timestep information about the system
     def snapshot(t, a, masses, ecc, Rp, live_status, planet_id, N, event=False):
         history.append({'t': t, 'id': planet_id[:N].copy(), 'a': a[:N].copy()/1.5e11, 'masses': masses[:N].copy(),
@@ -142,7 +144,10 @@ def run_once(run_idx, config):
         #check for crossings/close encounters
         if t >= t_event:
             flag_event = 1
-            orbit_cross_K25(a, masses, Rp, Ms, ecc, interact, live_status, N, planet_id, icross)
+            merge_record = orbit_cross_K25(a, masses, Rp, Ms, ecc, interact, live_status, N, planet_id, icross)
+            if merge_record is not None: #None for scattering/ejection events, ONLY for mergers
+                merge_record['t'] = t
+                mergers.append(merge_record)
             snapshot(t, a, masses, ecc, Rp, live_status, planet_id, N, event=True) #capture state of system right after event
     
         #update planet radius
@@ -161,6 +166,15 @@ def run_once(run_idx, config):
     snapshot(t, a, masses, ecc, Rp, live_status, planet_id, N, event=False) #final system snapshot
 
     ascii.write(data_to_table(history), os.path.join(save_directory+'/data', f'full_system_{run_idx:02d}.csv'), format = 'fixed_width', overwrite = True)
+
+    #write out impact velocities + resultant atmospheric mass loss for every merger in this run
+    merger_cols = ['t', 'id_target', 'id_impactor', 'M_target_before', 'M_impactor_before',
+                   'M_merged_after', 'collision_vel', 'atm_mass_loss_frac', 'a_final_AU']
+    if mergers: #at least one merger happened this run
+        merger_table = Table(rows=mergers, names=merger_cols)
+    else: #keep the file schema consistent even for runs with zero mergers
+        merger_table = Table(names=merger_cols, dtype=[float]*len(merger_cols))
+    ascii.write(merger_table, os.path.join(save_directory+'/data/mergers', f'mergers_{run_idx:02d}.csv'), format = 'fixed_width', overwrite = True)
 
     end = time.time()
     runtime = round((end-start), 3)
