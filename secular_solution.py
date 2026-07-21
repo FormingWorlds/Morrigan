@@ -38,8 +38,8 @@ def secular_solution(ap, Mp, ecc, Rp, Ms, N):
             A[i,j] = -factor * coeff_m2
 
     #solve the eigenvalue problem
-    pdb.set_trace()
     g, S = np.linalg.eig(A)
+
     g = np.real(g)
     S = np.real(S)
 

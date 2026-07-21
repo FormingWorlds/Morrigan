@@ -1,6 +1,6 @@
 import numpy as np
 
-def sort_planet(ap, Mp, ecc, Rp, live_status, interact, densities, planet_id): #clean up system after event
+def sort_planet(ap, Mp, ecc, Rp, atm_mass_fraction, live_status, interact, densities, planet_id): #clean up system after event
     #remove ejected or dead ones 
     live_planets = live_status
     ap = ap[live_planets]
@@ -9,6 +9,7 @@ def sort_planet(ap, Mp, ecc, Rp, live_status, interact, densities, planet_id): #
     ecc = ecc[live_planets]
     densities = densities[live_planets]
     planet_id = planet_id[live_planets]
+    atm_mass_fraction = atm_mass_fraction[live_planets]
 
     interact = interact[live_planets]
     live_status = live_status[live_planets]
@@ -23,5 +24,6 @@ def sort_planet(ap, Mp, ecc, Rp, live_status, interact, densities, planet_id): #
     densities = densities[sort_order]
     live_status = live_status[sort_order]
     planet_id = planet_id[sort_order]
+    atm_mass_fraction = atm_mass_fraction[sort_order]
 
-    return ap, Mp, ecc, Rp, live_status, interact, densities, planet_id
+    return ap, Mp, ecc, Rp, atm_mass_fraction, live_status, interact, densities, planet_id

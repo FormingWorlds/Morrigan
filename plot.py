@@ -9,7 +9,7 @@ from constants import *
 from scipy.stats import variation
 
 
-plt.rcParams["font.size"] = 15
+plt.rcParams["font.size"] = 12
 plt.rcParams['axes.linewidth'] = 2 
 plt.rcParams["xtick.major.width"] = 1.5             
 plt.rcParams["ytick.major.width"] = 1.5
@@ -33,7 +33,7 @@ batch_summary = ascii.read(directory+'/batch_summary.csv', format = 'fixed_width
 def plot_tracks(directory):
 
     for n in range(ndisk):
-        full_system = ascii.read(directory+f'/data/full_system_{n:02d}.csv', format = 'fixed_width')
+        full_system = ascii.read(directory+f'/data/full_systems/full_system_{n:02d}.csv', format = 'fixed_width')
         initial_N = N = config['init_par']['N'] #initial planets in each system
 
         for p in range(initial_N): 
@@ -71,7 +71,7 @@ def plot_orbits(directory):
     batch_ecc = []
     batch_mp = []
     for n in range(ndisk):
-        full_system = ascii.read(directory+f'/data/full_system_{n:02d}.csv', format = 'fixed_width')
+        full_system = ascii.read(directory+f'/data/full_systems/full_system_{n:02d}.csv', format = 'fixed_width')
         #pull remaining planets from each system
         batch = batch_summary[batch_summary['run_idx'] == n]
         n_survivors = int(batch['n_survivors'][0])
@@ -177,7 +177,7 @@ def plot_stats(directory):
     e_H_run = np.full(ndisk, np.nan)
     
     for n in range(ndisk):
-        full_system = ascii.read(directory+f'/data/full_system_{n:02d}.csv', format = 'fixed_width')
+        full_system = ascii.read(directory+f'/data/full_systems/full_system_{n:02d}.csv', format = 'fixed_width')
         # Pull remaining planets from each system
         batch = batch_summary[batch_summary['run_idx'] == n]
         n_survivors = int(batch['n_survivors'][0])
@@ -186,8 +186,8 @@ def plot_stats(directory):
         # Extract system-specific attributes for THIS run to avoid cross-system accumulation
         run_a = np.asarray(remaining_system['a_AU'], dtype=float)
         run_ecc = np.asarray(remaining_system['ecc'], dtype=float)
-        run_mp = np.asarray(remaining_system['Mp']/M_earth, dtype=float)
-        run_mp_kg = np.asarray(remaining_system['Mp'], dtype=float)
+        run_mp = np.asarray(remaining_system['Mp']/M_earth, dtype=float) #mass in earth masses
+        run_mp_kg = np.asarray(remaining_system['Mp'], dtype=float) #mass in kg (SI)
         batch_planets.append(n_survivors)
         batch_a.extend(run_a)
         batch_ecc.extend(run_ecc)
@@ -206,7 +206,7 @@ def plot_stats(directory):
     ax[0].plot(np.nanmean(com_run), np.nanmean(batch_planets), marker='.', color='gold', markersize=15, markeredgecolor='black', zorder=5)
     ax[0].errorbar(np.nanmean(com_run), np.nanmean(batch_planets), yerr=np.nanstd(batch_planets), xerr=np.nanstd(com_run), ecolor = 'purple', capsize = 4, fmt='none')  
     ax[0].set_ylabel('Remaining planets')
-    ax[0].set_xlabel(r'$\langle a_M \rangle$ (AU)')
+    ax[0].set_xlabel('Initial center of mass (AU)')
     ax[0].grid(alpha = 0.5) 
 
     ax[1].scatter(e_H_run, b_H_run, color = 'seagreen')
@@ -245,15 +245,12 @@ def plot_stats(directory):
     ax[2].scatter(batch_a, batch_mp, color = 'forestgreen')
     ax[2].plot(np.mean(batch_a), np.mean(batch_mp), marker='.', color='purple', markersize=15, markeredgecolor='black', zorder=5)
     ax[2].errorbar(np.mean(batch_a), np.mean(batch_mp), np.std(batch_mp), np.std(batch_a), ecolor = 'forestgreen', capsize = 4)
-    ax[2].set_xlabel('a')
+    ax[2].set_xlabel('a (AU)')
     ax[2].set_ylabel('M$_p$ ($M_\oplus$)')
     ax[2].grid(alpha = 0.5)
 
     plt.tight_layout()
     plt.savefig(directory+'/figures/stats/all_systems.png', dpi = 500)
     plt.close()
-
-
-
 
 plot_stats(directory)

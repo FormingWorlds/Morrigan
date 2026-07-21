@@ -13,7 +13,7 @@ random_seed = 1 #to reproduce results exactly
 
 #parameters to run in parallel for multiple systems
 ['batch']
-ndisk = 1 #number of planetary systems, all starting with the same initial conditions
+ndisk = 20 #number of planetary systems, all starting with the same initial conditions
 nproc = 8
 
 ['init_par']
@@ -22,6 +22,7 @@ N = 10 #number of planets
 e = 0.01
 Mp = [0.1, 1.5, 0.9, 0.6, 0.75, 1.2, 1.4, 0.45, 0.5, 1.0] #planet mass (relative to Mearth)
 atm_mass = [0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01] #atmospheric mass fraction
+impact_angle = 45 #[deg]
 
 Ms = 1 #stellar mass (relative to Msun)
 rho_p = 5500 #planet density kg/m^3
