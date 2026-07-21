@@ -18,5 +18,8 @@ def esc_ecc(Ms,M1,M2,R1,R2,a):
 def planet_radius(mass,density):
     return ((3*mass)/(4 * np.pi*density))**(1/3)
 
+def planet_density(mass,radius):
+    return mass / ((4.0/3.0) * np.pi * radius**3)
+
 def hill_sphere(a,M,Ms):
     return a * ((M) / (3 * Ms))**(1/3) #mutual hill radius for adjacent planets
