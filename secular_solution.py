@@ -1,6 +1,7 @@
 import numpy as np 
 from pylaplace import LaplaceCoefficient 
 from constants import *
+import pdb
 
 def secular_solution(ap, Mp, ecc, Rp, Ms, N):
     varpi = np.random.uniform(0.0, 2.0 * np.pi, N)
@@ -37,6 +38,7 @@ def secular_solution(ap, Mp, ecc, Rp, Ms, N):
             A[i,j] = -factor * coeff_m2
 
     #solve the eigenvalue problem
+    pdb.set_trace()
     g, S = np.linalg.eig(A)
     g = np.real(g)
     S = np.real(S)

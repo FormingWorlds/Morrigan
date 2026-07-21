@@ -40,6 +40,7 @@ def orbit_cross_K25(ap, Mp, Rp, Ms, ecc, interact, live_status, N, planet_id, ic
  
     #use Monte Carlo approach to say whether or not a collision actually happens
     #Bernoulli sampling?
+    merge_record = None #stores when a merge happens, stays None if nothing happens
     draw = np.random.uniform(0,1) #draws a random number to compare against p_col
     if draw < p_col: #merge event
         count = 0 #keeps track of rejection-sampling structure, and ensures while loop doesnt go forever
@@ -66,17 +67,31 @@ def orbit_cross_K25(ap, Mp, Rp, Ms, ecc, interact, live_status, N, planet_id, ic
  
         #velocity at collision, calculated from energy conservation
         v_c = collision_velocity(ap[icross:jcross+1], Mp[icross:jcross+1], Rp[icross:jcross+1], Ms, ecc[icross:jcross+1])
+
+        #capture pre-merge state for the impact log, since merge_embryo overwrites Mp[icross:jcross+1] below
+        #(target = larger/surviving body, impactor = smaller/destroyed body, as per merge_embryo convention)
+        target_idx = icross if Mp[icross] >= Mp[jcross] else jcross
+        impactor_idx = jcross if target_idx == icross else icross
+        id_target, id_impactor = planet_id[target_idx], planet_id[impactor_idx] #carry index through all other parameters
+        M_target_before, M_impactor_before = Mp[target_idx], Mp[impactor_idx]       
+        
+        
         #call merge_embryo function to update parameters for interacting pair
         #jcross+1 to include that planet in the interacting pair
         #print(f"[COLLISION] Planets {planet_id[icross]} and {planet_id[jcross]} merged")
-        ap_merge, Mp_merge, ecc_merge, live_status_merge = merge_embryo(ap[icross:jcross+1], Mp[icross:jcross+1], Ms, ecc[icross:jcross+1], v_c, live_status[icross:jcross+1])
- 
+        ap_merge, Mp_merge, ecc_merge, live_status_merge, frac_lost = merge_embryo(ap[icross:jcross+1], Mp[icross:jcross+1], Rp[icross:jcross+1], Ms, ecc[icross:jcross+1], v_c, live_status[icross:jcross+1])
+
         #update system
         ap[icross:jcross+1] = ap_merge
         Mp[icross:jcross+1] = Mp_merge 
         ecc[icross:jcross+1] = ecc_merge 
         live_status[icross:jcross+1] = live_status_merge #smaller planet dies
- 
+
+        #record impact velocity (v_c) + mass loss for each merger
+        merge_record = {'id_target': id_target,'id_impactor': id_impactor,'M_target_before': M_target_before,
+            'M_impactor_before': M_impactor_before,'M_merged_after': Mp[target_idx],'v_c': v_c,
+            'atm_mass_loss_frac': frac_lost,'a_final_AU': ap[target_idx] / 1.5e11,}
+
     else: #scattering event
         rayleigh_ecc = rayleigh(1.0 / np.sqrt(2.0), 0.0) #0 because no truncation at geometric overlap constraint as for merge case 
         #assuming energy equipartition
@@ -105,3 +120,5 @@ def orbit_cross_K25(ap, Mp, Rp, Ms, ecc, interact, live_status, N, planet_id, ic
  
     if ap[icross] < 0.0: #inner planet fell into star oops
         live_status[icross] = False #it's now dead
+    
+    return merge_record
