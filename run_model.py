@@ -26,7 +26,6 @@ with open('initialise.toml', 'r') as f:
 inner_edge = config['init_par']['inner_edge']
 ####ALLOCATE PARAMETERS FOR THE SYSTEM###
 
-#need to modify this function to work with different starting planetary masses
 def allocate_a(N,Ms,masses):
     a = np.empty(N)
     a[0] = inner_edge #AU
@@ -86,7 +85,7 @@ def run_once(run_idx, config):
     impact_angle = config['init_par']['impact_angle']
     impact_parameter = np.sin(np.deg2rad(impact_angle)) #impact parameter =  sin(impact_angle)
     masses = np.array(config['init_par']['Mp']) * M_earth
-    atm_mass_fraction = np.array(config['init_par']['atm_mass']) #mass fraction, solid mass implicitly is Mp - (Mp * atm_mass_fraction)
+    atm_mass_fraction = np.array(config['init_par']['atm_mass_fraction']) #mass fraction, solid mass implicitly is Mp - (Mp * atm_mass_fraction)
 
     if N != len(masses) or N != len(atm_mass_fraction):
         print('Number of planets = ', N)
@@ -130,6 +129,8 @@ def run_once(run_idx, config):
         if flag_event == 1: #only recompute secular solution and crossing pair when something has changed
             a, masses, ecc, Rp, atm_mass_fraction, live_status, interact, densities, planet_id = sort_planet(a, masses, ecc, Rp, atm_mass_fraction, live_status, interact, densities, planet_id)
             N = len(a) #number of planets changes after an event!
+            if N <= 1:
+                break 
             ecc_vec, g, beta = secular_solution(a, masses, ecc, Rp, Ms, N)
             t_ref = t #time for crossing_pair
             #identify indices of planetary pair that cross, and time of crossing (event)

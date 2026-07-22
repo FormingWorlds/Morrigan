@@ -53,7 +53,7 @@ def plot_tracks(directory):
             plt.plot(t_yr, a * (1.0 + e), linestyle=':', alpha=0.4, color=color)
             plt.fill_between(t_yr, a * (1.0 - e), a * (1.0 + e), alpha=0.1, color=color)
 
-        plt.legend(ncol = 2, loc = 'upper right')
+        plt.legend(ncol = 2, loc = 'upper left')
         plt.xlabel('Time (yr)')
         plt.ylabel('Radial range swept out by orbit (AU)')
         plt.xscale('log')
