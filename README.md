@@ -32,11 +32,14 @@ Results are written under the `save_directory` named in the settings file:
 | `data/survivors/` | Final mass, orbit, eccentricity, and atmosphere of each surviving planet |
 | `batch_summary.csv` | Runtime and surviving-planet count for each system |
 
-To plot the results of a run, from the same directory:
+To plot the results of a run, point the plotting script at the same settings file:
 
 ```bash
-python plot.py
+pip install -e ".[plot]"
+python plot.py -c initialise.toml
 ```
+
+`plot.py` is a script kept in the repository rather than part of the installed package, so it is run from a checkout. Its plotting dependencies (matplotlib, scipy) are in the `plot` extra, which keeps them out of the way of anything that only wants to import the model.
 
 ## Reproducibility
 

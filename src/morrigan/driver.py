@@ -127,10 +127,6 @@ def run_once(run_idx, config):
     Rp = np.array([planet_radius(i, j) for i,j in zip(masses,densities)])
     planet_id = np.arange(N) #persistent id for a particular planet to track its evolution and what events it participates in
                                             
-    parameter_names = ['id','a_AU','e','Mp','Rp','live_status']
-
-    next_id = len(masses)
-
     history = []
     mergers = [] #specifically stores info about merge events, one row is one merge
     #stores timestep information about the system
@@ -215,22 +211,15 @@ def run_once(run_idx, config):
     runtime = round((end-start), 3)
     return {'run_idx': run_idx, 'runtime_s': runtime, 'n_survivors': int(np.sum(live_status))}
 
-def main(config_path=None):
+def main(config_path):
     """
     Run every system described by a settings file
 
     Parameters
     ----------
-    config_path : str or None
-        Path to the .toml settings file. Taken from the command line, or
-        from the default file in the working directory, when not given.
+    config_path : str
+        Path to the .toml settings file
     """
-    if config_path is None:
-        parser = argparse.ArgumentParser(description='Run the Morrigan giant-impact model')
-        parser.add_argument('-c', '--config', default=DEFAULT_CONFIG,
-                            help='path to the .toml settings file')
-        config_path = parser.parse_args().config
-
     #each disk is initialised with the same conditions
     config = read_config(config_path)
 
@@ -268,6 +257,20 @@ def main(config_path=None):
         print(f'Ran {ndisk} systems in {round(end - start, 3)}s')
 
 
+def cli():
+    """
+    Read the settings-file path from the command line, then run
+
+    Kept separate from main() so that importing Morrigan and calling
+    main() from another program never inspects that program's own
+    command line.
+    """
+    parser = argparse.ArgumentParser(description='Run the Morrigan giant-impact model')
+    parser.add_argument('-c', '--config', default=DEFAULT_CONFIG,
+                        help='path to the .toml settings file')
+    main(parser.parse_args().config)
+
+
 if __name__ == '__main__':
-    main()
+    cli()
 

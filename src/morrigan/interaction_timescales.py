@@ -109,7 +109,6 @@ def tau_vis(ap,Mp,Rp,Ms,ecc): #viscous relaxation timescale for an interacting p
         Viscous relaxation timescale (when system settles down after scattering)
     '''
     mu_a = sum(ap)/2 #average semi-major axis of interacting pair
-    mu_e = np.sqrt(ecc[0]**2 + ecc[1]**2)
     M_T = sum(Mp) #sum of masses
     impact_parameter = abs(ap[1] - ap[0]) 
 
@@ -149,7 +148,6 @@ def tau_col(ap,Mp,Rp,Ms,ecc):
         Duration of collisional event [s]
     '''
     mu_a = sum(ap)/2 #average semi-major axis of interacting pair
-    mu_e = np.sqrt(ecc[0]**2 + ecc[1]**2)
     M_T = sum(Mp) #sum of masses
     R_T = sum(Rp) #sum of radii
     impact_parameter = abs(ap[1] - ap[0])

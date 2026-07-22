@@ -23,10 +23,8 @@ keywords = ["exoplanet", "planet formation", "giant impacts"]
 requires-python = '>=3.10'
 dependencies = [
   'astropy',
-  'matplotlib',
   'numpy',
   'pylaplace',
-  'scipy',
   'toml',
 ]
 
@@ -35,9 +33,15 @@ homepage = "https://github.com/FormingWorlds/Morrigan"
 issues = "https://github.com/FormingWorlds/Morrigan/issues"
 
 [project.scripts]
-morrigan = "morrigan.driver:main"
+morrigan = "morrigan.driver:cli"
 
 [project.optional-dependencies]
+# Only plot.py needs these; the model itself does not, so a framework that
+# imports morrigan does not pull a plotting stack in with it.
+plot = [
+  "matplotlib",
+  "scipy",
+]
 develop = [
   "coverage[toml]",
   "pre-commit",
@@ -60,6 +64,10 @@ include-package-data = true
 # that collides with the next daily release tag.
 version_scheme = "no-guess-dev"
 version_file = "src/morrigan/_version.py"
+# Source tarballs (a GitHub "Download ZIP" or an auto-generated tag archive)
+# carry no git metadata, so setuptools-scm cannot derive a version and the
+# build aborts. Fall back rather than fail.
+fallback_version = "0.0.0"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
