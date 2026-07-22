@@ -75,6 +75,7 @@ def run_once(run_idx, config):
     os.makedirs(save_directory+'/data', exist_ok = True)
     os.makedirs(save_directory+'/data/mergers', exist_ok = True)
     os.makedirs(save_directory+'/data/full_systems', exist_ok = True)
+    os.makedirs(save_directory+'/data/survivors', exist_ok = True)
     os.makedirs(save_directory+'/figures', exist_ok = True)
     os.makedirs(save_directory + '/figures/tracks', exist_ok = True)
     os.makedirs(save_directory + '/figures/stats', exist_ok = True)
@@ -104,7 +105,7 @@ def run_once(run_idx, config):
     interact = np.ones(N, dtype = bool) #stores the indices of which planets are participating in an event
     Rp = np.array([planet_radius(i, j) for i,j in zip(masses,densities)])
     planet_id = np.arange(N) #persistent id for a particular planet to track its evolution and what events it participates in
-
+                                            
     parameter_names = ['id','a_AU','e','Mp','Rp','live_status']
 
     next_id = len(masses)
@@ -179,6 +180,13 @@ def run_once(run_idx, config):
     else: #keep the file schema consistent even for runs with zero mergers
         merger_table = Table(names=merger_cols, dtype=[float]*len(merger_cols))
     ascii.write(merger_table, os.path.join(save_directory+'/data/mergers', f'mergers_{run_idx:02d}.csv'), format = 'fixed_width', overwrite = True)
+
+    #save the final surviving planets for this run: id, mass, semi-major axis, eccentricity, remaining atmosphere fraction
+    survivor_mask = live_status.astype(bool)
+    survivors_table = Table([planet_id[survivor_mask], masses[survivor_mask], a[survivor_mask] / au2m, ecc[survivor_mask], atm_mass_fraction[survivor_mask]],
+        names=['id', 'Mp', 'a_AU', 'ecc', 'atm_mass_fraction'])
+    #atm_mass_fraction here is the fraction of the planet's mass that is atmosphere after all mergers
+    ascii.write(survivors_table, os.path.join(save_directory+'/data/survivors', f'survivors_{run_idx:02d}.csv'), format = 'fixed_width', overwrite = True)
 
     end = time.time()
     runtime = round((end-start), 3)

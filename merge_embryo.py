@@ -71,17 +71,13 @@ def merge_embryo(ap, Mp, Rp, Ms, ecc, v_c, live_status, b, atm_mass_fraction): #
  
     #impactor's atmosphere is added to the target's before mass_loss() is applied
     atm_mass_combined_before = atm_mass_target_before + atm_mass_impactor_before
- 
+
     #fraction of that COMBINED atmosphere lost in this collision (Kegerreis et al. 2020 scaling)
     frac_lost = mass_loss(v_c, Mp[impactor], Mp[target], rho[impactor], rho[target], Rp[impactor], Rp[target], b)
     frac_lost = min(max(frac_lost, 0.0), 1.0) #the fitted scaling is only defined/meaningful on [0,1]
  
     atm_mass_after = atm_mass_combined_before * (1.0 - frac_lost)
     atm_mass_lost = atm_mass_combined_before - atm_mass_after
-
-    #fraction of the planet's ENTIRE original (t=0) atmosphere still remaining after this merger
-    # 0.0 if there's already no atmosphere left obviously
-    cumulative_remaining_frac = atm_mass_after / atm_mass_initial_combined if atm_mass_initial_combined > 0.0 else 0.0
  
     Mp_new = Mp_new - atm_mass_lost #reduce the merged mass by the atmosphere actually lost (rock is conserved)
  
@@ -92,8 +88,4 @@ def merge_embryo(ap, Mp, Rp, Ms, ecc, v_c, live_status, b, atm_mass_fraction): #
     atm_mass_fraction[alive] = atm_mass_after / Mp_new #store back as a FRACTION of the new total mass
     atm_mass_fraction[dead] = 0.0 
 
-    #carry over for future mergers
-    atm_mass_initial[alive] = atm_mass_initial_combined
-    atm_mass_initial[dead] = 0.0
-
-    return ap,Mp,ecc,live_status,atm_mass_fraction,atm_mass_initial,frac_lost,cumulative_remaining_frac
+    return ap,Mp,ecc,live_status,atm_mass_fraction,frac_lost

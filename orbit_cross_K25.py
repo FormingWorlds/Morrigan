@@ -4,7 +4,7 @@ from helper_functions import *
 from mass_loss import *
 from tau_cross import *
  
-def orbit_cross_K25(ap, Mp, Rp, Ms, atm_mass_fraction, atm_mass_initial, impact_parameter, ecc, interact, live_status, N, planet_id, icross): #determine outcome of crossing event
+def orbit_cross_K25(ap, Mp, Rp, Ms, atm_mass_fraction, impact_parameter, ecc, interact, live_status, N, planet_id, icross): #determine outcome of crossing event
     #now working with an interacting pair of planets i,j
     #modifies the arrays of ap,Mp,Rp,ecc,interact,live_status based on what happens
     jcross = icross + 1 #sets indices of interacting pair, aj>ai always, +1 to be able to index a pair later
@@ -79,20 +79,18 @@ def orbit_cross_K25(ap, Mp, Rp, Ms, atm_mass_fraction, atm_mass_initial, impact_
         #call merge_embryo function to update parameters for interacting pair
         #jcross+1 to include that planet in the interacting pair
         #print(f"[COLLISION] Planets {planet_id[icross]} and {planet_id[jcross]} merged")
-        ap_merge, Mp_merge, ecc_merge, live_status_merge, atm_mass_fraction_merge, atm_mass_initial_merge, frac_lost, cumulative_remaining_frac = merge_embryo(ap[icross:jcross+1], Mp[icross:jcross+1], Rp[icross:jcross+1], Ms, ecc[icross:jcross+1], v_c, live_status[icross:jcross+1], impact_parameter, atm_mass_fraction[icross:jcross+1], atm_mass_initial[icross:jcross+1])
+        ap_merge, Mp_merge, ecc_merge, live_status_merge, atm_mass_fraction_merge, frac_lost = merge_embryo(ap[icross:jcross+1], Mp[icross:jcross+1], Rp[icross:jcross+1], Ms, ecc[icross:jcross+1], v_c, live_status[icross:jcross+1], impact_parameter, atm_mass_fraction[icross:jcross+1])
         #update system
         ap[icross:jcross+1] = ap_merge
         Mp[icross:jcross+1] = Mp_merge 
         ecc[icross:jcross+1] = ecc_merge 
         live_status[icross:jcross+1] = live_status_merge #smaller planet dies
         atm_mass_fraction[icross:jcross+1] = atm_mass_fraction_merge #should just apply to the target planet here
-        atm_mass_initial[icross:jcross+1] = atm_mass_initial_merge #lineage-total atmosphere, carried forward for future mergers
 
         #record impact velocity (v_c) + mass loss for each merger
         merge_record = {'id_target': id_target,'id_impactor': id_impactor,'M_target_before': M_target_before,
             'M_impactor_before': M_impactor_before,'M_merged_after': Mp[target_idx],'v_c': v_c,
-            'atm_mass_loss_frac': frac_lost,'atm_mass_remaining_frac_cumulative': cumulative_remaining_frac,
-            'a_final_AU': ap[target_idx] / 1.5e11,}
+            'atm_mass_loss_frac': frac_lost, 'a_final_AU': ap[target_idx] / 1.5e11,}
 
     else: #scattering event
         rayleigh_ecc = rayleigh(1.0 / np.sqrt(2.0), 0.0) #0 because no truncation at geometric overlap constraint as for merge case 
