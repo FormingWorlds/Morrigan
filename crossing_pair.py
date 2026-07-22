@@ -6,7 +6,7 @@
 
 import numpy as np 
 from helper_functions import *
-from tau_cross import *
+from interaction_timescales import *
 
 def crossing_pair(ap, Mp, Rp, Ms, ecc, ecc_vec, g, beta, interact, N, t, t_ref): #identify crossing pair from triplet, return pair and t_event
     '''

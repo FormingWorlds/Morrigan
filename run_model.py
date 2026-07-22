@@ -18,7 +18,7 @@ from functools import partial
 
 #import functions and constants
 from helper_functions import * 
-from tau_cross import * 
+from interaction_timescales import * 
 from merge_embryo import * 
 from secular_solution import * 
 from crossing_pair import * 

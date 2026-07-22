@@ -8,7 +8,7 @@ import numpy as np
 from merge_embryo import *
 from helper_functions import *
 from mass_loss import *
-from tau_cross import *
+from interaction_timescales import *
  
 def orbit_cross_K25(ap, Mp, Rp, Ms, atm_mass_fraction, impact_parameter, ecc, interact, live_status, N, planet_id, icross): #determine outcome of crossing event
     '''
