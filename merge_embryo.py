@@ -1,7 +1,45 @@
+"""
+!!! info "`merge_embryo.py`"
+    Handles merging events. 
+    collision_velocity: calculates collision velocity between target and impactor
+    merge_embryo: Computes resulting mass, orbital separation, eccentricity, and atmospheric mass loss
+    Author(s): Anna Grace Ulses
+"""
+
 import numpy as np
 from mass_loss import * 
 import pdb 
 from helper_functions import *
+
+def collision_velocity(ap, Mp, Rp, Ms, ecc):
+    '''
+    Velocity of collision between target and impactor during merge events
+
+    Parameters:
+    ap : list
+        Semi-major axes of interacting pair [m]
+    Mp : list 
+        Masses of interacting pair [kg]
+    Rp : list 
+        Radii of interacting pair [m]
+    Ms : float
+        Stellar mass [kg]
+    ecc : list
+        Eccentricities of interacting pair 
+
+    Returns
+    -------
+    v_c : float
+        Collision velocity between target and impactor during merging [km/s]
+    '''
+    mu_a = sum(ap) / 2
+    kep_vel = np.sqrt(G * Ms / mu_a)
+    rep_e = np.sqrt(ecc[0]**2 + ecc[1]**2)  # same as eij in orbit_cross_K25
+    v_inf = rep_e * kep_vel
+    v_esc = np.sqrt(2 * G * (Mp[0] + Mp[1]) / (Rp[0] + Rp[1]))
+    v_c = np.sqrt(v_inf**2 + v_esc**2)
+    return v_c
+
 
 def merge_embryo(ap, Mp, Rp, Ms, ecc, v_c, live_status, b, atm_mass_fraction): #calculate orbital parameters post collision
     '''
@@ -36,6 +74,8 @@ def merge_embryo(ap, Mp, Rp, Ms, ecc, v_c, live_status, b, atm_mass_fraction): #
         Updated eccentricity of surviving planet 
     live_status : list
         Sets consumed planet's status to 'False'
+    atm_mass_fraction: float 
+        Remaining atmospheric mass fraction of target after collision
     frac_lost : float
         Fraction of surviving planets atmosphere that was lost during collision
 

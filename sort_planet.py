@@ -1,6 +1,41 @@
+"""
+!!! info "`sort_planet.py`"
+    Function to clean up planetary systems and sort by semi-major axis after every event
+    Author(s): Anna Grace Ulses
+"""
+
 import numpy as np
 
 def sort_planet(ap, Mp, ecc, Rp, atm_mass_fraction, live_status, interact, densities, planet_id): #clean up system after event
+    '''
+    Removes dead planets and sorts system by increasing semi-major axis 
+
+    Parameters
+    ----------
+    ap : list
+        Semi-major axes of all planets [m]
+    Mp : list 
+        Masses of all planets [m]
+    ecc : list
+        Eccentricities of all planets 
+    Rp : list 
+        Radii of all planets [m]
+    atm_mass_fraction : list 
+        Atmospheric mass fraction of all planets 
+    live_status: bool list 
+        Whether a planet is surviving (True), or was ejected or consumed (False)
+    interact: bool list
+        Indices of interacting planets at this timestep 
+    densities: list
+        Densities of all planets [kg/m^3]
+    planet_id:
+        Persistent planet ID to track evolutions
+    
+    Returns
+    -------
+    Sorted arrays for ap, Mp, ecc, Rp, atm_mass_fraction, live_status, interact, densities, and planet_id
+
+    '''
     #remove ejected or dead ones 
     live_planets = live_status
     ap = ap[live_planets]

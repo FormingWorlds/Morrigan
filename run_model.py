@@ -1,3 +1,9 @@
+"""
+!!! info "`run_model.py`"
+    Runs a dynamical evolution model for [ndisk] systems with [N] planets each and saves data in .csv files
+    Author(s): Anna Grace Ulses
+"""
+
 import numpy as np 
 import matplotlib.pyplot as plt 
 import pandas as pd 

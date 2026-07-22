@@ -1,14 +1,35 @@
+"""
+!!! info "`interaction_timescales.py`"
+    Functions to calculate crossing timescale, viscous interaction, and collision timescale
+    Author(s): Anna Grace Ulses
+"""
+
 import numpy as np 
 from helper_functions import *
-
-#####CONSTANTS######
-G = 6.67e-11 #m^3kg^-1s^-2
-M_sun = 1.9892e30 #kg
-M_earth = 5.9736e24 #kg
-
-Ms = 1*M_sun #stellar mass (relative to Msun)
+from constants import * 
 
 def tau_cross_petit(a,Mp,Ms,ecc, N_affect): #evaluates every planetary triplet for instability
+    '''
+    Function to calculate timescale to instability as a result of 3-body mean motion resonances
+
+    Parameters 
+    ----------
+    a : list 
+        Semi-major axes of planetary triplet [m]
+    Mp : list 
+        Masses of planetary triplet [kg]
+    Ms : float
+        Stellar mass [kg]
+    ecc : list
+        Eccentricities of planetary triplet 
+    N_affect : int
+        Number of planets interacting 
+
+    Returns
+    -------
+    tau_cross : float
+        Instability timescale for planetary triplet [s]
+    '''
     K = min(0.5*(N_affect-3) + 1, 3)
     alpha_01, alpha_12 = a[0]/a[1], a[1]/a[2]
 
@@ -33,6 +54,26 @@ def tau_cross_petit(a,Mp,Ms,ecc, N_affect): #evaluates every planetary triplet f
     return tau_cross
 
 def interaction_wrapper(ap, Mp, Ms, ecc, N_affect): #determine if system is stable, and if not, calculate timescale to instability
+    '''
+    Function to determine if triplet is stable, and if not, calculate timescale of instability
+
+    Parameters
+    ----------
+    ap : list 
+        Semi-major axes of triplet [m]
+    Mp : list 
+        Masses of triplet [kg]
+    Ms : float
+        Stellar mass [kg]
+    ecc : list 
+        Eccentricities of triplet 
+    N_affect : int
+        Number of planets interacting
+    
+    Returns: 
+    1e20 if system is stable 
+    Otherwise returns instability timescale from tau_cross_petit
+    '''
     #N_affect is planets participating in crossing event
     aM = (Mp[0]*ap[0] + Mp[1]*ap[1]) / (Mp[0] + Mp[1])
     h = hill_sphere(aM,Mp[0]+Mp[1],Ms) / aM
@@ -46,6 +87,27 @@ def interaction_wrapper(ap, Mp, Ms, ecc, N_affect): #determine if system is stab
     return tau_cross_petit(ap, Mp, Ms, ecc, N_affect)
 
 def tau_vis(ap,Mp,Rp,Ms,ecc): #viscous relaxation timescale for an interacting planetary pair
+    '''
+    Viscous relaxation timescale for an interacting planetary pair
+
+    Parameters
+    ----------
+    ap : list
+        Semi-major axes of interacting pair [m]
+    Mp : list 
+        Masses of interacting pair [kg]
+    Rp : list 
+        Radii of interacting pair [m]
+    Ms : float
+        Stellar mass [kg]
+    ecc : list
+        Eccentricities of interacting pair 
+
+    Returns
+    -------
+    timescale : float 
+        Viscous relaxation timescale (when system settles down after scattering)
+    '''
     mu_a = sum(ap)/2 #average semi-major axis of interacting pair
     mu_e = np.sqrt(ecc[0]**2 + ecc[1]**2)
     M_T = sum(Mp) #sum of masses
@@ -65,6 +127,27 @@ def tau_vis(ap,Mp,Rp,Ms,ecc): #viscous relaxation timescale for an interacting p
     return timescale
 
 def tau_col(ap,Mp,Rp,Ms,ecc):
+    '''
+    Function to calculate duration of a collision event
+
+    Parameters
+    ----------
+    ap : list
+        Semi-major axes of interacting pair [m]
+    Mp : list 
+        Masses of interacting pair [kg]
+    Rp : list 
+        Radii of interacting pair [m]
+    Ms : float
+        Stellar mass [kg]
+    ecc : list
+        Eccentricities of interacting pair 
+
+    Returns
+    -------
+    timescale : float
+        Duration of collisional event [s]
+    '''
     mu_a = sum(ap)/2 #average semi-major axis of interacting pair
     mu_e = np.sqrt(ecc[0]**2 + ecc[1]**2)
     M_T = sum(Mp) #sum of masses
@@ -86,11 +169,3 @@ def tau_col(ap,Mp,Rp,Ms,ecc):
     timescale = n * np.pi * (R_T)**2 * (1 + esc_vel**2/ran_vel**2) * ran_vel #eq 11
 
     return 1/timescale
-
-def collision_velocity(ap, Mp, Rp, Ms, ecc):
-    mu_a = sum(ap) / 2
-    kep_vel = np.sqrt(G * Ms / mu_a)
-    rep_e = np.sqrt(ecc[0]**2 + ecc[1]**2)  # same as eij in orbit_cross_K25
-    v_inf = rep_e * kep_vel
-    v_esc = np.sqrt(2 * G * (Mp[0] + Mp[1]) / (Rp[0] + Rp[1]))
-    return np.sqrt(v_inf**2 + v_esc**2)

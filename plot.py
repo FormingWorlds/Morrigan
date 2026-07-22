@@ -1,3 +1,9 @@
+"""
+!!! info "`plot.py`"
+    Plotting script. Unless aesthetic changes are required, this script can be run unmodified after run_model.py to plot results
+    Author(s): Anna Grace Ulses
+"""
+
 import numpy as np
 import matplotlib.pyplot as plt 
 from astropy.table import Table

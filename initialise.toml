@@ -8,7 +8,7 @@ flag_event = 1
 
 a_min = 0.005 #defines when a planet has fallen into the star 
 max_time = 1 #evolution time (gyr)
-save_directory = 'mass_loss'
+save_directory = '1au_system'
 random_seed = 1 #to reproduce results exactly
 
 #parameters to run in parallel for multiple systems
@@ -21,10 +21,10 @@ nproc = 8
 N = 10 #number of planets
 e = 0.01
 Mp = [0.1, 1.5, 0.9, 0.6, 0.75, 1.2, 1.4, 0.45, 0.5, 1.0] #planet mass (relative to Mearth)
-atm_mass = [0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01] #atmospheric mass fraction
+atm_mass_fraction = [0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01] #atmospheric mass fraction
 impact_angle = 45 #[deg]
 
 Ms = 1 #stellar mass (relative to Msun)
 rho_p = 5500 #planet density kg/m^3
-inner_edge = 0.1 #initial inner edge for allocating position of planets (AU)
+inner_edge = 1 #initial inner edge for allocating position of planets (AU)
 #^^^^^^^

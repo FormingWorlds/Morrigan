@@ -1,3 +1,9 @@
+"""
+!!! info "`orbit_cross_K25.py`"
+    Function that modifies arrays of orbital separation, mass, radius, eccentricity, interaction status, and live status of planets based on whether a collision or scattering (or ejection) event happens
+    Author(s): Anna Grace Ulses
+"""
+
 import numpy as np 
 from merge_embryo import *
 from helper_functions import *
@@ -5,6 +11,43 @@ from mass_loss import *
 from tau_cross import *
  
 def orbit_cross_K25(ap, Mp, Rp, Ms, atm_mass_fraction, impact_parameter, ecc, interact, live_status, N, planet_id, icross): #determine outcome of crossing event
+    '''
+    Function to determine what happens once an orbit crossing event has been established
+
+    Parameters
+    ----------
+    ap : list 
+        Semi major axes of interacting pair [m]
+    Mp : list 
+        Masses of interacting pair [kg]
+    Rp : list 
+        Radii of interacting pair [m]
+    Ms : float
+        Stellar mass [kg]
+    atm_mass_fraction : list 
+        Atmospheric mass fractions of interacting pair 
+    impact_parameter: float
+        Defined as sin(impact angle). Describes angle of contact between target and impactor
+    ecc : list
+        Eccentricities of interacing pair 
+    interact : bool
+        Interaction status of interacting pair (set to True)
+    live_status : bool
+        Live status of interacting pair (starts as True and will be modified depending on scattering vs. merge events)
+    N : int
+        Number of planets 
+    planet_id : list 
+        Persistent ID number for interacting planets to track evolutions
+    icross: int
+        Index of inner planet in interacting pair
+    
+    Returns
+    -------
+    Modified arrays for ap, Mp, Rp, atm_mass_fraction, ecc, interact, live_status, N following scattering or merging 
+    merge_record : dict
+        Stores information about targets and impactors for each merging event
+    '''
+
     #now working with an interacting pair of planets i,j
     #modifies the arrays of ap,Mp,Rp,ecc,interact,live_status based on what happens
     jcross = icross + 1 #sets indices of interacting pair, aj>ai always, +1 to be able to index a pair later

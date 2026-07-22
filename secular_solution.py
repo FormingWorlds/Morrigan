@@ -1,9 +1,42 @@
+"""
+!!! info "`secular_solution.py`"
+    Solves secular perturbation theory to evolve eccentricity of planets in system
+    Author(s): Anna Grace Ulses
+"""
+
 import numpy as np 
 from pylaplace import LaplaceCoefficient 
 from constants import *
-import pdb
 
 def secular_solution(ap, Mp, ecc, Rp, Ms, N):
+    '''
+    Solution to secular perturbation theory of orbital mechanics. Only recalculates after an event
+
+    Parameters 
+    ----------
+    ap : list 
+        Semi-major axes of all planets in system [m]
+    Mp : list 
+        Masses of all planets in system [kg]
+    ecc : list
+        Eccentricities of all planets in system
+    Rp : list 
+        Radii of all planets in system [m]
+    Ms : float
+        Stellar mass [kg]
+    N : int
+        Number of planets
+
+    Returns
+    -------
+    ecc_vec : array
+        Scaled eigenvectors - columns represent eccentricity contribution from each mode per planet 
+    g : array 
+        Secular eigenfrequencies
+    beta : array 
+        Phase angle for each planet in system
+
+    '''
     varpi = np.random.uniform(0.0, 2.0 * np.pi, N)
 
     h0 = ecc * np.sin(varpi)

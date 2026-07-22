@@ -1,8 +1,49 @@
+"""
+!!! info "`crossing_pair.py`"
+    Function to identify a crossing pair from an interacting triplet of planets on eccentric orbits and calculate when the pair will cross and trigger an event
+    Author(s): Anna Grace Ulses
+"""
+
 import numpy as np 
 from helper_functions import *
 from tau_cross import *
 
 def crossing_pair(ap, Mp, Rp, Ms, ecc, ecc_vec, g, beta, interact, N, t, t_ref): #identify crossing pair from triplet, return pair and t_event
+    '''
+    Identify interacting pair of planets and calculate when their orbits will cross
+
+    Parameters
+    ----------
+    ap : list 
+        Semi major axes of all planets in system [m]
+    Mp : list 
+        Masses of all planets in system [kg]
+    Rp : list
+        Radii of all planets in system [m]
+    ecc : list
+        Eccentriticies of all planets
+    ecc_vec : array
+        Eccentricity vector components per planet
+    g : array
+        Secular eigenfrequency
+    beta : array
+        Phase angle
+    interact : boolean list
+        Flags for which planets are live and interacting 
+    N : int 
+        Number of planets 
+    t : float
+        Time in simulation [s]
+    t_ref : float
+
+    Returns
+    -------
+    icross : int
+        Index of the inner planet in the crossing pair
+    t_event : float 
+        Time of next crossing event
+    '''
+
     #evaluate tau_cross for all planets
     Tcross = np.full(N - 1, 1e20) #initial array to eventually store the predicted crossing times for every pair, initialised at 'never'
     Naffect = np.ones(N, dtype=int) #the interacting planets, used to compute K factor in eq 5
