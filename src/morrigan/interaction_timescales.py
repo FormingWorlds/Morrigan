@@ -5,8 +5,8 @@
 """
 
 import numpy as np 
-from helper_functions import *
-from constants import * 
+from morrigan.constants import G
+from morrigan.helper_functions import hill_sphere, kepler_period
 
 def tau_cross_petit(a,Mp,Ms,ecc, N_affect): #evaluates every planetary triplet for instability
     '''

@@ -5,7 +5,7 @@
 """
 
 import numpy as np 
-from constants import *
+from morrigan.constants import G
 
 def kepler_period(Mp, Ms, a): #calculates Kepler period of planet [s]
     P_squared = (4*np.pi**2*a**3)/(G*Ms)

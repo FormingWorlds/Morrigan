@@ -5,8 +5,8 @@
 """
 
 import numpy as np 
-from helper_functions import *
-from interaction_timescales import *
+from morrigan.helper_functions import esc_ecc, hill_sphere
+from morrigan.interaction_timescales import interaction_wrapper, tau_col, tau_vis
 
 def crossing_pair(ap, Mp, Rp, Ms, ecc, ecc_vec, g, beta, interact, N, t, t_ref): #identify crossing pair from triplet, return pair and t_event
     '''

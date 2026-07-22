@@ -1,38 +1,53 @@
 """
-!!! info "`run_model.py`"
+!!! info "`driver.py`"
     Runs a dynamical evolution model for [ndisk] systems with [N] planets each and saves data in .csv files
     Author(s): Anna Grace Ulses
 """
 
-import numpy as np 
-import matplotlib.pyplot as plt 
-import pandas as pd 
-import pdb 
-from astropy.table import Table
-from astropy.io import ascii
-import os 
-import time 
-import toml 
-from multiprocessing import Pool, cpu_count
+import argparse
+import os
+import time
 from functools import partial
+from multiprocessing import Pool, cpu_count
+
+import numpy as np
+import toml
+from astropy.io import ascii
+from astropy.table import Table
 
 #import functions and constants
-from helper_functions import * 
-from interaction_timescales import * 
-from merge_embryo import * 
-from secular_solution import * 
-from crossing_pair import * 
-from orbit_cross_K25 import * 
-from sort_planet import *
-from constants import * 
+from morrigan.constants import M_earth, M_sun, au2m, gyr2sec
+from morrigan.crossing_pair import crossing_pair
+from morrigan.helper_functions import hill_sphere, planet_radius
+from morrigan.orbit_cross_K25 import orbit_cross_K25
+from morrigan.secular_solution import secular_solution
+from morrigan.sort_planet import sort_planet
 
-with open('initialise.toml', 'r') as f:
-    config = toml.load(f)
+#name of the settings file read when none is given on the command line
+DEFAULT_CONFIG = 'initialise.toml'
 
-inner_edge = config['init_par']['inner_edge']
+
+def read_config(config_path=DEFAULT_CONFIG):
+    """
+    Read a settings file
+
+    Parameters
+    ----------
+    config_path : str
+        Path to the .toml settings file
+
+    Returns
+    -------
+    config : dict
+        Parsed settings
+    """
+    with open(config_path, 'r') as f:
+        return toml.load(f)
+
+
 ####ALLOCATE PARAMETERS FOR THE SYSTEM###
 
-def allocate_a(N,Ms,masses):
+def allocate_a(N,Ms,masses,inner_edge):
     a = np.empty(N)
     a[0] = inner_edge #AU
     for i in range(1,N): #allocate initial semi-major axes
@@ -100,10 +115,11 @@ def run_once(run_idx, config):
         raise ValueError('Initial masses and/or atmosphere mass fractions and number of planets in system are mismatched!')
 
     Ms = config['init_par']['Ms'] * M_sun #stellar mass (relative to Msun)
-    rho_p = config['init_par']['rho_p'] #planet density kg/m^3  
+    rho_p = config['init_par']['rho_p'] #planet density kg/m^3
+    inner_edge = config['init_par']['inner_edge'] #orbit of the innermost planet (AU)
 
     #actually initialising system here with arrays for every parameter
-    a = allocate_a(N,Ms,masses)
+    a = allocate_a(N,Ms,masses,inner_edge)
     ecc = np.full(N,e)
     densities = np.full(N, rho_p)
     live_status = np.ones(N, dtype = bool) #set initial status of planets, all are live by definition at the start
@@ -199,16 +215,30 @@ def run_once(run_idx, config):
     runtime = round((end-start), 3)
     return {'run_idx': run_idx, 'runtime_s': runtime, 'n_survivors': int(np.sum(live_status))}
 
-if __name__ == '__main__':
+def main(config_path=None):
+    """
+    Run every system described by a settings file
+
+    Parameters
+    ----------
+    config_path : str or None
+        Path to the .toml settings file. Taken from the command line, or
+        from the default file in the working directory, when not given.
+    """
+    if config_path is None:
+        parser = argparse.ArgumentParser(description='Run the Morrigan giant-impact model')
+        parser.add_argument('-c', '--config', default=DEFAULT_CONFIG,
+                            help='path to the .toml settings file')
+        config_path = parser.parse_args().config
+
     #each disk is initialised with the same conditions
-    with open('initialise.toml', 'r') as f:
-        config = toml.load(f)
- 
+    config = read_config(config_path)
+
     #number of systems to run (defaults to a single run, unless specified)
     ndisk = config.get('batch', {}).get('ndisk', 1)
- 
+
     os.makedirs(config['run_simulation']['save_directory'], exist_ok=True)
- 
+
     if ndisk <= 1:
         #single run so skip multiprocessing entirely, allows for debugging
         start = time.time()
@@ -236,4 +266,8 @@ if __name__ == '__main__':
         ascii.write(summary, os.path.join(config['run_simulation']['save_directory'], 'batch_summary.csv'),
                     format='fixed_width', overwrite=True)
         print(f'Ran {ndisk} systems in {round(end - start, 3)}s')
+
+
+if __name__ == '__main__':
+    main()
 

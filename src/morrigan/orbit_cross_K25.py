@@ -4,11 +4,10 @@
     Author(s): Anna Grace Ulses
 """
 
-import numpy as np 
-from merge_embryo import *
-from helper_functions import *
-from mass_loss import *
-from interaction_timescales import *
+import numpy as np
+
+from morrigan.helper_functions import esc_ecc, hill_sphere, rayleigh
+from morrigan.merge_embryo import collision_velocity, merge_embryo
  
 def orbit_cross_K25(ap, Mp, Rp, Ms, atm_mass_fraction, impact_parameter, ecc, interact, live_status, N, planet_id, icross): #determine outcome of crossing event
     '''

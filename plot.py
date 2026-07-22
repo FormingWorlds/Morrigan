@@ -8,10 +8,9 @@ import numpy as np
 import matplotlib.pyplot as plt 
 from astropy.table import Table
 from astropy.io import ascii
-import pdb
 import toml
 import os 
-from constants import *
+from morrigan.constants import M_earth, M_sun
 from scipy.stats import variation
 
 

@@ -7,9 +7,9 @@
 """
 
 import numpy as np
-from mass_loss import * 
-import pdb 
-from helper_functions import *
+
+from morrigan.constants import G
+from morrigan.mass_loss import mass_loss
 
 def collision_velocity(ap, Mp, Rp, Ms, ecc):
     '''
