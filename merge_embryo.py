@@ -5,7 +5,7 @@ from helper_functions import *
 
 def merge_embryo(ap, Mp, Rp, Ms, ecc, v_c, live_status, b, atm_mass_fraction): #calculate orbital parameters post collision
     '''
-    Function to compute mass, orbital separation, and eccentricity after a giant impact
+    Function to compute mass, orbital separation, eccentricity, and fractional atmospheric loss after a giant impact
 
     Parameters 
     ----------
@@ -78,6 +78,10 @@ def merge_embryo(ap, Mp, Rp, Ms, ecc, v_c, live_status, b, atm_mass_fraction): #
  
     atm_mass_after = atm_mass_combined_before * (1.0 - frac_lost)
     atm_mass_lost = atm_mass_combined_before - atm_mass_after
+
+    #fraction of the planet's ENTIRE original (t=0) atmosphere still remaining after this merger
+    # 0.0 if there's already no atmosphere left obviously
+    cumulative_remaining_frac = atm_mass_after / atm_mass_initial_combined if atm_mass_initial_combined > 0.0 else 0.0
  
     Mp_new = Mp_new - atm_mass_lost #reduce the merged mass by the atmosphere actually lost (rock is conserved)
  
@@ -88,4 +92,8 @@ def merge_embryo(ap, Mp, Rp, Ms, ecc, v_c, live_status, b, atm_mass_fraction): #
     atm_mass_fraction[alive] = atm_mass_after / Mp_new #store back as a FRACTION of the new total mass
     atm_mass_fraction[dead] = 0.0 
 
-    return ap,Mp,ecc,live_status,atm_mass_fraction,frac_lost
+    #carry over for future mergers
+    atm_mass_initial[alive] = atm_mass_initial_combined
+    atm_mass_initial[dead] = 0.0
+
+    return ap,Mp,ecc,live_status,atm_mass_fraction,atm_mass_initial,frac_lost,cumulative_remaining_frac
