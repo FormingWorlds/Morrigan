@@ -30,7 +30,7 @@ def collision_velocity(ap, Mp, Rp, Ms, ecc):
     Returns
     -------
     v_c : float
-        Collision velocity between target and impactor during merging [km/s]
+        Collision velocity between target and impactor during merging [m/s]
     '''
     mu_a = sum(ap) / 2
     kep_vel = np.sqrt(G * Ms / mu_a)
