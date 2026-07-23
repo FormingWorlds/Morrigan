@@ -16,7 +16,7 @@ from astropy.io import ascii
 from astropy.table import Table
 
 #import functions and constants
-from morrigan.constants import M_earth, M_sun, au2m, gyr2sec
+from morrigan.constants import G, M_earth, M_sun, au2m, gyr2sec
 from morrigan.crossing_pair import crossing_pair
 from morrigan.helper_functions import hill_sphere, planet_radius
 from morrigan.orbit_cross_K25 import orbit_cross_K25
@@ -59,13 +59,16 @@ def read_config(config_path=DEFAULT_CONFIG):
 
 ####ALLOCATE PARAMETERS FOR THE SYSTEM###
 
-def allocate_a(N,Ms,masses,inner_edge):
+#default spacing between adjacent embryos, in mutual Hill radii (K25)
+DEFAULT_SPACING = 10
+
+def allocate_a(N,Ms,masses,inner_edge,spacing=DEFAULT_SPACING):
     a = np.empty(N)
     a[0] = inner_edge #AU
     for i in range(1,N): #allocate initial semi-major axes
         a_previous = a[i-1] #starting semi-major axis
         hill = hill_sphere(a_previous,masses[i-1]+masses[i],Ms) #mutual hill radius of the adjacent pair
-        a[i] = a_previous + 10*hill #planets are spaced out by 10 hill radii
+        a[i] = a_previous + spacing*hill #planets are spaced out by this many hill radii
     return a*au2m #convert to [m] to stay in SI!
 
 #timestep when not at or during an event
@@ -88,19 +91,22 @@ def data_to_table(history):
         event_col.extend([h['event']] * n)
     return Table([t_col, id_col, a_col, m_col, e_col, rp_col, alive_col, event_col],names=['t', 'id', 'a_AU', 'Mp', 'ecc', 'Rp', 'live_status', 'event'])
 
-def run_once(run_idx, config):
+def run_once(run_idx, config, collect=False):
 
     #seeding numpy sets the state for the whole process, which would reach into
     #a program that imported this model and make its own draws follow from our
     #seed, so put back whatever state we found once the system has run
     entry_random_state = np.random.get_state()
     try:
-        return _run_once(run_idx, config)
+        return _run_once(run_idx, config, collect=collect)
     finally:
         np.random.set_state(entry_random_state)
 
 
-def _run_once(run_idx, config):
+def _run_once(run_idx, config, collect=False):
+    #collect=True runs a single system for an in-process caller: it writes no
+    #files and returns the system's arrays and merger records in memory, rather
+    #than the run-summary dict the file-writing path returns
 
     #import settings from .toml file
     base_seed = config['run_simulation'].get('random_seed', 0)
@@ -109,21 +115,22 @@ def _run_once(run_idx, config):
     t = config['run_simulation']['t']
     t_ref = config['run_simulation']['t_ref']
     t_event = config['run_simulation']['t_event']
-    flag_event = config['run_simulation']['flag_event'] 
+    flag_event = config['run_simulation']['flag_event']
 
-    a_min = config['run_simulation']['a_min'] * au2m #defines when a planet has fallen into the star 
+    a_min = config['run_simulation']['a_min'] * au2m #defines when a planet has fallen into the star
     max_time = config['run_simulation']['max_time'] * gyr2sec #evolution time gyr converted to seconds
     save_directory = config['run_simulation']['save_directory']
-    os.makedirs(save_directory, exist_ok=True) #creates directory if it doesnt already exist
-    #sub-directories for data tables and figures respectively
-    os.makedirs(save_directory+'/data', exist_ok = True)
-    os.makedirs(save_directory+'/data/mergers', exist_ok = True)
-    os.makedirs(save_directory+'/data/full_systems', exist_ok = True)
-    os.makedirs(save_directory+'/data/survivors', exist_ok = True)
-    os.makedirs(save_directory+'/figures', exist_ok = True)
-    os.makedirs(save_directory + '/figures/tracks', exist_ok = True)
-    os.makedirs(save_directory + '/figures/stats', exist_ok = True)
-    os.makedirs(save_directory + '/figures/orbits', exist_ok = True)
+    if not collect:
+        os.makedirs(save_directory, exist_ok=True) #creates directory if it doesnt already exist
+        #sub-directories for data tables and figures respectively
+        os.makedirs(save_directory+'/data', exist_ok = True)
+        os.makedirs(save_directory+'/data/mergers', exist_ok = True)
+        os.makedirs(save_directory+'/data/full_systems', exist_ok = True)
+        os.makedirs(save_directory+'/data/survivors', exist_ok = True)
+        os.makedirs(save_directory+'/figures', exist_ok = True)
+        os.makedirs(save_directory + '/figures/tracks', exist_ok = True)
+        os.makedirs(save_directory + '/figures/stats', exist_ok = True)
+        os.makedirs(save_directory + '/figures/orbits', exist_ok = True)
 
     N = config['init_par']['N'] #number of planets
     e = config['init_par']['e'] #initial eccentricity
@@ -141,15 +148,20 @@ def _run_once(run_idx, config):
     Ms = config['init_par']['Ms'] * M_sun #stellar mass (relative to Msun)
     rho_p = config['init_par']['rho_p'] #planet density kg/m^3
     inner_edge = config['init_par']['inner_edge'] #orbit of the innermost planet (AU)
+    spacing = config['init_par'].get('spacing', DEFAULT_SPACING) #embryo spacing in mutual Hill radii
 
     #actually initialising system here with arrays for every parameter
-    a = allocate_a(N,Ms,masses,inner_edge)
+    a = allocate_a(N,Ms,masses,inner_edge,spacing)
     ecc = np.full(N,e)
     densities = np.full(N, rho_p)
     live_status = np.ones(N, dtype = bool) #set initial status of planets, all are live by definition at the start
     interact = np.ones(N, dtype = bool) #stores the indices of which planets are participating in an event
     Rp = np.array([planet_radius(i, j) for i,j in zip(masses,densities)])
     planet_id = np.arange(N) #persistent id for a particular planet to track its evolution and what events it participates in
+
+    #state of each body at the start of the run, keyed by its persistent id, so a
+    #surviving body's initial mass and orbit can be reported next to its final ones
+    initial_state = {int(planet_id[i]): (float(masses[i]), float(a[i])) for i in range(N)}
                                             
     history = []
     mergers = [] #specifically stores info about merge events, one row is one merge
@@ -214,18 +226,30 @@ def _run_once(run_idx, config):
 
     snapshot(t, a, masses, ecc, Rp, live_status, planet_id, N, event=False) #final system snapshot
 
+    survivor_mask = live_status.astype(bool)
+
+    if collect:
+        #hand the raw system back to the in-process caller instead of writing files
+        return {'mergers': mergers, 'initial_state': initial_state,
+                'planet_id': planet_id[survivor_mask].copy(),
+                'masses': masses[survivor_mask].copy(),
+                'a': a[survivor_mask].copy(),
+                'ecc': ecc[survivor_mask].copy(),
+                'atm_mass_fraction': atm_mass_fraction[survivor_mask].copy()}
+
     ascii.write(data_to_table(history), os.path.join(save_directory+'/data/full_systems', f'full_system_{run_idx:02d}.csv'), format = 'fixed_width', overwrite = True)
     #write out impact velocities + resultant atmospheric mass loss for every merger in this run
     merger_cols = ['t', 'id_target', 'id_impactor', 'M_target_before', 'M_impactor_before',
                    'M_merged_after', 'v_c', 'atm_mass_loss_frac', 'a_final_AU']
     if mergers: #at least one merger happened this run (unlikely that there are no mergers)
-        merger_table = Table(rows=mergers, names=merger_cols)
+        #a merge record carries extra geometry for in-memory consumers; the file keeps
+        #the original columns, so project each row down to them before writing
+        merger_table = Table(rows=[{c: m[c] for c in merger_cols} for m in mergers], names=merger_cols)
     else: #keep the file schema consistent even for runs with zero mergers
         merger_table = Table(names=merger_cols, dtype=[float]*len(merger_cols))
     ascii.write(merger_table, os.path.join(save_directory+'/data/mergers', f'mergers_{run_idx:02d}.csv'), format = 'fixed_width', overwrite = True)
 
     #save the final surviving planets for this run: id, mass, semi-major axis, eccentricity, remaining atmosphere fraction
-    survivor_mask = live_status.astype(bool)
     survivors_table = Table([planet_id[survivor_mask], masses[survivor_mask], a[survivor_mask] / au2m, ecc[survivor_mask], atm_mass_fraction[survivor_mask]],
         names=['id', 'Mp', 'a_AU', 'ecc', 'atm_mass_fraction'])
     #atm_mass_fraction here is the fraction of the planet's mass that is atmosphere after all mergers
@@ -234,6 +258,128 @@ def _run_once(run_idx, config):
     end = time.time()
     runtime = round((end-start), 3)
     return {'run_idx': run_idx, 'runtime_s': runtime, 'n_survivors': int(np.sum(live_status))}
+
+
+def run_system(seed, masses, eccentricity, inner_edge, spacing, density,
+               impact_angle, evolution_time, inner_cutoff, stellar_mass,
+               atm_mass_fraction=0.0):
+    """Evolve one system and return its survivors and impact history in memory.
+
+    This is the entry point an in-process caller uses instead of the
+    file-writing command line. Inputs are SI apart from the stellar mass,
+    in solar masses, and the evolution time, in Gyr; masses are in kg and
+    lengths in metres. The returned quantities are SI with times in years.
+
+    Parameters
+    ----------
+    seed : int
+        Seed for this system's random draws.
+    masses : sequence of float
+        Initial embryo masses [kg].
+    eccentricity : float
+        Initial eccentricity shared by the embryos.
+    inner_edge : float
+        Orbit of the innermost embryo [m].
+    spacing : float
+        Spacing between adjacent embryos [mutual Hill radii].
+    density : float
+        Bulk density shared by the embryos [kg m-3].
+    impact_angle : float
+        Impact angle [deg]; its sine is the impact parameter.
+    evolution_time : float
+        Length of the dynamical evolution [Gyr].
+    inner_cutoff : float
+        Orbit inside which a body is taken to have fallen into the star [m].
+    stellar_mass : float
+        Host stellar mass [Msun].
+    atm_mass_fraction : float, optional
+        Fraction of each embryo's mass that is atmosphere, for the model's
+        own loss bookkeeping. Zero (the default) runs the dynamics dry, so
+        the bodies carry their full mass through every merger.
+
+    Returns
+    -------
+    dict
+        ``survivors``: one record per surviving body with ``id``,
+        ``mass_initial`` [kg], ``a_initial`` [m], ``mass_final`` [kg] and
+        ``a_final`` [m]. ``impacts``: a dict keyed by surviving-body id,
+        each value the list of impacts that body experienced in time
+        order, every impact a dict in the shared impact schema (SI, time
+        in years, the merged mass reported as the plain sum of the two
+        bodies so that atmospheric loss is left to the caller).
+    """
+    n = len(masses)
+    config = {
+        'run_simulation': {
+            't': 0.0, 't_ref': 0.0, 't_event': 0.0, 'flag_event': 1,
+            'a_min': inner_cutoff / au2m,   # [AU]
+            'max_time': evolution_time,     # [Gyr]
+            'random_seed': seed,
+            'save_directory': '',           # unused: collect mode writes nothing
+        },
+        'init_par': {
+            'N': n,
+            'e': eccentricity,
+            'impact_angle': impact_angle,
+            'Mp': [m / M_earth for m in masses],           # [M_earth]
+            'atm_mass_fraction': [atm_mass_fraction] * n,
+            'Ms': stellar_mass,                            # [Msun]
+            'rho_p': density,
+            'inner_edge': inner_edge / au2m,               # [AU]
+            'spacing': spacing,
+        },
+    }
+
+    raw = run_once(0, config, collect=True)
+
+    year_sec = gyr2sec / 1.0e9  # match the model's own 365-day year
+    b = np.sin(np.deg2rad(impact_angle))  # constant impact parameter of the run
+
+    impacts = {}
+    for m in raw['mergers']:
+        M_t, M_i = m['M_target_before'], m['M_impactor_before']
+        R_t, R_i = m['R_target_before'], m['R_impactor']
+        target = int(m['id_target'])
+        record = {
+            'time': m['t'] / year_sec,                     # [yr]
+            'M_target_before': M_t,
+            'M_impactor': M_i,
+            #perfect-merger mass: the plain sum, leaving atmospheric loss to the caller
+            'M_merged_after': M_t + M_i,
+            'v_impact': m['v_c'],
+            #mutual escape velocity of the pair, the floor the collision speed sits above
+            'v_esc': np.sqrt(2.0 * G * (M_t + M_i) / (R_t + R_i)),
+            'impact_parameter': b,
+            'R_target_before': R_t,
+            'R_impactor': R_i,
+            #shared bulk density recovered from mass and radius
+            'rho_target': M_t / ((4.0 / 3.0) * np.pi * R_t**3),
+            'rho_impactor': M_i / ((4.0 / 3.0) * np.pi * R_i**3),
+            'a_before': m['a_before'],                     # [m]
+            'a_after': m['a_final_AU'] * au2m,             # [m]
+            'e_after': m['e_after'],
+            'id_target': target,
+            'id_impactor': int(m['id_impactor']),
+        }
+        impacts.setdefault(target, []).append(record)
+    for chain in impacts.values():
+        chain.sort(key=lambda r: r['time'])
+
+    survivors = []
+    for pid, mf, af in zip(raw['planet_id'], raw['masses'], raw['a']):
+        pid = int(pid)
+        mass_initial, a_initial = raw['initial_state'][pid]
+        survivors.append({'id': pid, 'mass_initial': mass_initial, 'a_initial': a_initial,
+                          'mass_final': float(mf), 'a_final': float(af)})
+
+    #a body that was a target early and then died carries a partial history that
+    #belongs to no survivor, and can even hold an unbound post-merge orbit, so keep
+    #only the survivors' chains; each survivor is present, with an empty list if it
+    #never merged, so a caller can always look one up
+    survivor_ids = {s['id'] for s in survivors}
+    impacts = {pid: impacts.get(pid, []) for pid in survivor_ids}
+
+    return {'survivors': survivors, 'impacts': impacts}
 
 def main(config_path):
     """

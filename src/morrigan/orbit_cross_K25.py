@@ -115,7 +115,11 @@ def orbit_cross_K25(ap, Mp, Rp, Ms, atm_mass_fraction, impact_parameter, ecc, in
         target_idx = icross if Mp[icross] >= Mp[jcross] else jcross
         impactor_idx = jcross if target_idx == icross else icross
         id_target, id_impactor = planet_id[target_idx], planet_id[impactor_idx] #carry index through all other parameters
-        M_target_before, M_impactor_before = Mp[target_idx], Mp[impactor_idx]       
+        M_target_before, M_impactor_before = Mp[target_idx], Mp[impactor_idx]
+        #pre-merge geometry, captured before merge_embryo overwrites ap below; these
+        #let a consumer rebuild the impact kinematics (escape velocity, densities)
+        a_target_before = ap[target_idx] #[m]
+        R_target_before, R_impactor = Rp[target_idx], Rp[impactor_idx] #[m]
         
         
         #call merge_embryo function to update parameters for interacting pair
@@ -129,10 +133,14 @@ def orbit_cross_K25(ap, Mp, Rp, Ms, atm_mass_fraction, impact_parameter, ecc, in
         live_status[icross:jcross+1] = live_status_merge #smaller planet dies
         atm_mass_fraction[icross:jcross+1] = atm_mass_fraction_merge #should just apply to the target planet here
 
-        #record impact velocity (v_c) + mass loss for each merger
+        #record impact velocity (v_c) + mass loss for each merger. The pre-merge
+        #radii and target semi-major axis, and the post-merge target eccentricity,
+        #are kept alongside so the full impact geometry can be reconstructed later
         merge_record = {'id_target': id_target,'id_impactor': id_impactor,'M_target_before': M_target_before,
             'M_impactor_before': M_impactor_before,'M_merged_after': Mp[target_idx],'v_c': v_c,
-            'atm_mass_loss_frac': frac_lost, 'a_final_AU': ap[target_idx] / 1.5e11,}
+            'atm_mass_loss_frac': frac_lost, 'a_final_AU': ap[target_idx] / 1.5e11,
+            'R_target_before': R_target_before, 'R_impactor': R_impactor,
+            'a_before': a_target_before, 'e_after': ecc[target_idx],}
 
     else: #scattering event
         rayleigh_ecc = rayleigh(1.0 / np.sqrt(2.0), 0.0) #0 because no truncation at geometric overlap constraint as for merge case 
