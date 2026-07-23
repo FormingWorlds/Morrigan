@@ -23,6 +23,8 @@ Settings live in a `.toml` file; `initialise.toml` in the repository root is a w
 morrigan -c initialise.toml
 ```
 
+This replaces `python run_model.py`. If you have a launcher script of your own that still calls the old path, that is the line to change.
+
 Keeping several settings files side by side and pointing at whichever you want is the reason for the `-c` flag. The repository ignores `*.toml` apart from `initialise.toml`, so a settings file you want to keep alongside the results it produced has to be added to git explicitly.
 
 Results are written under the `save_directory` named in the settings file. A relative `save_directory` is taken from the directory you run the command in, not from wherever the settings file happens to live, so the run prints the full path it is writing to:

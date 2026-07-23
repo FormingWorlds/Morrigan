@@ -40,7 +40,19 @@ def read_config(config_path=DEFAULT_CONFIG):
     -------
     config : dict
         Parsed settings
+
+    Raises
+    ------
+    FileNotFoundError
+        If no settings file is at the given path. The default is a bare
+        file name, so it only resolves when the command runs from a
+        checkout root; the message names the path that was tried.
     """
+    if not os.path.isfile(config_path):
+        raise FileNotFoundError(
+            f'No settings file at {os.path.abspath(config_path)}. '
+            'Pass one with -c, for example: morrigan -c initialise.toml'
+        )
     with open(config_path, 'r') as f:
         return toml.load(f)
 
@@ -77,6 +89,18 @@ def data_to_table(history):
     return Table([t_col, id_col, a_col, m_col, e_col, rp_col, alive_col, event_col],names=['t', 'id', 'a_AU', 'Mp', 'ecc', 'Rp', 'live_status', 'event'])
 
 def run_once(run_idx, config):
+
+    #seeding numpy sets the state for the whole process, which would reach into
+    #a program that imported this model and make its own draws follow from our
+    #seed, so put back whatever state we found once the system has run
+    entry_random_state = np.random.get_state()
+    try:
+        return _run_once(run_idx, config)
+    finally:
+        np.random.set_state(entry_random_state)
+
+
+def _run_once(run_idx, config):
 
     #import settings from .toml file
     base_seed = config['run_simulation'].get('random_seed', 0)
