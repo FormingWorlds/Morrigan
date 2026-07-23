@@ -6,7 +6,7 @@
 
 import numpy as np 
 from pylaplace import LaplaceCoefficient 
-from constants import *
+from morrigan.constants import G
 
 def secular_solution(ap, Mp, ecc, Rp, Ms, N):
     '''

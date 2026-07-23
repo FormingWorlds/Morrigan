@@ -1,0 +1,116 @@
+[build-system]
+requires = ["setuptools>=64", "setuptools-scm>=8"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fwl-morrigan"
+dynamic = ["version"]
+description = "Semi-analytical model for the dynamical evolution of planetary systems via giant impacts."
+readme = "README.md"
+authors = [
+    {name = "Anna Grace Ulses", email = "aulses@uw.edu"},
+    {name = "Tim Lichtenberg", email = "tim.lichtenberg@rug.nl"},
+]
+license = {text = "Apache 2.0 License"}
+classifiers = [
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: MacOS :: MacOS X",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+]
+keywords = ["exoplanet", "planet formation", "giant impacts"]
+requires-python = '>=3.11'
+dependencies = [
+  'astropy',
+  'numpy',
+  'pylaplace',
+  'toml',
+]
+
+[project.urls]
+homepage = "https://github.com/FormingWorlds/Morrigan"
+issues = "https://github.com/FormingWorlds/Morrigan/issues"
+
+[project.scripts]
+morrigan = "morrigan.driver:cli"
+
+[project.optional-dependencies]
+# Only plot.py needs these; the model itself does not, so a framework that
+# imports morrigan does not pull a plotting stack in with it.
+plot = [
+  "matplotlib",
+  "scipy",
+]
+develop = [
+  "coverage[toml]",
+  "pre-commit",
+  "pytest",
+  "pytest-cov",
+  "pytest-timeout",
+  "ruff",
+]
+
+[tool.setuptools]
+package-dir = {"morrigan" = "src/morrigan"}
+include-package-data = true
+
+[tool.setuptools_scm]
+# CalVer: tags are bare YY.MM.DD dates (no leading 'v', e.g. 26.07.22), matching
+# the rest of the PROTEUS ecosystem. setuptools-scm derives the version from the
+# latest git tag, so a release is cut by tagging alone and no version string is
+# hand-edited in the tree. version_scheme = "no-guess-dev" is required for
+# CalVer: the default would invent a future calendar date for post-tag commits
+# that collides with the next daily release tag.
+version_scheme = "no-guess-dev"
+version_file = "src/morrigan/_version.py"
+# Source tarballs (a GitHub "Download ZIP" or an auto-generated tag archive)
+# carry no git metadata, so setuptools-scm cannot derive a version and the
+# build aborts. Fall back rather than fail.
+fallback_version = "0.0.0"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "unit: fast in-process unit tests (mocked dependencies, < 100 ms each)",
+    "smoke: real code-path tests on minimal input (< 30 s each)",
+    "integration: multi-module tests on a full system",
+    "slow: anything > 1 minute, run in nightly only",
+    "physics_invariant: marks tests that assert a physical invariant (conservation, positivity, boundedness, monotonicity, symmetry).",
+    "reference_pinned: marks tests that pin behaviour against a published benchmark, analytical limit, or cross-implementation cross-check. Cite the source in the test docstring.",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["morrigan"]
+
+[tool.coverage.report]
+show_missing = true
+exclude_lines = [
+    "pragma: no cover",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+]
+
+[tool.ruff]
+line-length = 96
+target-version = "py310"
+
+[tool.ruff.lint]
+select = [
+    "F",  # Pyflakes
+    "E",  # pycodestyle (error)
+    "W",  # pycodestyle (warning)
+    "I",  # isort
+]
+ignore = [
+    "E501",  # Line too long
+    "E741",  # Ambiguous variable name (physics notation uses single letters)
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["morrigan"]
+
+[tool.ruff.format]
+quote-style = "single"
+indent-style = "space"

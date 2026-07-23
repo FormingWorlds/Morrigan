@@ -1,38 +1,65 @@
 """
-!!! info "`run_model.py`"
+!!! info "`driver.py`"
     Runs a dynamical evolution model for [ndisk] systems with [N] planets each and saves data in .csv files
     Author(s): Anna Grace Ulses
 """
 
-import numpy as np 
-import matplotlib.pyplot as plt 
-import pandas as pd 
-import pdb 
-from astropy.table import Table
-from astropy.io import ascii
-import os 
-import time 
-import toml 
-from multiprocessing import Pool, cpu_count
+import argparse
+import os
+import time
 from functools import partial
+from multiprocessing import Pool, cpu_count, current_process
+
+import numpy as np
+import toml
+from astropy.io import ascii
+from astropy.table import Table
 
 #import functions and constants
-from helper_functions import * 
-from interaction_timescales import * 
-from merge_embryo import * 
-from secular_solution import * 
-from crossing_pair import * 
-from orbit_cross_K25 import * 
-from sort_planet import *
-from constants import * 
+from morrigan.constants import M_earth, M_sun, au2m, gyr2sec
+from morrigan.crossing_pair import crossing_pair
+from morrigan.helper_functions import hill_sphere, planet_radius
+from morrigan.orbit_cross_K25 import orbit_cross_K25
+from morrigan.secular_solution import secular_solution
+from morrigan.sort_planet import sort_planet
 
-with open('initialise.toml', 'r') as f:
-    config = toml.load(f)
+#name of the settings file read when none is given on the command line
+DEFAULT_CONFIG = 'initialise.toml'
 
-inner_edge = config['init_par']['inner_edge']
+
+def read_config(config_path=DEFAULT_CONFIG):
+    """
+    Read a settings file
+
+    Parameters
+    ----------
+    config_path : str
+        Path to the .toml settings file
+
+    Returns
+    -------
+    config : dict
+        Parsed settings
+
+    Raises
+    ------
+    FileNotFoundError
+        If no settings file is at the given path. The default is a bare
+        file name, so it only resolves when the command runs from a
+        checkout root; the message names the path that was tried.
+    """
+    if not os.path.isfile(config_path):
+        raise FileNotFoundError(
+            f'No settings file at {os.path.abspath(config_path)}. '
+            'Pass one with -c, for example: morrigan -c initialise.toml'
+        )
+    with open(config_path, 'r') as f:
+        return toml.load(f)
+
+
 ####ALLOCATE PARAMETERS FOR THE SYSTEM###
 
-def allocate_a(N,Ms,masses):
+def allocate_a(N,Ms,masses,inner_edge):
     a = np.empty(N)
     a[0] = inner_edge #AU
     for i in range(1,N): #allocate initial semi-major axes
@@ -62,6 +89,18 @@ def data_to_table(history):
     return Table([t_col, id_col, a_col, m_col, e_col, rp_col, alive_col, event_col],names=['t', 'id', 'a_AU', 'Mp', 'ecc', 'Rp', 'live_status', 'event'])
 
 def run_once(run_idx, config):
+
+    #seeding numpy sets the state for the whole process, which would reach into
+    #a program that imported this model and make its own draws follow from our
+    #seed, so put back whatever state we found once the system has run
+    entry_random_state = np.random.get_state()
+    try:
+        return _run_once(run_idx, config)
+    finally:
+        np.random.set_state(entry_random_state)
+
+
+def _run_once(run_idx, config):
 
     #import settings from .toml file
     base_seed = config['run_simulation'].get('random_seed', 0)
@@ -100,10 +139,11 @@ def run_once(run_idx, config):
         raise ValueError('Initial masses and/or atmosphere mass fractions and number of planets in system are mismatched!')
 
     Ms = config['init_par']['Ms'] * M_sun #stellar mass (relative to Msun)
-    rho_p = config['init_par']['rho_p'] #planet density kg/m^3  
+    rho_p = config['init_par']['rho_p'] #planet density kg/m^3
+    inner_edge = config['init_par']['inner_edge'] #orbit of the innermost planet (AU)
 
     #actually initialising system here with arrays for every parameter
-    a = allocate_a(N,Ms,masses)
+    a = allocate_a(N,Ms,masses,inner_edge)
     ecc = np.full(N,e)
     densities = np.full(N, rho_p)
     live_status = np.ones(N, dtype = bool) #set initial status of planets, all are live by definition at the start
@@ -111,10 +151,6 @@ def run_once(run_idx, config):
     Rp = np.array([planet_radius(i, j) for i,j in zip(masses,densities)])
     planet_id = np.arange(N) #persistent id for a particular planet to track its evolution and what events it participates in
                                             
-    parameter_names = ['id','a_AU','e','Mp','Rp','live_status']
-
-    next_id = len(masses)
-
     history = []
     mergers = [] #specifically stores info about merge events, one row is one merge
     #stores timestep information about the system
@@ -199,16 +235,42 @@ def run_once(run_idx, config):
     runtime = round((end-start), 3)
     return {'run_idx': run_idx, 'runtime_s': runtime, 'n_survivors': int(np.sum(live_status))}
 
-if __name__ == '__main__':
+def main(config_path):
+    """
+    Run every system described by a settings file
+
+    Parameters
+    ----------
+    config_path : str
+        Path to the .toml settings file
+
+    Notes
+    -----
+    A batch of more than one system runs on a process pool. Python starts
+    those workers by re-importing the module that launched them, so a
+    caller that reaches this function from an unguarded top level would
+    have each worker launch the batch again. Put the call behind
+    ``if __name__ == '__main__':``; a batch that cannot start a pool runs
+    its systems one after another instead, which gives the same numbers
+    because each system seeds itself from its own index.
+    """
+    #a worker re-importing an unguarded caller arrives back here, where it
+    #would launch the batch a second time; it has its own task to get on with
+    if current_process().name != 'MainProcess':
+        return
+
     #each disk is initialised with the same conditions
-    with open('initialise.toml', 'r') as f:
-        config = toml.load(f)
- 
+    config = read_config(config_path)
+
     #number of systems to run (defaults to a single run, unless specified)
     ndisk = config.get('batch', {}).get('ndisk', 1)
- 
-    os.makedirs(config['run_simulation']['save_directory'], exist_ok=True)
- 
+
+    #a relative save_directory is taken from the working directory, which is
+    #not necessarily where the settings file lives, so say where results land
+    save_directory = config['run_simulation']['save_directory']
+    os.makedirs(save_directory, exist_ok=True)
+    print(f'Writing results to {os.path.abspath(save_directory)}')
+
     if ndisk <= 1:
         #single run so skip multiprocessing entirely, allows for debugging
         start = time.time()
@@ -225,15 +287,40 @@ if __name__ == '__main__':
         nproc = config.get('batch', {}).get('nproc', max(1, cpu_count() - 1))
  
         worker = partial(run_once, config=config)
- 
+
         start = time.time()
-        with Pool(processes=nproc) as pool:
-            results = pool.map(worker, range(ndisk))
+        try:
+            with Pool(processes=nproc) as pool:
+                results = pool.map(worker, range(ndisk))
+        except RuntimeError:
+            #the caller's top level is unguarded, so a worker cannot re-import
+            #it safely; run the systems in turn instead of failing the batch
+            print('Could not start a process pool, running the systems one at a time. '
+                  "Put the call behind if __name__ == '__main__': to run them in parallel.")
+            results = [run_once(i, config) for i in range(ndisk)]
         end = time.time()
- 
+
         #high-level statistics for each system (remaining planets, ids, etc)
         summary = Table(rows=results, names=['run_idx', 'runtime_s', 'n_survivors'])
         ascii.write(summary, os.path.join(config['run_simulation']['save_directory'], 'batch_summary.csv'),
                     format='fixed_width', overwrite=True)
         print(f'Ran {ndisk} systems in {round(end - start, 3)}s')
+
+
+def cli():
+    """
+    Read the settings-file path from the command line, then run
+
+    Kept separate from main() so that importing Morrigan and calling
+    main() from another program never inspects that program's own
+    command line.
+    """
+    parser = argparse.ArgumentParser(description='Run the Morrigan giant-impact model')
+    parser.add_argument('-c', '--config', default=DEFAULT_CONFIG,
+                        help='path to the .toml settings file')
+    main(parser.parse_args().config)
+
+
+if __name__ == '__main__':
+    cli()
 

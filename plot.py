@@ -1,17 +1,16 @@
 """
 !!! info "`plot.py`"
-    Plotting script. Unless aesthetic changes are required, this script can be run unmodified after run_model.py to plot results
+    Plotting script. Unless aesthetic changes are required, this script can be run unmodified after `morrigan -c <settings>.toml` to plot the results of that run
     Author(s): Anna Grace Ulses
 """
 
+import argparse
+
 import numpy as np
-import matplotlib.pyplot as plt 
-from astropy.table import Table
+import matplotlib.pyplot as plt
 from astropy.io import ascii
-import pdb
-import toml
-import os 
-from constants import *
+from morrigan.constants import M_earth, M_sun
+from morrigan.driver import DEFAULT_CONFIG, read_config
 from scipy.stats import variation
 
 
@@ -26,21 +25,18 @@ plt.rcParams["ytick.major.size"] = 12
 plt.rcParams["xtick.minor.size"] = 7   
 plt.rcParams["ytick.minor.size"] = 7  
 
-with open('initialise.toml', 'r') as f:
-    config = toml.load(f)
-
-Ms = config['init_par']['Ms'] * M_sun 
-ndisk = config.get('batch', {}).get('ndisk', 100) #number of systems run
-directory = config['run_simulation']['save_directory']
-
-#remaining planets in each system 
-batch_summary = ascii.read(directory+'/batch_summary.csv', format = 'fixed_width')
+#filled in by main() from the same settings file the run used
+config = None
+Ms = None
+ndisk = None
+directory = None
+batch_summary = None
 
 def plot_tracks(directory):
 
     for n in range(ndisk):
         full_system = ascii.read(directory+f'/data/full_systems/full_system_{n:02d}.csv', format = 'fixed_width')
-        initial_N = N = config['init_par']['N'] #initial planets in each system
+        initial_N = config['init_par']['N'] #initial planets in each system
 
         for p in range(initial_N): 
             planet = full_system[full_system['id'] == p]
@@ -67,7 +63,6 @@ def plot_tracks(directory):
         plt.savefig(directory+f'/figures/tracks/track{n:02d}.png', dpi = 300)
         plt.close()
  
-plot_tracks(directory)
 
 def plot_orbits(directory):
 
@@ -124,7 +119,6 @@ def plot_orbits(directory):
         batch_ecc.append(remaining_system['ecc'][0])
         batch_mp.append(remaining_system['Mp'][0]/M_earth)
 
-plot_orbits(directory)
 
 def mutual_hill(M1,M2,a1,a2,Ms):
     return ((M1 + M2)/(3 * Ms))**(1/3) * (a1 + a2)/2
@@ -157,7 +151,6 @@ def mean_a_ecc(M,a,e,Ms):
 
 #initial center of mass for a singular system
 def com_i(Mp,a):
-    a_m = np.empty(len(a)) #for single system
     num = np.empty(len(a))
     den = np.empty(len(a))
     for i in range(len(a)):
@@ -259,4 +252,36 @@ def plot_stats(directory):
     plt.savefig(directory+'/figures/stats/all_systems.png', dpi = 500)
     plt.close()
 
-plot_stats(directory)
+
+def main(config_path):
+    """
+    Plot the results of a completed run
+
+    Parameters
+    ----------
+    config_path : str
+        Path to the .toml settings file the run used, so the plots come
+        from the same save_directory the model wrote to
+    """
+    global config, Ms, ndisk, directory, batch_summary
+
+    config = read_config(config_path)
+    Ms = config['init_par']['Ms'] * M_sun
+    #same default as the model driver, so a settings file that omits
+    #batch.ndisk plots exactly the systems that were run
+    ndisk = config.get('batch', {}).get('ndisk', 1)
+    directory = config['run_simulation']['save_directory']
+
+    #remaining planets in each system
+    batch_summary = ascii.read(directory + '/batch_summary.csv', format='fixed_width')
+
+    plot_tracks(directory)
+    plot_orbits(directory)
+    plot_stats(directory)
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Plot the results of a Morrigan run')
+    parser.add_argument('-c', '--config', default=DEFAULT_CONFIG,
+                        help='path to the .toml settings file the run used')
+    main(parser.parse_args().config)

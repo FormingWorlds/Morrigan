@@ -4,7 +4,7 @@
     Author(s): Anna Grace Ulses
 """
 
-from constants import G 
+from morrigan.constants import G
 import numpy as np 
 
 def mass_loss(v_c:float, M_i:float, M_t:float, rho_i:float, rho_t:float, R_i:float , R_t:float, b:float):
