@@ -8,7 +8,7 @@ import argparse
 import os
 import time
 from functools import partial
-from multiprocessing import Pool, cpu_count
+from multiprocessing import Pool, cpu_count, current_process
 
 import numpy as np
 import toml
@@ -219,14 +219,33 @@ def main(config_path):
     ----------
     config_path : str
         Path to the .toml settings file
+
+    Notes
+    -----
+    A batch of more than one system runs on a process pool. Python starts
+    those workers by re-importing the module that launched them, so a
+    caller that reaches this function from an unguarded top level would
+    have each worker launch the batch again. Put the call behind
+    ``if __name__ == '__main__':``; a batch that cannot start a pool runs
+    its systems one after another instead, which gives the same numbers
+    because each system seeds itself from its own index.
     """
+    #a worker re-importing an unguarded caller arrives back here, where it
+    #would launch the batch a second time; it has its own task to get on with
+    if current_process().name != 'MainProcess':
+        return
+
     #each disk is initialised with the same conditions
     config = read_config(config_path)
 
     #number of systems to run (defaults to a single run, unless specified)
     ndisk = config.get('batch', {}).get('ndisk', 1)
 
-    os.makedirs(config['run_simulation']['save_directory'], exist_ok=True)
+    #a relative save_directory is taken from the working directory, which is
+    #not necessarily where the settings file lives, so say where results land
+    save_directory = config['run_simulation']['save_directory']
+    os.makedirs(save_directory, exist_ok=True)
+    print(f'Writing results to {os.path.abspath(save_directory)}')
 
     if ndisk <= 1:
         #single run so skip multiprocessing entirely, allows for debugging
@@ -244,12 +263,19 @@ def main(config_path):
         nproc = config.get('batch', {}).get('nproc', max(1, cpu_count() - 1))
  
         worker = partial(run_once, config=config)
- 
+
         start = time.time()
-        with Pool(processes=nproc) as pool:
-            results = pool.map(worker, range(ndisk))
+        try:
+            with Pool(processes=nproc) as pool:
+                results = pool.map(worker, range(ndisk))
+        except RuntimeError:
+            #the caller's top level is unguarded, so a worker cannot re-import
+            #it safely; run the systems in turn instead of failing the batch
+            print('Could not start a process pool, running the systems one at a time. '
+                  "Put the call behind if __name__ == '__main__': to run them in parallel.")
+            results = [run_once(i, config) for i in range(ndisk)]
         end = time.time()
- 
+
         #high-level statistics for each system (remaining planets, ids, etc)
         summary = Table(rows=results, names=['run_idx', 'runtime_s', 'n_survivors'])
         ascii.write(summary, os.path.join(config['run_simulation']['save_directory'], 'batch_summary.csv'),
