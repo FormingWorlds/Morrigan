@@ -9,10 +9,10 @@ function wire() {
     title.dataset.titleWired = "1";
     title.style.cursor = "pointer";
 
-    // always go to /CALLIOPE/ when hosted there, else "/" (mkdocs serve)
+    // always go to /Morrigan/ when hosted there, else "/" (mkdocs serve)
     const href = location.href;
-    const docsHome = href.includes("/CALLIOPE/")
-      ? href.split("/CALLIOPE/")[0] + "/CALLIOPE/"
+    const docsHome = href.includes("/Morrigan/")
+      ? href.split("/Morrigan/")[0] + "/Morrigan/"
       : location.origin + "/";
 
     title.addEventListener("click", (e) => {

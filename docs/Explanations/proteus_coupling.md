@@ -39,6 +39,8 @@ Conventions the schema guarantees:
 
 `out['survivors']` lists each surviving body's id together with its initial and final mass and semi-major axis, so the consumer can select a planet and replay its growth.
 
+One naming caveat for readers of the command-line output: the `M_merged_after` column of the `mergers_*.csv` files reports the model's internal post-loss mass (the merged mass after the internal atmosphere bookkeeping), while the `run_system` record of the same name reports the perfect-merger sum defined above. The in-memory schema is the coupling interface; the file column follows the internal bookkeeping.
+
 Any change to the record fields, units, or conventions is a breaking interface change for PROTEUS and must be flagged in the pull request that makes it.
 
 ## Random-state hygiene
