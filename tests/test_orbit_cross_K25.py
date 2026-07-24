@@ -109,28 +109,61 @@ def test_scattering_conserves_the_mass_weighted_orbit_sum():
 @pytest.mark.physics_invariant
 def test_ejection_removes_the_escaping_body_and_binds_the_survivor():
     """An ejection kills exactly the body excited past e = 1 and leaves
-    the survivor on a bound, tighter orbit.
+    the survivor on a bound orbit that closes the pair's energy books.
 
     A compact massive pair at 30 au has a mutual escape eccentricity
     far above one, so the scattering excitation drives an ejection
     (seed 0). Exactly one body must die; the survivor must carry an
-    eccentricity inside [0, 1) and a semi-major axis smaller than
-    either initial orbit, since the ejected body carries away orbital
-    energy. This is the regression pin for the ejection bookkeeping:
+    eccentricity inside [0, 1), sit inside its own original orbit
+    (it absorbs the escaper's binding energy), and satisfy the exact
+    energy closure M_s/a_new = M_s/a_s + M_l/a_l of the survivor
+    formula. This is the regression pin for the ejection bookkeeping:
     flagging the wrong body would leave a hyperbolic e >= 1 orbit
-    alive, which the bound below rejects.
+    alive, which the bound below rejects. The unequal-mass case
+    (1 and 50 Earth masses at 1.0 and 1.5 au, seed 0) pins the
+    ordering: the lighter body takes the larger kick and escapes, and
+    the heavy survivor can land between the two original orbits, so
+    only its own original orbit bounds it.
     """
     np.random.seed(0)
     ap, mp, rp, f, e, interact, live, pid = _pair(0.3, 0.3, a1_au=30.0, m_earths=100.0, f_atm=0.0)
     a_before = ap.copy()
+    m_before = mp.copy()
     rec = orbit_cross_K25(ap, mp, rp, M_sun, f, 0.5, e, interact, live, 2, pid, 0)
 
     assert rec is None
     assert int(np.sum(live)) == 1  # exactly one body escapes
 
     survivor = int(np.argmax(live))
+    ejected = 1 - survivor
     assert 0.0 <= e[survivor] < 1.0
-    assert 0.0 < ap[survivor] < a_before.min()
+    assert 0.0 < ap[survivor] < a_before[survivor]
+    # Exact energy closure of the survivor formula.
+    assert mp[survivor] / ap[survivor] == pytest.approx(
+        m_before[survivor] / a_before[survivor] + m_before[ejected] / a_before[ejected],
+        rel=1e-12,
+    )
+
+    # Unequal masses: the lighter body escapes, the heavy survivor stays
+    # bound between the original orbits, and the energy books still close.
+    np.random.seed(0)
+    ap2 = np.array([1.0, 1.5]) * au2m
+    mp2 = np.array([1.0, 50.0]) * M_earth
+    rp2 = np.array([planet_radius(m, _RHO) for m in mp2])
+    e2 = np.array([0.3, 0.3])
+    live2 = np.array([True, True])
+    rec2 = orbit_cross_K25(ap2, mp2, rp2, M_sun, np.zeros(2), 0.5, e2,
+                           np.ones(2, dtype=bool), live2, 2, np.arange(2), 0)
+    assert rec2 is None
+    assert list(live2) == [False, True]  # the 1 Earth-mass body is ejected
+    assert 0.0 <= e2[1] < 1.0
+    assert ap2[1] == pytest.approx(
+        50.0 * M_earth / (50.0 * M_earth / (1.5 * au2m) + 1.0 * M_earth / (1.0 * au2m)),
+        rel=1e-12,
+    )
+    # The survivor sits inside its own orbit but outside the escaper's,
+    # which discriminates the true bound from the min-of-both wrong bound.
+    assert 1.0 * au2m < ap2[1] < 1.5 * au2m
 
 
 @pytest.mark.physics_invariant

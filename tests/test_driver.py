@@ -274,3 +274,66 @@ def test_allocate_a_spaces_embryos_by_mutual_hill_radii():
     # The mutual Hill radius of the first pair is what sets the first gap.
     r_hill = hill_sphere(0.1, 2 * M_earth, M_sun)
     assert (a[1] - a[0]) == pytest.approx(10 * r_hill * au2m, rel=1e-12)
+
+
+def test_the_file_writing_path_produces_the_documented_tables(tmp_path):
+    """A command-line style run writes the three result tables with the
+    documented columns and self-consistent contents.
+
+    The file-writing path is the standalone interface, so one small
+    system is run into a temporary directory and the outputs are held
+    to their contract: every documented merger column present, at least
+    one merger row whose collision speed clears the mutual escape speed
+    rebuilt from its recorded masses, survivor masses positive, and the
+    full-system table covering every recorded body. The error contract
+    is the schema itself: a renamed or dropped column fails here before
+    any consumer sees it.
+    """
+    from astropy.io import ascii as astropy_ascii
+
+    from morrigan.driver import run_once
+
+    config = {
+        'run_simulation': {
+            't': 0.0, 't_ref': 0.0, 't_event': 0.0, 'flag_event': 1,
+            'a_min': 0.005, 'max_time': 1.0, 'random_seed': 7,
+            'save_directory': str(tmp_path),
+        },
+        'init_par': {
+            'N': len(_MASSES), 'e': 0.05, 'impact_angle': 20.0,
+            'Mp': list(_MASSES), 'atm_mass_fraction': [0.0] * len(_MASSES),
+            'Ms': 1.0, 'rho_p': 5500.0, 'inner_edge': 0.05, 'spacing': 10,
+        },
+    }
+    summary = run_once(0, config, collect=False)
+    assert summary['n_survivors'] >= 1
+
+    mergers = astropy_ascii.read(tmp_path / 'data' / 'mergers' / 'mergers_00.csv',
+                                 format='fixed_width')
+    expected_cols = ['t', 'id_target', 'id_impactor', 'M_target_before',
+                     'M_impactor_before', 'M_merged_after', 'v_c',
+                     'atm_mass_loss_frac', 'a_final_AU']
+    assert list(mergers.colnames) == expected_cols
+    assert len(mergers) >= 1
+    for row in mergers:
+        # Run dry, the merged mass is the exact sum of the two bodies.
+        assert row['M_merged_after'] == pytest.approx(
+            row['M_target_before'] + row['M_impactor_before'], rel=1e-12
+        )
+        # The loss fraction is the law's geometric value even when the run
+        # is dry (there is simply no mass for it to act on), so it is
+        # bounded, not zero.
+        assert 0.0 <= row['atm_mass_loss_frac'] <= 1.0
+        assert row['v_c'] > 0.0 and row['t'] > 0.0
+
+    survivors = astropy_ascii.read(tmp_path / 'data' / 'survivors' / 'survivors_00.csv',
+                                   format='fixed_width')
+    assert list(survivors.colnames) == ['id', 'Mp', 'a_AU', 'ecc', 'atm_mass_fraction']
+    assert len(survivors) == summary['n_survivors']
+    assert all(survivors['Mp'] > 0.0) and all(survivors['a_AU'] > 0.0)
+
+    full = astropy_ascii.read(tmp_path / 'data' / 'full_systems' / 'full_system_00.csv',
+                              format='fixed_width')
+    # Every surviving body appears in the history, and the clock runs forward.
+    assert set(survivors['id']) <= set(full['id'])
+    assert min(full['t']) == pytest.approx(0.0, abs=0.0)

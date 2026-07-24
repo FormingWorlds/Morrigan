@@ -6,10 +6,11 @@ which no single source file owns. The anchor is Kimura et al. (2025),
 whose reference model S0 (Table 1: 15 embryos, 2.43 Earth masses in
 total, from 0.1 au at 10 mutual-Hill-radii spacing, bulk density
 3 g cm-3, solar-mass host) is reproduced here in an equal-mass variant
-and evolved over 20 seeds. Two anchors are pinned: the closed-form
+and evolved over 20 seeds. The published anchor is the closed-form
 eq. 37 coefficient relating the crossing eccentricity of a pair to its
-escape eccentricity, and the Hill-scaled endstate statistics (eqs.
-33-34) of the evolved ensembles.
+escape eccentricity; the evolved ensembles are additionally held inside
+physically derived windows on the Hill-scaled endstate statistics of
+eqs. 33-34, which bound the physics without pinning a paper value.
 """
 
 from __future__ import annotations
@@ -105,7 +106,7 @@ def test_s0_like_ensembles_reach_a_widened_hill_stable_endstate():
 
     Every seeded system must lose bodies to mergers (final count
     strictly below 15 and at least 1) while never gaining mass overall.
-    The endstate statistics of eqs. 33-34 pin the physics: the mean
+    The endstate statistics of eqs. 33-34 bound the physics: the mean
     Hill-scaled separation must exceed the initial spacing of 10, since
     giant-impact evolution runs until neighbours are Hill-stable, and
     the mean Hill-scaled eccentricity must sit in the moderately

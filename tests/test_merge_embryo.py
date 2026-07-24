@@ -57,9 +57,11 @@ def test_collision_velocity_floors_at_the_mutual_escape_speed():
 
     v_ecc = collision_velocity(list(ap), list(mp), list(rp), M_sun, [0.05, 0.08])
     assert v_ecc == pytest.approx(11945.706, rel=1e-6)
-    # Discrimination: the linear-sum wrong form v_inf + v_esc.
+    # Discrimination: the linear-sum wrong form v_inf + v_esc evaluates to
+    # 14317.5 m/s here, twenty percent above the quadrature value.
     e_ij = np.sqrt(0.05**2 + 0.08**2)
     v_inf = e_ij * np.sqrt(G * M_sun / (1.1 * au2m))
+    assert v_inf + v_esc == pytest.approx(14317.5, rel=1e-4)
     assert abs((v_inf + v_esc) - v_ecc) > 100 * 1e-6 * v_ecc
 
     # Monotone in eccentricity, and always at or above the escape floor.
@@ -149,8 +151,11 @@ def test_extreme_impacts_clamp_the_loss_and_bound_the_eccentricity():
     exactly one and the merged body left with zero atmosphere: the
     call-site clamp contract. The eq. 17 eccentricity is a vector
     composition, so across seeds it must stay within
-    [|M1 e1 - M2 e2|, M1 e1 + M2 e2] / (M1 + M2); seeds 0-9 sweep the
-    random pericentre alignment through both extremes.
+    [|M1 e1 - M2 e2|, M1 e1 + M2 e2] / (M1 + M2). The sweep uses a
+    close pair (1.0 and 1.05 au) whose pericentre-alignment cosine is
+    interior to (-1, 1), so the drawn alignment genuinely varies with
+    the seed; seeds 0-9 must therefore produce a non-degenerate spread
+    of merged eccentricities inside the bounds.
     """
     ap, mp, rp, ecc, live, f_atm = _pair(m1=1.0, m2=1.0, e1=0.05, e2=0.05)
     v_esc = np.sqrt(2.0 * G * (mp[0] + mp[1]) / (rp[0] + rp[1]))
@@ -165,9 +170,13 @@ def test_extreme_impacts_clamp_the_loss_and_bound_the_eccentricity():
 
     lo = abs(2.0 * 0.05 - 1.0 * 0.08) / 3.0
     hi = (2.0 * 0.05 + 1.0 * 0.08) / 3.0
+    merged_eccs = []
     for seed in range(10):
         np.random.seed(seed)
-        ap, mp, rp, ecc, live, f_atm = _pair()
+        ap, mp, rp, ecc, live, f_atm = _pair(a2=1.05)
         v_c = collision_velocity(list(ap), list(mp), list(rp), M_sun, list(ecc))
         _, _, ecc_n, _, _, _ = merge_embryo(ap, mp, rp, M_sun, ecc, v_c, live, 0.5, f_atm)
         assert lo * (1.0 - 1e-9) <= ecc_n[0] <= hi * (1.0 + 1e-9)
+        merged_eccs.append(float(ecc_n[0]))
+    # The alignment draw genuinely varies: the sweep is not degenerate.
+    assert max(merged_eccs) - min(merged_eccs) > 0.0
