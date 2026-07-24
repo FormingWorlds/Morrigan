@@ -282,12 +282,12 @@ def test_the_file_writing_path_produces_the_documented_tables(tmp_path):
 
     The file-writing path is the standalone interface, so one small
     system is run into a temporary directory and the outputs are held
-    to their contract: every documented merger column present, at least
-    one merger row whose collision speed clears the mutual escape speed
-    rebuilt from its recorded masses, survivor masses positive, and the
-    full-system table covering every recorded body. The error contract
-    is the schema itself: a renamed or dropped column fails here before
-    any consumer sees it.
+    to their contract: every documented merger column present, each
+    merger row closing its dry-run mass sum exactly with a positive
+    collision speed and a bounded loss fraction, survivor masses
+    positive, and the full-system table covering every recorded body.
+    The error contract is the schema itself: a renamed or dropped
+    column fails here before any consumer sees it.
     """
     from astropy.io import ascii as astropy_ascii
 

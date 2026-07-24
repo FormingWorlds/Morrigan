@@ -46,7 +46,7 @@ def test_collision_velocity_floors_at_the_mutual_escape_speed():
     convention the Kegerreis et al. (2020) loss law expects. The
     eccentric case is pinned by hand through v_inf = e_ij v_kep:
     11945.7 m/s for the reference pair, which discriminates the wrong
-    linear combination v_inf + v_esc (12100.5 m/s there). Speed grows
+    linear combination v_inf + v_esc (14317.5 m/s there). Speed grows
     monotonically with eccentricity.
     """
     ap, mp, rp, _, _, _ = _pair()
