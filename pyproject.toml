@@ -94,7 +94,7 @@ source = ["morrigan"]
 # Full gate (unit + smoke + integration + slow). One-way ratchet via
 # tools/update_coverage_threshold.py, capped at the 90 percent ecosystem
 # ceiling; never manually decreased.
-fail_under = 80.0
+fail_under = 84.89
 show_missing = true
 exclude_lines = [
     "pragma: no cover",
@@ -129,4 +129,4 @@ indent-style = "space"
 # Fast gate (unit + smoke), checked on every pull request. One-way ratchet
 # via tools/update_coverage_threshold.py, capped at the 90 percent
 # ecosystem ceiling; never manually decreased.
-fail_under = 80.0
+fail_under = 83.92
