@@ -4,9 +4,6 @@
 
 Named after Morrigan, a shapeshifting figure from Irish mythology thought to represent the dynamical nature of existence.
 
-New feature(s) introduced in Python version: 
-1. Fractional atmospheric loss due to giant impact mergers
-
 ## Installation
 
 ```bash
