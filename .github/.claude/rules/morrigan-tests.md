@@ -210,7 +210,7 @@ Banned inside in-scope artifacts: "audit", "review pass", "adversarial review", 
 ## 12. Naming
 
 - Test names describe behavior: `test_kepler_period_scales_as_a_to_three_halves`, NOT `test_kepler_period`.
-- Test file names mirror source 1:1. Documented exception: `tests/test_ensemble_statistics.py`, the cross-cutting seed-ensemble statistics exercising the whole model through `run_system` (integration tier).
+- Test file names mirror source 1:1. Documented exceptions: `tests/test_ensemble_statistics.py`, the cross-cutting seed-ensemble statistics exercising the whole model through `run_system` (integration tier), and `tests/test_mass_loss_properties.py`, the optional-dependency companion of `test_mass_loss.py` that quarantines the `hypothesis` and `zephyrus` imports behind module-top `importorskip` so the mandatory closed-form pins always run.
 
 ---
 

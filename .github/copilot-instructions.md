@@ -136,7 +136,7 @@ The test job carries `timeout-minutes: 10`; a PR tier that cannot finish inside 
   - `mass_loss.py` - Kegerreis et al. (2020) impact atmosphere-loss scaling law (physics)
   - `helper_functions.py` - Kepler period, Hill radius, escape eccentricity, Rayleigh draws (physics)
 
-- `tests/` - Test suite. Each physics source has a 1:1 test file at `tests/test_<file>.py`. Cross-cutting ensemble statistics (`test_ensemble_statistics.py`) are the documented exception.
+- `tests/` - Test suite. Each physics source has a 1:1 test file at `tests/test_<file>.py`. Two documented exceptions: cross-cutting ensemble statistics (`test_ensemble_statistics.py`) and the optional-dependency companion `test_mass_loss_properties.py` (hypothesis sweeps plus the ZEPHYRUS cross-check, import-or-skipped as a whole file so the mandatory pins in `test_mass_loss.py` always run).
 
 - `tools/` - Build / utility scripts
   - `check_test_quality.py` - AST linter (blocking on PRs)
@@ -167,7 +167,7 @@ Morrigan is scientific simulation code, so the test suite is held to physics-gra
 
 ### Structure
 
-- Tests mirror source 1:1: `src/morrigan/<file>.py` -> `tests/test_<file>.py`. The cross-cutting ensemble-statistics file (`tests/test_ensemble_statistics.py`) is the documented exception.
+- Tests mirror source 1:1: `src/morrigan/<file>.py` -> `tests/test_<file>.py`. Two documented exceptions: the cross-cutting ensemble-statistics file (`tests/test_ensemble_statistics.py`) and the optional-dependency companion (`tests/test_mass_loss_properties.py`), which quarantines the `hypothesis` and `zephyrus` imports so the mandatory closed-form pins never skip with them.
 - Framework: `pytest` exclusively in the `tests/` directory.
 
 ### Markers and the module-level marker rule
