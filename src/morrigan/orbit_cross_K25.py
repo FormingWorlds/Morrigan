@@ -9,7 +9,7 @@ import numpy as np
 from morrigan.helper_functions import esc_ecc, hill_sphere, rayleigh
 from morrigan.merge_embryo import collision_velocity, merge_embryo
  
-def orbit_cross_K25(ap, Mp, Rp, Ms, atm_mass_fraction, impact_parameter, ecc, interact, live_status, N, planet_id, icross): #determine outcome of crossing event
+def orbit_cross_K25(ap, Mp, Rp, Ms, impact_parameter, ecc, interact, live_status, N, planet_id, icross): #determine outcome of crossing event
     '''
     Function to determine what happens once an orbit crossing event has been established
 
@@ -23,8 +23,6 @@ def orbit_cross_K25(ap, Mp, Rp, Ms, atm_mass_fraction, impact_parameter, ecc, in
         Radii of interacting pair [m]
     Ms : float
         Stellar mass [kg]
-    atm_mass_fraction : list 
-        Atmospheric mass fractions of interacting pair 
     impact_parameter: float
         Defined as sin(impact angle). Describes angle of contact between target and impactor
     ecc : list
@@ -42,7 +40,7 @@ def orbit_cross_K25(ap, Mp, Rp, Ms, atm_mass_fraction, impact_parameter, ecc, in
     
     Returns
     -------
-    Modified arrays for ap, Mp, Rp, atm_mass_fraction, ecc, interact, live_status, N following scattering or merging 
+    Modified arrays for ap, Mp, Rp, ecc, interact, live_status, N following scattering or merging 
     merge_record : dict
         Stores information about targets and impactors for each merging event
     '''
@@ -125,20 +123,18 @@ def orbit_cross_K25(ap, Mp, Rp, Ms, atm_mass_fraction, impact_parameter, ecc, in
         #call merge_embryo function to update parameters for interacting pair
         #jcross+1 to include that planet in the interacting pair
         #print(f"[COLLISION] Planets {planet_id[icross]} and {planet_id[jcross]} merged")
-        ap_merge, Mp_merge, ecc_merge, live_status_merge, atm_mass_fraction_merge, frac_lost = merge_embryo(ap[icross:jcross+1], Mp[icross:jcross+1], Rp[icross:jcross+1], Ms, ecc[icross:jcross+1], v_c, live_status[icross:jcross+1], impact_parameter, atm_mass_fraction[icross:jcross+1])
+        ap_merge, Mp_merge, ecc_merge, live_status_merge = merge_embryo(ap[icross:jcross+1], Mp[icross:jcross+1], Rp[icross:jcross+1], Ms, ecc[icross:jcross+1], v_c, live_status[icross:jcross+1], impact_parameter)
         #update system
         ap[icross:jcross+1] = ap_merge
         Mp[icross:jcross+1] = Mp_merge 
         ecc[icross:jcross+1] = ecc_merge 
         live_status[icross:jcross+1] = live_status_merge #smaller planet dies
-        atm_mass_fraction[icross:jcross+1] = atm_mass_fraction_merge #should just apply to the target planet here
 
-        #record impact velocity (v_c) + mass loss for each merger. The pre-merge
+        #record impact velocity (v_c). The pre-merge
         #radii and target semi-major axis, and the post-merge target eccentricity,
-        #are kept alongside so the full impact geometry can be reconstructed later
+        #are kept alongside so the full impact geometry can be reconstructed later to calculate atmospheric mass loss
         merge_record = {'id_target': id_target,'id_impactor': id_impactor,'M_target_before': M_target_before,
-            'M_impactor_before': M_impactor_before,'M_merged_after': Mp[target_idx],'v_c': v_c,
-            'atm_mass_loss_frac': frac_lost, 'a_final_AU': ap[target_idx] / 1.5e11,
+            'M_impactor_before': M_impactor_before,'M_merged_after': Mp[target_idx],'v_c': v_c, 'a_final_AU': ap[target_idx] / 1.5e11,
             'R_target_before': R_target_before, 'R_impactor': R_impactor,
             'a_before': a_target_before, 'e_after': ecc[target_idx],}
 

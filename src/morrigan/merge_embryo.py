@@ -9,7 +9,6 @@
 import numpy as np
 
 from morrigan.constants import G
-from morrigan.mass_loss import mass_loss
 
 def collision_velocity(ap, Mp, Rp, Ms, ecc):
     '''
@@ -41,7 +40,7 @@ def collision_velocity(ap, Mp, Rp, Ms, ecc):
     return v_c
 
 
-def merge_embryo(ap, Mp, Rp, Ms, ecc, v_c, live_status, b, atm_mass_fraction): #calculate orbital parameters post collision
+def merge_embryo(ap, Mp, Rp, Ms, ecc, v_c, live_status, b): #calculate orbital parameters post collision
     '''
     Function to compute mass, orbital separation, eccentricity, and fractional atmospheric loss after a giant impact
 
@@ -61,8 +60,6 @@ def merge_embryo(ap, Mp, Rp, Ms, ecc, v_c, live_status, b, atm_mass_fraction): #
         Live_status of colliding pair 
     b : float 
         Impact parameter, defined as sin(beta) where beta is impact angle in [deg]
-    atm_mass_fraction : list 
-        Atmospheric mass fractions of interacting pair
     
     Returns
     -------
@@ -74,10 +71,6 @@ def merge_embryo(ap, Mp, Rp, Ms, ecc, v_c, live_status, b, atm_mass_fraction): #
         Updated eccentricity of surviving planet 
     live_status : list
         Sets consumed planet's status to 'False'
-    atm_mass_fraction: float 
-        Remaining atmospheric mass fraction of target after collision
-    frac_lost : float
-        Fraction of surviving planets atmosphere that was lost during collision
 
     '''
     #Mp is a list containing interacting pair masses
@@ -99,33 +92,9 @@ def merge_embryo(ap, Mp, Rp, Ms, ecc, v_c, live_status, b, atm_mass_fraction): #
     else:
         alive, dead = 1,0
 
-    target, impactor = alive, dead #by convention the surviving (larger) body is the target
-
-    rho = Mp / ((4.0/3.0) * np.pi * Rp**3) #density
-
-    #pre-merge atmosphere masses [kg], derived from the CARRIED-OVER fraction of each body
-    #(this is what actually threads atmosphere state through successive collisions -- a planet
-    #that already lost atmosphere in an earlier merger has a smaller atm_mass_fraction here)
-    atm_mass_target_before = Mp[target] * atm_mass_fraction[target]
-    atm_mass_impactor_before = Mp[impactor] * atm_mass_fraction[impactor]
- 
-    #impactor's atmosphere is added to the target's before mass_loss() is applied
-    atm_mass_combined_before = atm_mass_target_before + atm_mass_impactor_before
-
-    #fraction of that COMBINED atmosphere lost in this collision (Kegerreis et al. 2020 scaling)
-    frac_lost = mass_loss(v_c, Mp[impactor], Mp[target], rho[impactor], rho[target], Rp[impactor], Rp[target], b)
-    frac_lost = min(max(frac_lost, 0.0), 1.0) #the fitted scaling is only defined/meaningful on [0,1]
- 
-    atm_mass_after = atm_mass_combined_before * (1.0 - frac_lost)
-    atm_mass_lost = atm_mass_combined_before - atm_mass_after
- 
-    Mp_new = Mp_new - atm_mass_lost #reduce the merged mass by the atmosphere actually lost (rock is conserved)
- 
     live_status[dead] = False #kill consumed planet
     ap[alive] = ap_new 
     Mp[alive] = Mp_new 
     ecc[alive] = ecc_new 
-    atm_mass_fraction[alive] = atm_mass_after / Mp_new #store back as a FRACTION of the new total mass
-    atm_mass_fraction[dead] = 0.0 
 
-    return ap,Mp,ecc,live_status,atm_mass_fraction,frac_lost
+    return ap,Mp,ecc,live_status
