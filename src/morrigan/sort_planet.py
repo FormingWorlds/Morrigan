@@ -6,7 +6,7 @@
 
 import numpy as np
 
-def sort_planet(ap, Mp, ecc, Rp, atm_mass_fraction, live_status, interact, densities, planet_id): #clean up system after event
+def sort_planet(ap, Mp, ecc, Rp, live_status, interact, densities, planet_id): #clean up system after event
     '''
     Removes dead planets and sorts system by increasing semi-major axis 
 
@@ -20,8 +20,6 @@ def sort_planet(ap, Mp, ecc, Rp, atm_mass_fraction, live_status, interact, densi
         Eccentricities of all planets 
     Rp : list 
         Radii of all planets [m]
-    atm_mass_fraction : list 
-        Atmospheric mass fraction of all planets 
     live_status: bool list 
         Whether a planet is surviving (True), or was ejected or consumed (False)
     interact: bool list
@@ -44,7 +42,6 @@ def sort_planet(ap, Mp, ecc, Rp, atm_mass_fraction, live_status, interact, densi
     ecc = ecc[live_planets]
     densities = densities[live_planets]
     planet_id = planet_id[live_planets]
-    atm_mass_fraction = atm_mass_fraction[live_planets]
 
     interact = interact[live_planets]
     live_status = live_status[live_planets]
@@ -59,6 +56,5 @@ def sort_planet(ap, Mp, ecc, Rp, atm_mass_fraction, live_status, interact, densi
     densities = densities[sort_order]
     live_status = live_status[sort_order]
     planet_id = planet_id[sort_order]
-    atm_mass_fraction = atm_mass_fraction[sort_order]
 
-    return ap, Mp, ecc, Rp, atm_mass_fraction, live_status, interact, densities, planet_id
+    return ap, Mp, ecc, Rp, live_status, interact, densities, planet_id

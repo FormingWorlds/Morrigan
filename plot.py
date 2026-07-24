@@ -101,7 +101,7 @@ def plot_orbits(directory):
 
             # mark planet position at periapsis (theta=0)
             r_peri = a * (1 - e)
-            ax.scatter(r_peri, 0, s=ms, color=c[f], edgecolor='k', zorder=6)
+            ax.scatter(r_peri, 0, s=ms, color=c[f % len(c)], edgecolor='k', zorder=6)
 
         ax.plot(0, 0, marker='*', color='gold', markersize=15, markeredgecolor='orange', zorder=5)
         ax.set_aspect('equal')
