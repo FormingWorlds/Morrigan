@@ -4,26 +4,28 @@
     Author(s): Anna Grace Ulses
 """
 
-import numpy as np 
+import numpy as np
+
 from morrigan.constants import G
 from morrigan.helper_functions import hill_sphere, kepler_period
+
 
 def tau_cross_petit(a,Mp,Ms,ecc, N_affect): #evaluates every planetary triplet for instability
     '''
     Function to calculate timescale to instability as a result of 3-body mean motion resonances
 
-    Parameters 
+    Parameters
     ----------
-    a : list 
+    a : list
         Semi-major axes of planetary triplet [m]
-    Mp : list 
+    Mp : list
         Masses of planetary triplet [kg]
     Ms : float
         Stellar mass [kg]
     ecc : list
-        Eccentricities of planetary triplet 
+        Eccentricities of planetary triplet
     N_affect : int
-        Number of planets interacting 
+        Number of planets interacting
 
     Returns
     -------
@@ -34,7 +36,7 @@ def tau_cross_petit(a,Mp,Ms,ecc, N_affect): #evaluates every planetary triplet f
     alpha_01, alpha_12 = a[0]/a[1], a[1]/a[2]
 
     nu_01, nu_12 = alpha_01**1.5, alpha_12**1.5 #different from paper appendix B
-    
+
     eta = (nu_01 * (1 - nu_12))/(1 - nu_01*nu_12)
     M = np.sqrt(Mp[0] * Mp[2] + Mp[1] * Mp[2] * eta**2 * alpha_01**(-2) + Mp[0]*Mp[1] * alpha_12**2 * (1 - eta)**2)/Ms
     delta_01, delta_12 = 1.0 - ecc[1] - (1.0 + ecc[0]) * alpha_01 , 1.0 - ecc[2] - (1.0 + ecc[1]) * alpha_12 #also different from paper, but noted in the code
@@ -59,19 +61,19 @@ def interaction_wrapper(ap, Mp, Ms, ecc, N_affect): #determine if system is stab
 
     Parameters
     ----------
-    ap : list 
+    ap : list
         Semi-major axes of triplet [m]
-    Mp : list 
+    Mp : list
         Masses of triplet [kg]
     Ms : float
         Stellar mass [kg]
-    ecc : list 
-        Eccentricities of triplet 
+    ecc : list
+        Eccentricities of triplet
     N_affect : int
         Number of planets interacting
-    
-    Returns: 
-    1e20 if system is stable 
+
+    Returns:
+    1e20 if system is stable
     Otherwise returns instability timescale from tau_cross_petit
     '''
     #N_affect is planets participating in crossing event
@@ -82,7 +84,7 @@ def interaction_wrapper(ap, Mp, Ms, ecc, N_affect): #determine if system is stab
 
     if N_affect <= 2 and EJbef < 0.0: #if system is stable return 'infinite' stability, 2 planets can still interact
         return 1e20
-        
+
     #otherwise return the crossing timescale from Petit 2020
     return tau_cross_petit(ap, Mp, Ms, ecc, N_affect)
 
@@ -94,23 +96,23 @@ def tau_vis(ap,Mp,Rp,Ms,ecc): #viscous relaxation timescale for an interacting p
     ----------
     ap : list
         Semi-major axes of interacting pair [m]
-    Mp : list 
+    Mp : list
         Masses of interacting pair [kg]
-    Rp : list 
+    Rp : list
         Radii of interacting pair [m]
     Ms : float
         Stellar mass [kg]
     ecc : list
-        Eccentricities of interacting pair 
+        Eccentricities of interacting pair
 
     Returns
     -------
-    timescale : float 
+    timescale : float
         Viscous relaxation timescale (when system settles down after scattering)
     '''
     mu_a = sum(ap)/2 #average semi-major axis of interacting pair
     M_T = sum(Mp) #sum of masses
-    impact_parameter = abs(ap[1] - ap[0]) 
+    impact_parameter = abs(ap[1] - ap[0])
 
     #eccentricities at the onset of crossing
     ecross_i = (np.sqrt(Mp[1]) * impact_parameter)/((np.sqrt(Mp[1]) * ap[0]) + np.sqrt(Mp[0]) * ap[1]) #eq 6
@@ -133,14 +135,14 @@ def tau_col(ap,Mp,Rp,Ms,ecc):
     ----------
     ap : list
         Semi-major axes of interacting pair [m]
-    Mp : list 
+    Mp : list
         Masses of interacting pair [kg]
-    Rp : list 
+    Rp : list
         Radii of interacting pair [m]
     Ms : float
         Stellar mass [kg]
     ecc : list
-        Eccentricities of interacting pair 
+        Eccentricities of interacting pair
 
     Returns
     -------

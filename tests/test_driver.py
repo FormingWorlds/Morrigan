@@ -1,4 +1,4 @@
-"""Tests for the in-memory entry point in ``morrigan.driver``.
+"""Tests for ``src/morrigan/driver.py``, the in-memory entry point.
 
 ``run_system`` is the interface another program drives the model through,
 so what it must guarantee is the shape and the physics of the records it
@@ -17,7 +17,7 @@ import pytest
 import morrigan
 from morrigan.constants import G, M_earth, au2m
 
-pytestmark = [pytest.mark.unit, pytest.mark.timeout(60)]
+pytestmark = [pytest.mark.smoke, pytest.mark.timeout(60)]
 
 #a system that produces several mergers, a body hit more than once, and a body
 #left untouched, so the chain and empty-history assertions are all exercised
@@ -46,7 +46,6 @@ def _run(seed=7, atm_mass_fraction=0.0, impact_angle=20.0):
     )
 
 
-@pytest.mark.unit
 @pytest.mark.physics_invariant
 def test_every_impact_record_is_physically_self_consistent():
     """Each returned impact obeys the invariants the consumer will enforce.
@@ -93,7 +92,6 @@ def test_every_impact_record_is_physically_self_consistent():
         assert 0.0 <= r['e_after'] < 1.0
 
 
-@pytest.mark.unit
 @pytest.mark.physics_invariant
 def test_a_body_grows_monotonically_along_its_impact_chain():
     """Consecutive impacts on one body describe it gaining mass, in order.
@@ -121,7 +119,6 @@ def test_a_body_grows_monotonically_along_its_impact_chain():
             assert later['M_merged_after'] > earlier['M_merged_after']
 
 
-@pytest.mark.unit
 def test_impacts_are_keyed_only_by_survivors_and_each_is_present():
     """The impact histories belong to survivors and to nobody else.
 
@@ -141,7 +138,6 @@ def test_impacts_are_keyed_only_by_survivors_and_each_is_present():
         assert all(r['e_after'] < 1.0 for r in chain)
 
 
-@pytest.mark.unit
 @pytest.mark.physics_invariant
 def test_survivors_report_initial_and_final_state_consistently():
     """Every survivor carries a finite, positive initial and final state.
@@ -159,7 +155,6 @@ def test_survivors_report_initial_and_final_state_consistently():
         assert s['mass_final'] >= s['mass_initial'] * (1.0 - 1e-9)
 
 
-@pytest.mark.unit
 def test_a_head_on_impact_reports_a_zero_impact_parameter():
     """The impact parameter follows the configured impact angle.
 

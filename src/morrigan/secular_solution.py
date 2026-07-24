@@ -4,23 +4,25 @@
     Author(s): Anna Grace Ulses
 """
 
-import numpy as np 
-from pylaplace import LaplaceCoefficient 
+import numpy as np
+from pylaplace import LaplaceCoefficient
+
 from morrigan.constants import G
+
 
 def secular_solution(ap, Mp, ecc, Rp, Ms, N):
     '''
     Solution to secular perturbation theory of orbital mechanics. Only recalculates after an event
 
-    Parameters 
+    Parameters
     ----------
-    ap : list 
+    ap : list
         Semi-major axes of all planets in system [m]
-    Mp : list 
+    Mp : list
         Masses of all planets in system [kg]
     ecc : list
         Eccentricities of all planets in system
-    Rp : list 
+    Rp : list
         Radii of all planets in system [m]
     Ms : float
         Stellar mass [kg]
@@ -30,10 +32,10 @@ def secular_solution(ap, Mp, ecc, Rp, Ms, N):
     Returns
     -------
     ecc_vec : array
-        Scaled eigenvectors - columns represent eccentricity contribution from each mode per planet 
-    g : array 
+        Scaled eigenvectors - columns represent eccentricity contribution from each mode per planet
+    g : array
         Secular eigenfrequencies
-    beta : array 
+    beta : array
         Phase angle for each planet in system
 
     '''
@@ -48,15 +50,15 @@ def secular_solution(ap, Mp, ecc, Rp, Ms, N):
     peri = (1.0 - ecc) * ap
 
     laplace = LaplaceCoefficient(method = 'Brute') #to calculate laplace coefficients
-    for i in range(N): 
-        for j in range(N): 
+    for i in range(N):
+        for j in range(N):
             if i == j:
                 continue #skip self-interactions
             if min(apo[i], apo[j]) > max(peri[i], peri[j]):
                 continue #skip overlapping orbits
             if ap[i] < ap[j]:
                 alpha = ap[i]/ap[j]
-                alpha_bar = alpha 
+                alpha_bar = alpha
             else:
                 alpha = ap[j]/ap[i]
                 alpha_bar = 1

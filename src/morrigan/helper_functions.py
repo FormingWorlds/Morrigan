@@ -4,8 +4,10 @@
     Author(s): Anna Grace Ulses
 """
 
-import numpy as np 
+import numpy as np
+
 from morrigan.constants import G
+
 
 def kepler_period(Mp, Ms, a): #calculates Kepler period of planet [s]
     P_squared = (4*np.pi**2*a**3)/(G*Ms)
@@ -16,7 +18,7 @@ def rayleigh(sigma, xmin): #rayleigh probability distribution
     dum = np.random.uniform(Umin, 1.0 - 1e-10)
     return sigma * np.sqrt(-2.0 * np.log(1.0 - dum))
 
-def esc_ecc(Ms,M1,M2,R1,R2,a): #escape eccentricity 
+def esc_ecc(Ms,M1,M2,R1,R2,a): #escape eccentricity
     num = np.sqrt(2*G*(M1+M2)/(R1+R2))
     denom = np.sqrt((G*Ms)/a)
     return num/denom
@@ -28,4 +30,4 @@ def planet_density(mass,radius): #planet density [kg/m^3]
     return mass / ((4.0/3.0) * np.pi * radius**3)
 
 def hill_sphere(a,M,Ms): #mutual hill radius for adjacent planets [m]
-    return a * ((M) / (3 * Ms))**(1/3) 
+    return a * ((M) / (3 * Ms))**(1/3)

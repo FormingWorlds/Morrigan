@@ -44,11 +44,17 @@ plot = [
 ]
 develop = [
   "coverage[toml]",
+  "fwl-zephyrus>=26.7.24",
+  "hypothesis",
   "pre-commit",
   "pytest",
   "pytest-cov",
   "pytest-timeout",
   "ruff",
+]
+docs = [
+  "zensical",
+  "mkdocstrings[python]",
 ]
 
 [tool.setuptools]
@@ -85,6 +91,10 @@ branch = true
 source = ["morrigan"]
 
 [tool.coverage.report]
+# Full gate (unit + smoke + integration + slow). One-way ratchet via
+# tools/update_coverage_threshold.py, capped at the 90 percent ecosystem
+# ceiling; never manually decreased.
+fail_under = 80.0
 show_missing = true
 exclude_lines = [
     "pragma: no cover",
@@ -114,3 +124,9 @@ known-first-party = ["morrigan"]
 [tool.ruff.format]
 quote-style = "single"
 indent-style = "space"
+
+[tool.morrigan.coverage_fast]
+# Fast gate (unit + smoke), checked on every pull request. One-way ratchet
+# via tools/update_coverage_threshold.py, capped at the 90 percent
+# ecosystem ceiling; never manually decreased.
+fail_under = 80.0
