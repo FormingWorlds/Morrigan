@@ -54,6 +54,8 @@ develop = [
 ]
 docs = [
   "zensical",
+  "markdown-include",
+  "pymdown-extensions",
   "mkdocstrings[python]",
 ]
 

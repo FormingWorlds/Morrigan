@@ -1,5 +1,11 @@
 # Morrigan
 
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![Docs](https://img.shields.io/github/actions/workflow/status/FormingWorlds/Morrigan/docs.yaml?branch=main&label=Docs)](https://github.com/FormingWorlds/Morrigan/actions/workflows/docs.yaml)
+[![codecov](https://img.shields.io/codecov/c/github/FormingWorlds/Morrigan?label=coverage&logo=codecov)](https://app.codecov.io/gh/FormingWorlds/Morrigan)
+[![Unit Tests](https://img.shields.io/github/actions/workflow/status/FormingWorlds/Morrigan/tests.yaml?branch=main&label=Unit%20Tests)](https://github.com/FormingWorlds/Morrigan/actions/workflows/tests.yaml)
+[![Integration Tests](https://img.shields.io/github/actions/workflow/status/FormingWorlds/Morrigan/nightly.yml?branch=main&label=Integration%20Tests)](https://github.com/FormingWorlds/Morrigan/actions/workflows/nightly.yml)
+
 **Morrigan** is the dynamical evolution module of the [PROTEUS](https://proteus-framework.org/PROTEUS) coupled atmosphere-interior evolution framework. This module contains the (modified) Python version of the semi-analytical model for giant impacts developed by [Kimura et al 2025](https://iopscience.iop.org/article/10.3847/1538-4357/ade992/meta) that models the orbital and accretionary evolution of planets as a result of giant impacts and gravitational scattering.
 
 Named after Morrigan, a shapeshifting figure from Irish mythology thought to represent the dynamical nature of existence.
@@ -44,6 +50,19 @@ python plot.py -c initialise.toml
 ```
 
 `plot.py` is a script kept in the repository rather than part of the installed package, so it is run from a checkout. Its plotting dependencies (matplotlib, scipy) are in the `plot` extra, which keeps them out of the way of anything that only wants to import the model.
+
+## Documentation
+
+The full documentation, including the model physics, the PROTEUS coupling contract, and the per-source validation anchors, lives at [proteus-framework.org/Morrigan](https://proteus-framework.org/Morrigan). Build it locally with `pip install -e ".[docs]"` and `zensical serve`.
+
+## Testing
+
+```bash
+pip install -e ".[develop]"
+pytest -m "(unit or smoke) and not skip"
+```
+
+The suite is tiered (unit and smoke on every pull request, seed-ensemble statistics nightly) and every physics routine is pinned against a published value, an analytical limit, or a cross-implementation check; see the documentation's testing guide for the full contract.
 
 ## Reproducibility
 
