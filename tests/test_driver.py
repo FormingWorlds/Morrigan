@@ -7,6 +7,9 @@ sits above the mutual escape speed, whose geometry is in range, and whose
 successive impacts along one body describe that body growing. These are
 the same invariants the consuming framework re-checks, pinned here so a
 schema regression is caught in this repository rather than downstream.
+The file also covers the driver's own plumbing: the seed-to-timeline
+determinism contract, the settings-file error path, the event-landing
+timestep, and the Hill-radius embryo spacing.
 """
 
 from __future__ import annotations
@@ -15,7 +18,9 @@ import numpy as np
 import pytest
 
 import morrigan
-from morrigan.constants import G, M_earth, au2m
+from morrigan.constants import G, M_earth, M_sun, au2m
+from morrigan.driver import allocate_a, read_config, time_step
+from morrigan.helper_functions import hill_sphere
 
 pytestmark = [pytest.mark.smoke, pytest.mark.timeout(60)]
 
@@ -47,15 +52,17 @@ def _run(seed=7, atm_mass_fraction=0.0, impact_angle=20.0):
 
 
 @pytest.mark.physics_invariant
+@pytest.mark.reference_pinned
 def test_every_impact_record_is_physically_self_consistent():
     """Each returned impact obeys the invariants the consumer will enforce.
 
     The record is the whole interface, so every one must close its mass as
     a perfect merger, keep its collision speed at or above the mutual
     escape speed, and carry a geometry in range. The escape speed is the
-    discriminating check: it is rebuilt here from the masses and radii and
-    must match the value implied by the reported collision speed, so a
-    record that mixed up a mass or a radius would be caught.
+    discriminating check and the analytical anchor: the record value must
+    reproduce the closed form sqrt(2 G (M_t + M_i) / (R_t + R_i)) rebuilt
+    from the record's own masses and radii, so a record that mixed up a
+    mass or a radius would be caught.
     """
     out = _run()
     records = [r for chain in out['impacts'].values() for r in chain]
@@ -173,3 +180,97 @@ def test_a_head_on_impact_reports_a_zero_impact_parameter():
     assert all(b == pytest.approx(1.0, rel=1e-12) for b in _b_values(grazing))
     oblique_b = _b_values(oblique)
     assert oblique_b and all(0.0 < b < 1.0 for b in oblique_b)
+
+
+@pytest.mark.physics_invariant
+def test_the_same_seed_reproduces_the_timeline_exactly():
+    """One seed, one timeline: the run is a pure function of its inputs.
+
+    The determinism contract of the Monte Carlo layer: two runs under
+    seed 7 must agree bit for bit in every survivor and every impact
+    record, because the consuming framework replays histories and any
+    drift would desynchronise its bookkeeping. The discriminating
+    counterpart is that seed 8 must produce a different outcome, so the
+    equality above cannot be satisfied by the seed being ignored.
+    """
+    first = _run(seed=7)
+    second = _run(seed=7)
+    assert first == second
+
+    other = _run(seed=8)
+    assert first != other
+
+
+def test_read_config_names_the_missing_file(tmp_path):
+    """A missing settings file fails loudly and names the path it tried.
+
+    Error contract: the default settings path only resolves from a
+    checkout root, so the exception must carry the absolute path that
+    was tried, which is what makes the failure diagnosable from a batch
+    log. The round trip through a real file is the companion check: a
+    written TOML table comes back as the same parsed mapping.
+    """
+    with pytest.raises(FileNotFoundError, match='no/such/settings'):
+        read_config('/no/such/settings.toml')
+
+    path = tmp_path / 'settings.toml'
+    path.write_text('[init_par]\nN = 3\ne = 0.05\n')
+    cfg = read_config(str(path))
+    assert cfg['init_par']['N'] == 3
+    assert cfg['init_par']['e'] == pytest.approx(0.05, rel=1e-12)
+
+
+@pytest.mark.physics_invariant
+def test_time_step_lands_exactly_on_scheduled_events():
+    """The adaptive timestep grows away from events and lands on them.
+
+    Far from any event the step is a tenth of the elapsed time plus a
+    hundred-year floor, hand-derived to 3.1536e8 s at t = 0 with the
+    model's 365-day year. Close to an event the step is clipped to the
+    remaining gap plus one second, so the next time strictly crosses
+    the event; at the event itself the step degenerates to exactly one
+    second, the edge that keeps the loop advancing.
+    """
+    dt_far = time_step(0.0, 1e20)
+    assert dt_far == pytest.approx(3.1536e8, rel=1e-9)
+
+    dt_near = time_step(1e9, 1e9 + 50.0)
+    assert dt_near == pytest.approx(51.0, rel=1e-12)
+    assert 1e9 + dt_near >= 1e9 + 50.0  # the step crosses the event
+
+    dt_at = time_step(1e9, 1e9)
+    assert dt_at == pytest.approx(1.0, rel=1e-12)
+    assert dt_at > 0.0  # the loop always advances
+
+
+@pytest.mark.physics_invariant
+def test_allocate_a_spaces_embryos_by_mutual_hill_radii():
+    """Initial embryos are laid out by mutual-Hill-radius spacing.
+
+    For two equal-mass embryos from 0.1 au at spacing 10 the closed
+    form is a2 = a1 (1 + 10 ((M1+M2)/(3 Ms))^(1/3)), hand-derived to
+    1.6890514743e10 m with the model constants. Spacing zero is the
+    degenerate edge, collapsing the system onto one orbit, and a longer
+    chain must be strictly increasing: the layout can never fold back
+    inward.
+    """
+    masses = np.array([1.0, 1.0]) * M_earth
+    a = allocate_a(2, M_sun, masses, 0.1, 10)
+    expected = (0.1 + 10 * 0.1 * ((2 * M_earth) / (3 * M_sun)) ** (1 / 3)) * au2m
+    assert a[0] == pytest.approx(0.1 * au2m, rel=1e-12)
+    assert a[1] == pytest.approx(expected, rel=1e-12)
+    # Discrimination: single-mass Hill spacing (no mutual sum) differs.
+    single = (0.1 + 10 * 0.1 * (M_earth / (3 * M_sun)) ** (1 / 3)) * au2m
+    assert abs(single - a[1]) > 1e-3 * a[1]
+
+    # Edge: zero spacing stacks every embryo on the inner edge.
+    a_zero = allocate_a(3, M_sun, np.array([1.0, 1.0, 1.0]) * M_earth, 0.1, 0)
+    assert np.all(a_zero == pytest.approx(0.1 * au2m, rel=1e-12))
+
+    # A five-body chain is strictly increasing.
+    chain = allocate_a(5, M_sun, np.ones(5) * M_earth, 0.1, 10)
+    assert np.all(np.diff(chain) > 0.0)
+
+    # The mutual Hill radius of the first pair is what sets the first gap.
+    r_hill = hill_sphere(0.1, 2 * M_earth, M_sun)
+    assert (a[1] - a[0]) == pytest.approx(10 * r_hill * au2m, rel=1e-12)
