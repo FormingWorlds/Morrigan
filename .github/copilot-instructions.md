@@ -73,7 +73,7 @@ pytest -m "(unit or smoke) and not skip" --cov=morrigan
 coverage report
 ```
 
-**Coverage thresholds** (in `pyproject.toml`; auto-ratcheting, never manually decreased, capped at 90 by `tools/update_coverage_threshold.py`):
+**Coverage thresholds** (in `pyproject.toml`; a one-way ratchet raised with `tools/update_coverage_threshold.py` when coverage improves, never manually decreased, capped at 90):
 
 - Fast gate (`[tool.morrigan.coverage_fast]`, unit + smoke, every PR): ratcheting toward **90%** (the PROTEUS-ecosystem ceiling).
 - Full gate (`[tool.coverage.report]`, unit + smoke + integration + slow, nightly): ratcheting toward **90%**.

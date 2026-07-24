@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import sys
 from pathlib import Path
 
@@ -154,7 +155,9 @@ def main() -> int:
         print(f'Current coverage: {current_coverage:.2f}%')
         print(f'Current threshold: {current_threshold:.2f}%')
 
-        new_threshold = min(round(current_coverage, 2), ECOSYSTEM_CEILING)
+        # Floor to two decimals: rounding up would set the gate above the
+        # measured coverage and fail the very next run at the same coverage.
+        new_threshold = min(math.floor(current_coverage * 100) / 100.0, ECOSYSTEM_CEILING)
 
         if current_threshold >= ECOSYSTEM_CEILING:
             print(
