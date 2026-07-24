@@ -155,12 +155,12 @@ def orbit_cross_K25(ap, Mp, Rp, Ms, atm_mass_fraction, impact_parameter, ecc, in
         ismall = jcross if ecc[icross] >= ecc[jcross] else icross
 
         if max(ecc[icross], ecc[jcross]) >= 1.0: #planet got bumped out
-            #print(f"[EJECTION] Planet {planet_id[ismall]} was ejected")
+            #print(f"[EJECTION] Planet {planet_id[ilarge]} was ejected")
             #planet with smaller excited eccentricity remains in the system, and orbital parameters are recalculated
             ap[ismall] = Mp[ismall] / (Mp[ismall] / ap[ismall] + Mp[ilarge] / ap[ilarge])
             #in K25 pt 2, this is ap[ismall] / aM - 1
             ecc[ismall] = 1.0 - ap[ismall] / aM #mass-weighted mean, matches Fortran's aM (not the simple mean mma)
-            live_status[ismall] = False
+            live_status[ilarge] = False #the body excited past e = 1 is the one that escapes
         else: #'normal' scattering conditions
             #'change in orbital separation is assumed to be equal to the sum of the excited epicycle amplitude'
             #db = delta_a essentially how much the orbit is shifted either in or out
