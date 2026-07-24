@@ -66,8 +66,8 @@ def crossing_pair(ap, Mp, Rp, Ms, ecc, ecc_vec, g, beta, interact, N, t, t_ref):
         h = hill_sphere(aM,Mp[0]+Mp[1],Ms) / aM
         #checking for stability again here
         EJbef = 5.0/8.0*(ecc[0]**2 + ecc[1]**2)/h**2 - 3.0/8.0 * ((ap[0]-ap[1])/(h*aM))**2 + 4.5
-        if EJbef > 0.0: #system is stable
-            return 0, 1.5 * t #no crossing, punts event forward indefinitely to end simulation
+        if EJbef > 0.0: #pair is unstable
+            return 0, 1.5 * t #schedule a prompt event; a stable pair instead falls through to the 'never' sentinel below
 
     #calculate orbit crossing time for each pair with the original eccentricities
     for i in range(N - 2):
