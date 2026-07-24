@@ -58,14 +58,28 @@ def test_tau_vis_pins_its_closed_form():
     t_vis = tau_vis(ap, mp, rp, M_sun, [0.05, 0.05])
     assert t_vis == pytest.approx(1.7477101e11, rel=1e-4)
 
-    # Discrimination: the factor-3 and dropped-2pi variants.
-    assert abs(3.0 * t_vis - t_vis) > 100 * 1e-4 * t_vis
-    assert abs(t_vis / (2 * np.pi) - t_vis) > 100 * 1e-4 * t_vis
+    # Discrimination: the factor-3 variant of the final expression evaluates
+    # to 5.2431303e11 s and the dropped-2pi variant to 2.7815670e10 s at this
+    # reference point; both sit far outside the pin's tolerance band.
+    assert abs(5.2431303e11 - t_vis) > 100 * 1e-4 * t_vis
+    assert abs(2.7815670e10 - t_vis) > 100 * 1e-4 * t_vis
 
     # rep_e**4 scaling: doubling both eccentricities (above the geometric
     # crossing floor) scales the timescale by exactly 2**4 = 16.
     ratio = tau_vis(ap, mp, rp, M_sun, [0.1, 0.1]) / t_vis
     assert ratio == pytest.approx(16.0, rel=1e-9)
+
+    # Unequal masses resolve the eq. 6 denominator: with a 1 and 10 Earth-mass
+    # pair at near-zero input eccentricity, the crossing eccentricities set
+    # rep_e and the shared-denominator form gives 6.4189361e9 s, hand-derived.
+    # The variant that builds ecross_j with its own (sqrt(M_j) a_i swapped)
+    # denominator gives 6.1122437e9 s, 4.8 percent away, so this pin
+    # discriminates the two forms where the equal-mass point cannot.
+    mp_uneq = [M_earth, 10 * M_earth]
+    rp_uneq = [planet_radius(m, _RHO) for m in mp_uneq]
+    t_uneq = tau_vis(ap, mp_uneq, rp_uneq, M_sun, [0.001, 0.001])
+    assert t_uneq == pytest.approx(6.4189361e9, rel=1e-4)
+    assert abs(6.1122437e9 - t_uneq) > 100 * 1e-4 * t_uneq
 
     # Edge: the timescale is positive and finite for a near-circular pair.
     t_circ = tau_vis(ap, mp, rp, M_sun, [1e-6, 1e-6])
