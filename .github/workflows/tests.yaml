@@ -14,7 +14,7 @@ on:
       - ready_for_review
   workflow_dispatch:
 
-# Push and PR CI: unit + smoke tiers only, on ubuntu + macos x py 3.12/3.13.
+# Push and PR CI: unit + smoke tiers only, on ubuntu + macos x py 3.11/3.12.
 # Targets <10 min wall. The integration and slow tiers run seed-ensemble
 # statistics over many full-system runs and live in the scheduled nightly workflow
 # `nightly.yml` instead. Coverage measurement is canonical in nightly;
