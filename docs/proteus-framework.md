@@ -34,7 +34,7 @@ The schematic above links every module. Morrigan interacts directly with two of 
 | Module | Exchange |
 | --- | --- |
 | [MORS](https://proteus-framework.org/MORS/) and the stellar block | Morrigan reads the host star's mass from `star.mass` rather than repeating it, so the dynamics and the rest of the run cannot disagree about the star |
-| [ZEPHYRUS](https://proteus-framework.org/ZEPHYRUS/) | the impacts Morrigan schedules are handed to its collision law to work out how much atmosphere each one erodes. Morrigan itself models no atmosphere |
+| [ZEPHYRUS](https://proteus-framework.org/ZEPHYRUS/) | Morrigan models no atmosphere, so impact erosion is left to the consumer. When a coupled run selects `atmloss_module = "zephyrus"`, PROTEUS passes each scheduled impact's collision parameters to ZEPHYRUS's collision law to work out how much atmosphere it strips. The call is PROTEUS's; Morrigan has no ZEPHYRUS dependency |
 
 ## Conventions the ecosystem shares
 

@@ -6,6 +6,11 @@ Morrigan reads one TOML settings file, passed with `-c`. `initialise.toml` in th
 
 ```toml
 ['run_simulation']
+    t              = 0.0            # leave at zero for a fresh run
+    t_ref          = 0.0            # leave at zero for a fresh run
+    t_event        = 0.0            # leave at zero for a fresh run
+    flag_event     = 1              # leave at 1
+    a_min          = 0.005
     max_time       = 1
     random_seed    = 1
     save_directory = '1au_system'
@@ -21,7 +26,9 @@ Morrigan reads one TOML settings file, passed with `-c`. `initialise.toml` in th
     inner_edge = 1
 ```
 
-That is an excerpt rather than the full set. [Settings and inputs](../Reference/parameters.md) is the field reference, with every field, its meaning and its units; this page is about how the settings interact.
+The `init_par` block is an excerpt; the other two are complete. [Settings and inputs](../Reference/parameters.md) is the field reference, with every field, its meaning and its units; this page is about how the settings interact.
+
+Every key in `run_simulation` is required and read directly, so omitting one fails with a bare `KeyError` naming it. `random_seed` is the only one with a default. The first four hold the clock and the secular bookkeeping and are always zero, zero, zero and 1 for a fresh run; `initialise.toml` in the repository root carries them with the same values.
 
 `Mp` must have `N` entries. `spacing` is optional and defaults to 10 mutual Hill radii.
 

@@ -8,7 +8,10 @@ Eleven source files under `src/morrigan/`, laid out so that each stage of the ph
    morrigan -c settings.toml
         |
         v
-   driver.run_batch                 parallel over systems
+   driver.cli                       console-script entry point
+        |
+        v
+   driver.main                      read settings, parallel over systems
         |
         v
    driver.run_once                  ONE system, start to finish
@@ -34,7 +37,7 @@ Eleven source files under `src/morrigan/`, laid out so that each stage of the ph
         +-- write tables / return records
 ```
 
-`run_system` is the in-process entry point beside `run_batch`. It drives the same `run_once` core but returns the records in memory instead of writing files, which is what PROTEUS consumes.
+`run_system` is the in-process entry point beside `main`. It drives the same `run_once` core but returns the records in memory instead of writing files, which is what PROTEUS consumes.
 
 ## What each file owns
 
@@ -72,4 +75,6 @@ All Monte Carlo draws go through numpy's global random state, seeded once per sy
 
 ## Units
 
-SI internally: kg, m, s. The settings file is read in Earth masses, AU, degrees and Gyr, converted once in `driver.py`. The returned records are SI apart from times, which are in years using the model's own 365-day year. A physical constant appearing as a literal in a function body rather than coming from `constants.py` is a defect.
+SI internally: kg, m, s. The settings file is read in Earth masses, AU, degrees and Gyr, converted once in `driver.py`. The returned records are SI apart from times, which are in years using the model's own 365-day year.
+
+Unit conversions and universal physical constants belong in `constants.py`; one appearing as a literal in a function body instead is a defect. Coefficients fitted to a specific published result are the exception and stay beside the equation they belong to, where the citation can sit with them: the crossing-time fit in `interaction_timescales.py` and the N-body crossing threshold in `crossing_pair.py` both carry their numbers inline for that reason.

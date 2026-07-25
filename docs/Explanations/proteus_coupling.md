@@ -9,26 +9,36 @@ Every other PROTEUS module is called inside the time loop and updates its slice 
 ```
    ┌──────────────────────────────────────────────────────────────────────────┐
    │  init_accretion(handler)                    <-- Morrigan runs HERE, once │
-   │      build_parameters(config, hf_row)           config + star.mass       │
+   │      build_parameters(config)                   config + star.mass       │
    │      morrigan.run_system(**params)              evolve the whole system  │
    │      select_planet(survivors, config)           pick ONE survivor        │
    │      -> [ImpactEvent, ImpactEvent, ...]         its impact history       │
    │      validate_timeline(events)                  reject an impossible one │
+   │      _drop_events_before_start(events, t0)      discard the pre-run tail │
    │                                                                          │
    │  while not done:                                                         │
    │                                                                          │
-   │      t_next_impact = next_event(events, t)   # the loop reads the        │
-   │      dt = min(dt, t_next_impact - t)         # schedule, never the model │
+   │      pending = next_event(events, t)          # the loop reads the       │
+   │      interior_o.t_next_impact = pending.time  # schedule, never the model│
    │                                                                          │
-   │      run_interior(...)                       # normal cooling step       │
+   │      run_interior(...)                        # cooling step; the        │
+   │                                               # time-stepper shortens dt │
+   │                                               # to land on t_next_impact │
    │                                                                          │
-   │      for event in due_events(events, t, dt): # an impact falls due       │
-   │          apply_impact(handler, event)        # <-- consequences here     │
+   │      hf_row['Time'] += dt                     # advance FIRST            │
+   │                                                                          │
+   │      for event in due_events(events, t_prev, t_now):   # impact falls due│
+   │          apply_impact(handler, event)         # <-- consequences here    │
    │                                                                          │
    │      run_orbit(...) / run_escape(...) / run_outgassing(...) / ...        │
-   │      hf_row['Time'] += dt                                                │
    └──────────────────────────────────────────────────────────────────────────┘
 ```
+
+The time advance comes **before** the impact block, so the orbit, structure and
+escape steps of the step an impact lands on already see the grown planet. The
+clamp that shortens `dt` onto the impact time lives in the interior
+time-stepper, not in the main loop; the loop only publishes when the next
+impact is due.
 
 The reason for the split is that the dynamical model and the coupled framework work on different clocks and at different cost. Morrigan integrates a whole system of embryos over hundreds of millions of years in a few seconds; PROTEUS integrates one planet's interior and atmosphere over the same span in hours. Running the dynamics once and replaying its schedule keeps the expensive loop in charge of the timestep.
 
@@ -42,10 +52,12 @@ Morrigan evolves a system of embryos and typically leaves several survivors. PRO
 
 | Selector | Picks | Use when |
 |---|---|---|
-| `match_config` | the survivor whose initial mass and orbit are closest to the configured planet | you have a planet in mind and want the dynamics to describe it |
-| `mass` | the most massive survivor | you want the system's dominant body |
-| `semimajoraxis` | the survivor nearest `selector_value`, in AU | you care about a particular orbital distance |
+| `match_config` | the survivor whose **initial** mass and orbit are closest to the configured planet | you have a planet in mind and want the dynamics to describe it |
+| `mass` | the survivor with the largest **final** mass | you want the system's dominant body |
+| `semimajoraxis` | the survivor whose **final** orbit is nearest `selector_value`, in AU | you care about a particular orbital distance |
 | `id` | the embryo with index `selector_value` | you are reproducing a specific system by hand |
+
+Which end of the history a rule compares is what decides which body you get. `match_config` matches on the state the embryo *started* in, so it answers "which of these bodies began as the planet I configured"; `mass` and `semimajoraxis` match on the state it *ended* in, so they answer "which of these bodies became what I am looking for". A body can easily win one and lose the other.
 
 The selected survivor's impact history becomes the schedule. Every other survivor is discarded. This is why `num_planets` and the initial mass distribution matter even though only one planet is followed: they set the dynamical environment that produced the one you keep.
 
@@ -68,20 +80,23 @@ The selected survivor's impact history becomes the schedule. Every other survivo
 
 The stellar mass is deliberately not a Morrigan setting. It is read from `config.star.mass` so the dynamical model and the rest of PROTEUS cannot disagree about the host star.
 
-Each returned record becomes an `ImpactEvent`. The one transformation applied on the way is the **time axis**: Morrigan measures time from disk dispersal, PROTEUS from the start of its own evolution, and `accretion.time_offset` maps between them. Impacts landing before the start of the run are folded into the initial condition rather than replayed.
+Each returned record becomes an `ImpactEvent`. The one transformation applied on the way is the **time axis**: Morrigan measures time from disk dispersal, PROTEUS from the start of its own evolution, and `accretion.time_offset` maps between them. `time_offset` is added to each impact time, and the result is compared against the run's start time.
+
+Impacts that still land at or before that start time are **discarded**, with a warning naming the mass they would have added. Their mass is not folded into the initial condition and arrives nowhere: the configured `planet.mass_tot` and orbit define the starting state on their own. A schedule whose early impacts fall outside the simulated interval therefore grows the planet less than the dynamics described, so choose `time_offset` to bring the history you care about inside the run.
 
 `validate_timeline` then rejects a schedule that cannot describe one body: times must increase strictly, each impact's target mass must follow from the previous merged mass, and a body may not gain mass between impacts. A drop of up to 10 % between impacts is allowed, since a consumer may strip an atmosphere in between.
 
 ## What an impact does
 
-When the loop reaches a scheduled time, `apply_impact` applies six consequences in a fixed order. The order matters: each step reads state the previous one wrote.
+When the loop reaches a scheduled time, `apply_impact` applies seven consequences in a fixed order. The order matters: each step reads state the previous one wrote.
 
 1. **Size the volatile consequences** from the pre-impact state, before anything changes. The erosion fraction, what the target loses, and what the impactor carries are all computed first, so no step sees a half-updated planet.
-2. **Grow the planet.** `planet.mass_tot` increases by the impactor's *rock* alone, the merger mass less its volatile content. The volatiles arrive through their own channel below, so counting them here would double-count them.
+2. **Grow the planet.** `planet.mass_tot` increases by the impactor's *rock* alone, the impactor's mass less its volatile content. The volatiles arrive through their own channel below, so counting them here would double-count them.
 3. **Re-solve the structure.** The interior module recomputes radius, core size, and pressures at the new mass.
 4. **Apply the volatile changes.** The target loses its stripped fraction, the impactor delivers what survives, and the whole-planet element budget is refreshed.
-5. **Re-melt the mantle.** A giant impact deposits enough energy to melt the mantle, so the interior is reset to a fully molten state and the injected heat is booked into the energy budget.
-6. **Move the orbit.** The semi-major axis is scaled by the impact's *fractional* change and the eccentricity is set to its post-impact value.
+5. **Re-melt the mantle.** The interior is reset to its molten initial condition, recomputed for the grown planet, and the next interior solve is told not to clip the resulting temperature jump. How molten that state is depends on `planet.temperature_mode`: it is fully molten for `liquidus_super`, `accretion` and `adiabatic_from_cmb`, and otherwise only as molten as the configured initial condition, which the run warns about at start-up. The impact's kinetic energy is **reported** for comparison against the enthalpy the reset injects, not added to an energy budget; the reset carries no source term, so checking energy conservation across an impact means weighing the two by hand.
+6. **Clear the solidification latch.** A mantle that had crystallised is molten again, so the one-way latch is lifted. Without this step outgassing would stay frozen and the volatiles would be treated as locked in a solid mantle for good.
+7. **Move the orbit.** The semi-major axis is scaled by the impact's *fractional* change and the eccentricity is set to its post-impact value.
 
 The orbit step is worth expanding. Morrigan's absolute orbits belong to its own system, which need not sit where the PROTEUS planet sits. So the coupling applies the **ratio** `a_after / a_before`, not the absolute value: the planet keeps its configured orbital distance and inherits the dynamical model's fractional kick.
 
@@ -91,7 +106,7 @@ Morrigan reports bare bodies. Three pieces of physics live entirely on the PROTE
 
 - **Impact atmospheric erosion.** Morrigan tracks no atmosphere and its merged masses are exact sums. PROTEUS computes what an impact strips, either as a fixed fraction or through the Kegerreis et al. (2020)[^cite-kegerreis2020] scaling law evaluated by `zephyrus.collision.mass_loss` from the record's own collision parameters. One fraction governs both bodies: the target loses that fraction of its atmosphere, and a volatile-bearing impactor loses the same fraction of its atmospheric part.
 - **Volatile delivery.** Whether an impactor carries volatiles at all is a PROTEUS choice: dry, matching the planet's formation composition, or per-element budgets.
-- **The thermal consequence.** Re-melting the mantle and booking the impact energy is interior physics, not dynamics.
+- **The thermal consequence.** Re-melting the mantle, lifting the solidification latch, and reporting the impact energy is interior physics, not dynamics.
 
 ## The impact record schema
 

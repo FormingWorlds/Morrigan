@@ -6,7 +6,7 @@ Morrigan's version comes from git tags through setuptools-scm, so tagging is wha
 
 CalVer, `YY.0M.0D`, matching the rest of the PROTEUS ecosystem. A release cut on 3 August 2026 is tagged `26.08.03`.
 
-The scheme carries no compatibility promise in the numbers themselves. What changes in a way that breaks a consumer is the impact-record schema, and that is called out in the pull request that changes it rather than encoded in the version. PROTEUS pins a version floor, so a release that changes the schema needs the pin raised in the same change.
+The scheme carries no compatibility promise in the numbers themselves. What changes in a way that breaks a consumer is the impact-record schema, and that is called out in the pull request that changes it rather than encoded in the version. PROTEUS pins the Morrigan it builds against, so a release that changes the schema needs that pin moved in the same change.
 
 ## Before tagging
 
@@ -55,8 +55,10 @@ curl -s https://pypi.org/pypi/fwl-morrigan/json | python -c "import json,sys; pr
 
 Installing to check would replace an editable development checkout with the released wheel, which is rarely what you want mid-session.
 
-Note that PyPI normalises the CalVer tag: `26.08.03` is published as `26.8.3`. Both refer to the same release, and a PROTEUS dependency pin should use the normalised form.
+Note that PyPI normalises the CalVer tag: `26.08.03` is published as `26.8.3`. Both refer to the same release, and a version-based dependency pin should use the normalised form.
 
 ## Moving PROTEUS onto a new release
 
-PROTEUS depends on `fwl-morrigan` by version. After a release, bump that floor in the PROTEUS `pyproject.toml` and open a pull request there; the pin is what decides which Morrigan a coupled run uses.
+PROTEUS records the Morrigan it builds against in its own `pyproject.toml`, under `[tool.proteus.modules.morrigan]`, as a repository URL plus a `ref` naming an exact commit. `tools/get_morrigan.sh` resolves that entry and installs the checkout editable, so the `ref` is what decides which Morrigan a coupled run uses. After a release, update it there and open a pull request against PROTEUS.
+
+A commit `ref` pins a specific tree rather than a version range, so it does not move on its own; a release that is not followed by that update leaves coupled runs on the previous commit.

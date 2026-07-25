@@ -95,7 +95,7 @@ applies a fixed fraction instead, which is useful for isolating the effect of er
 
 One fraction governs both bodies at each impact; the [explanation](../Explanations/proteus_coupling.md#what-proteus-adds-that-morrigan-does-not-do) sets out that convention.
 
-## Worked example: an accreting Earth analogue
+## Worked example: a compact system feeding a growing planet
 
 ```toml
 [star]
@@ -125,19 +125,21 @@ One fraction governs both bodies at each impact; the [explanation](../Explanatio
     module = "aragog"               # required: SPIDER has no re-melt path
 ```
 
-A run like this reports the schedule it built during start-up, then each impact as it lands:
+Eight embryos between 0.05 and 0.10 AU at this spacing go unstable within a few thousand years, so the whole impact history is over long before the interior has cooled. That is deliberate: it makes the coupling visible in a short run. It is not a model of Earth's accretion, which plays out over 10<sup>7</sup> to 10<sup>8</sup> yr at 1 AU. Note also that these embryos need not orbit where the PROTEUS planet orbits; only the *fractional* orbit change is transferred, so the dynamical environment and the simulated planet's distance are independent choices.
+
+During start-up, the run reports the system it evolved and the schedule it kept:
 
 ```
 [ INFO  ] Running giant-impact model for 8 embryos
-[ INFO  ] Body 6 experienced 1 impacts
-[ INFO  ] Scheduled 1 impact(s)
-...
-[ INFO  ] Time-stepping: impact at 9.5991e+02 yr, capping dt at 1.00e+02 yr
-[ INFO  ] Giant impact at t = 9.5991e+02 yr: target 6 struck by 7, adding 0.5000 M_earth
-[ INFO  ]     impactor volatiles: match_planet; atmosphere loss: zephyrus
-[ INFO  ]     impact erosion law: loss fraction 0.554
-[ INFO  ]     planet is now 1.4999 M_earth at 1.03107 AU, e = 0.0223
+[ INFO  ] Body 6 experienced 2 impacts
+[ INFO  ] Following body 6 (selector 'mass'): 1.300 -> 2.500 M_earth, 0.0973 -> 0.0959 AU
+[ INFO  ] Scheduled 2 impact(s)
+[ INFO  ]     first at 9.1183e+02 yr, last at 1.9394e+03 yr
 ```
+
+Three of the eight embryos survive; `selector = "mass"` follows the heaviest, which grows from 1.3 to 2.5 M⊕ across two impacts, at about 912 yr (struck by body 5, adding 0.700 M⊕) and 1939 yr (struck by body 7, adding 0.500 M⊕).
+
+As each impact lands, the loop reports it over five lines: the time-stepper announcing the shortened step, the impact itself with its target, impactor and added mass, the volatile and loss modes in force, the erosion fraction the law returned, and the planet's resulting mass, orbital distance and eccentricity. The added mass, the time and the two body ids come straight from the schedule above; the erosion fraction and the resulting planet state depend on the atmosphere the planet happens to have at that moment, so they differ from run to run even for the same schedule.
 
 ## Common pitfalls
 
@@ -145,7 +147,7 @@ A run like this reports the schedule it built during start-up, then each impact 
 
 **No impacts scheduled.** The most common cause is `evolution_time` being short relative to the instability time of the configuration you chose. [Choosing the initial conditions](configuration.md#choosing-the-initial-conditions) covers how spacing and eccentricity set that time.
 
-**All impacts before the run starts.** Morrigan measures time from disk dispersal. If every impact lands before your `time_offset`, they are folded into the initial condition and the run proceeds with none scheduled. Check the reported impact times against your start time.
+**Impacts before the run starts are discarded, not absorbed.** Morrigan measures time from disk dispersal. `time_offset` is added to each impact time, and any impact still landing at or before the run's start time is dropped with a warning naming the mass it would have added. That mass is **not** folded into the initial condition: the configured `planet.mass_tot` stands, and the planet ends the run lighter than the dynamics described. If the warning appears, shift `time_offset` so the history falls inside the simulated interval rather than accepting the truncated schedule.
 
 **Spacing too wide for the masses.** Beyond a limit that depends on the embryo masses the layout is refused with an error naming the pair; see [choosing the initial conditions](configuration.md#choosing-the-initial-conditions).
 
