@@ -131,8 +131,8 @@ During start-up, the run reports the system it evolved and the schedule it kept:
 
 ```
 [ INFO  ] Running giant-impact model for 8 embryos
-[ INFO  ] Body 6 experienced 2 impacts
 [ INFO  ] Following body 6 (selector 'mass'): 1.300 -> 2.500 M_earth, 0.0973 -> 0.0959 AU
+[ INFO  ] Body 6 experienced 2 impacts
 [ INFO  ] Scheduled 2 impact(s)
 [ INFO  ]     first at 9.1183e+02 yr, last at 1.9394e+03 yr
 ```
