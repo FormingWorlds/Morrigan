@@ -223,6 +223,7 @@ A PR that adds or substantially modifies > 50 lines of test code across all its 
 - `python tools/check_test_quality.py --baseline` -- regenerate the floor after a deliberate sweep.
 - `python tools/check_test_quality.py --reference-pinned-status` -- punch list.
 - `python tools/update_coverage_threshold.py` -- one-way ratchet, capped at 90.
+- `python tools/generate_test_badges.py --out badge_payload/` -- regenerate the test-count badge JSON. Published from `main` to the `badges` branch; asserts that the tier counts partition the total.
 - `ruff check src/ tests/ tools/` and `ruff format src/ tests/ tools/`.
 
 ---

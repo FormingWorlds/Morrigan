@@ -248,3 +248,6 @@ src/morrigan/_version.py
 
 # Personal Claude session state stays untracked; the shared rules live in .github/.claude/
 /.claude/
+
+# transient output of tools/generate_test_badges.py
+badge_payload/

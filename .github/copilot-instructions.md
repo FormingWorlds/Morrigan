@@ -142,6 +142,7 @@ The test job carries `timeout-minutes: 10`; a PR tier that cannot finish inside 
   - `update_coverage_threshold.py` - One-way coverage ratchet (capped at 90)
   - `check_file_sizes.sh` - Line-cap hook on this file
   - `validate_test_structure.sh` - Module-level marker validator
+  - `generate_test_badges.py` - Test-count badge JSON for the docs site and the ecosystem dashboard
 
 - `docs/` - Documentation (Zensical; Diátaxis structure)
   - `Explanations/` - Concept pages (model, limitations, PROTEUS coupling)
@@ -153,7 +154,7 @@ The test job carries `timeout-minutes: 10`; a PR tier that cannot finish inside 
 
 - `pyproject.toml` - Package metadata, pytest config, coverage thresholds, ruff rules.
 - `mkdocs.yml` - Documentation configuration (used by Zensical).
-- `.github/workflows/` - CI / CD pipelines (`tests.yaml` PR gate, `nightly.yml` slow tiers, `docs.yaml` docs deploy).
+- `.github/workflows/` - CI / CD pipelines (`tests.yaml` PR gate, `nightly.yml` slow tiers, `docs.yaml` docs deploy, `publish-test-badges.yml` test-count badges).
 
 ### Entry Points
 
