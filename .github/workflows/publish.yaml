@@ -1,0 +1,48 @@
+name: Publish on PyPI
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      # Mandatory for trusted publishing: the workflow exchanges this token
+      # with PyPI for a short-lived credential, so no API token is stored.
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          # setuptools-scm derives the version from the tag, so the full
+          # history and its tags have to be present. A shallow clone builds
+          # the configured fallback version instead and publishes 0.0.0.
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Build the distribution
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install build "setuptools>=64" "setuptools-scm>=8" wheel
+          python -m build --no-isolation
+
+      - name: Refuse to publish a fallback version
+        # A tagless checkout yields 0.0.0, which would take that name on PyPI
+        # permanently and cannot be reclaimed. Fail before uploading.
+        run: |
+          set -euo pipefail
+          if ls dist/ | grep -qE '0\.0\.0'; then
+            echo "Built a fallback version, so the tag history is missing." >&2
+            ls dist/ >&2
+            exit 1
+          fi
+          ls dist/
+
+      - name: Publish package
+        uses: pypa/gh-action-pypi-publish@release/v1

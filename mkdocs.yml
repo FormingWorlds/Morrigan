@@ -9,14 +9,19 @@ copyright: '&copy; 2023-2026 <a href="https://formingworlds.space">Forming World
 nav:
   - Home:
       - About: index.md
+      - Getting started: getting_started.md
 
   - How-to guides:
       - Installation: How-to/installation.md
       - Running a model: How-to/running.md
+      - Configuration: How-to/configuration.md
+      - Coupling to PROTEUS: How-to/proteus_coupling.md
       - Testing: How-to/testing.md
+      - Releasing: How-to/releasing.md
 
   - Explanations:
       - Model overview: Explanations/model.md
+      - Code architecture: Explanations/code_architecture.md
       - Coupling to PROTEUS: Explanations/proteus_coupling.md
       - Limitations: Explanations/limitations.md
 
@@ -40,7 +45,14 @@ nav:
   - Issues:
       - GitHub issues: https://github.com/FormingWorlds/Morrigan/issues
 
+  - Community:
+      - Code of Conduct: Community/CODE_OF_CONDUCT.md
+      - Contributing: Community/CONTRIBUTING.md
+      - Contact: Community/contact.md
+      - Developers: https://proteus-framework.org/people
+
   - Other PROTEUS modules:
+      - The PROTEUS framework: proteus-framework.md
       - "\U0001F517 PROTEUS": https://proteus-framework.org/PROTEUS/
       - "\U0001F517 MORS": https://proteus-framework.org/MORS/
       - "\U0001F517 JANUS": https://proteus-framework.org/JANUS/

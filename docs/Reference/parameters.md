@@ -12,7 +12,7 @@ The command line reads one TOML file (`morrigan -c <file>`). Units at this bound
 | `flag_event` | 1 to compute the secular solution and first crossing at start; leave at 1 | - |
 | `a_min` | Perihelion inside which a body has fallen into the star | au |
 | `max_time` | Length of the dynamical evolution | Gyr |
-| `random_seed` | Base seed; system i runs with `random_seed + i` | - |
+| `random_seed` | Base seed for the batch; each system's seed is mixed from this and the system index | - |
 | `save_directory` | Where result tables are written; relative paths resolve from the working directory | - |
 
 ### `[init_par]`

@@ -19,7 +19,7 @@ Results are written under the `save_directory` named in the settings file. A rel
 | `data/survivors/` | Final mass, orbit, and eccentricity of each surviving planet |
 | `batch_summary.csv` | Runtime and surviving-planet count for each system |
 
-A batch of several systems (the `[batch]` table in the settings file) runs on a process pool, one system per worker, each seeded from the base seed plus its own index.
+A batch of several systems (the `[batch]` table in the settings file) runs on a process pool, one system per worker, each with its own seed.
 
 ## Plotting
 
@@ -32,8 +32,8 @@ python plot.py -c initialise.toml
 
 ## In memory, from another program
 
-`morrigan.run_system` evolves one system without writing files and returns the survivors and per-impact records; this is the interface PROTEUS drives. See [Coupling to PROTEUS](../Explanations/proteus_coupling.md) for the call signature and the record schema.
+`morrigan.run_system` evolves one system without writing files and returns the survivors and per-impact records; this is the interface PROTEUS drives. See [Coupling to PROTEUS](../Explanations/proteus_coupling.md) for the record schema and how a coupled run consumes it.
 
 ## Reproducibility
 
-Each system is seeded from `random_seed` in the settings file plus its own index, so a given settings file reproduces the same systems exactly. The same holds for `run_system` with a fixed seed: one seed, one timeline, bit for bit.
+A given settings file reproduces the same systems exactly, whatever the process count, and two batches with neighbouring `random_seed` values are independent of each other. See [Seeds and reproducibility](configuration.md#seeds-and-reproducibility) for how the per-system seed is derived. The same determinism holds for `run_system` with a fixed seed: one seed, one timeline, bit for bit.

@@ -14,9 +14,10 @@ Named after Morrigan, a shapeshifting figure from Irish mythology thought to rep
 
 ## Where to go
 
-- [Installation](How-to/installation.md) and [running a model](How-to/running.md)
-- [Model overview](Explanations/model.md): the physics, equation by equation
-- [Coupling to PROTEUS](Explanations/proteus_coupling.md): the impact-record interface
+- [Getting started](getting_started.md): the shortest path from a clone to a result, and where to go next
+- [Installation](How-to/installation.md), [running a model](How-to/running.md) and [configuration](How-to/configuration.md)
+- [Model overview](Explanations/model.md): the physics, equation by equation, and [code architecture](Explanations/code_architecture.md) for where each piece lives in the source
+- Coupling to PROTEUS in two parts: the [how-to](How-to/proteus_coupling.md) for the TOML recipe and the pitfalls, the [explanation](Explanations/proteus_coupling.md) for why the coupling is built the way it is
 - [Settings and inputs](Reference/parameters.md) and the [API reference](Reference/api.md)
 - [Validation anchors](Validation/index.md): where every physics routine is pinned against a published value, an analytical limit, or a cross-implementation check
 
