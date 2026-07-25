@@ -72,9 +72,11 @@ def interaction_wrapper(ap, Mp, Ms, ecc, N_affect): #determine if system is stab
     N_affect : int
         Number of planets interacting
 
-    Returns:
-    1e20 if system is stable
-    Otherwise returns instability timescale from tau_cross_petit
+    Returns
+    -------
+    float
+        1e20 if the system is stable, otherwise the instability timescale
+        from ``tau_cross_petit`` [s]
     '''
     #N_affect is planets participating in crossing event
     aM = (Mp[0]*ap[0] + Mp[1]*ap[1]) / (Mp[0] + Mp[1])

@@ -1,6 +1,10 @@
 # API reference
 
-The public entry point is `morrigan.run_system`; the modules below are the model's internals, documented here for contributors and for readers tracing an equation from the [model overview](../Explanations/model.md) into code.
+The public entry point is `morrigan.run_system`, documented first below. The modules after it are the model's internals, documented for contributors and for readers tracing an equation from the [model overview](../Explanations/model.md) into code.
+
+## Public API
+
+::: morrigan
 
 ## Driver
 
