@@ -10,8 +10,7 @@ When reviewing Morrigan code (either your own or via code-reviewer agents), appl
 - Eccentricities must stay in `[0, 1)`. Flag any orbital update that can push `e` to or past unity without an explicit hyperbolic-orbit treatment (there is none in this model; such a state is a bug).
 - The impact parameter is `b = sin(beta)` and lives in `[0, 1]`.
 - The collision speed at contact is `sqrt(v_inf^2 + v_esc^2)` and therefore never below the mutual escape speed. Flag any speed computed another way.
-- Loss fractions are meaningful only on `[0, 1]`; every fitted power law that can exceed 1 must clamp at the call site or in the function.
-- Atmosphere mass fractions are dimensionless in `[0, 1]`. Flag any assignment of an absolute mass into a fraction array; the two have identical dtypes and numpy will not complain.
+- Merged masses are exact sums. Flag anything that reduces a body's mass in a merger; the model sheds nothing and the coupled framework validates that chain to machine precision.
 - The planet count is non-increasing over a run; a merger removes exactly one body.
 - Timeline records are strictly ordered in time, and successive records for one body chain their masses.
 
@@ -43,7 +42,7 @@ The Monte Carlo layer draws from numpy's global random state, seeded once at the
 
 ## Fitted-law fidelity
 
-Several formulas are fits transcribed from papers (Kimura et al. 2025 timescales; Kegerreis et al. 2020 loss law). For any transcription change:
+Several formulas are fits transcribed from Kimura et al. (2025). For any transcription change:
 
 - Verify the base of every exponential against the paper (`10**` vs `exp` is a historical bug class here).
 - Verify every ratio's denominator against the paper (`M_i / M_tot` vs `M_i / M_t` is a historical bug class here).

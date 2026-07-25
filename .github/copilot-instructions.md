@@ -30,7 +30,7 @@ Sister modules: AGNI (radiative transfer), SOCRATES (spectral radiative transfer
 
 **Languages**: Python 3.11+.
 
-**Size**: 12 source files in `src/morrigan/`, ~1.4k LOC.
+**Size**: 11 source files in `src/morrigan/`, ~1.3k LOC.
 
 **Target Runtime**: Python 3.11+ on Linux / macOS.
 
@@ -131,7 +131,7 @@ The test job carries `timeout-minutes: 10`; a PR tier that cannot finish inside 
   - `orbit_cross_K25.py` - Orbit-crossing Monte Carlo event loop (physics)
   - `interaction_timescales.py` - Collision and viscous-stirring timescales (physics)
   - `crossing_pair.py` - Interacting-pair identification and crossing times (physics)
-  - `merge_embryo.py` - Merger bookkeeping: masses, orbits, atmosphere fractions (physics)
+  - `merge_embryo.py` - Merger bookkeeping: masses, orbits, eccentricities (physics)
   - `secular_solution.py` - Laplace-Lagrange secular eigenmodes via pylaplace (physics)
   - `helper_functions.py` - Kepler period, Hill radius, escape eccentricity, Rayleigh draws (physics)
 
@@ -191,18 +191,18 @@ with timeouts: 30 s for unit, 60 s for smoke, 300 s for integration, 3600 s for 
 
 Every unit test on a **physics source** (`driver.py`, `orbit_cross_K25.py`, `interaction_timescales.py`, `crossing_pair.py`, `merge_embryo.py`, `secular_solution.py`, `helper_functions.py`) must assert at least one of:
 
-- **Conservation**: merger mass closure (`M_merged = M_target + M_impactor` before shedding; rock conserved through atmosphere loss), atmosphere bookkeeping closure (retained + lost = combined), chain continuity along one body's impact history.
-- **Positivity / boundedness**: masses, radii, densities, and semi-major axes strictly positive; eccentricities in `[0, 1)`; impact parameter `b = sin(beta)` in `[0, 1]`; loss fractions in `[0, 1]`; collision speed at or above the mutual escape speed.
+- **Conservation**: merger mass closure (`M_merged = M_target + M_impactor`, exactly, since merging is perfect), chain continuity along one body's impact history.
+- **Positivity / boundedness**: masses, radii, densities, and semi-major axes strictly positive; eccentricities in `[0, 1)`; impact parameter `b = sin(beta)` in `[0, 1]`; collision speed at or above the mutual escape speed.
 - **Monotonicity or symmetry**: timeline strictly ordered in time; Kepler period increasing with semi-major axis; Hill radius increasing with planet mass; timescales scaling as the closed forms prescribe.
 - **Pinned numeric value with a discrimination guard**: a closed-form or published value pinned via `pytest.approx`, with explicit assertions that wrong-formula results (wrong exponent, wrong mass denominator, wrong base of the exponential) land outside the tolerance.
 
 Utility sources (`__init__.py`, `_version.py`, `constants.py`, `sort_planet.py`) are **exempt** from the physics-invariant requirement but still subject to the anti-happy-path rules.
 
-Tag every test that asserts a physical invariant with `@pytest.mark.physics_invariant`. Per-source-file granularity: each of the eight physics files needs at least one such test in `tests/test_<file>.py`.
+Tag every test that asserts a physical invariant with `@pytest.mark.physics_invariant`. Per-source-file granularity: each of the seven physics files needs at least one such test in `tests/test_<file>.py`.
 
 ### Reference-pinned validation
 
-Tag tests that pin against a published benchmark, an analytical limit, or a cross-implementation cross-check with `@pytest.mark.reference_pinned`. Each of the eight physics files must have at least one such test, recorded in `docs/Validation/<file>.md`. The `--reference-pinned-status` mode of the linter reports the punch list.
+Tag tests that pin against a published benchmark, an analytical limit, or a cross-implementation cross-check with `@pytest.mark.reference_pinned`. Each of the seven physics files must have at least one such test, recorded in `docs/Validation/<file>.md`. The `--reference-pinned-status` mode of the linter reports the punch list.
 
 ### Anti-happy-path rules (every new test)
 
@@ -224,7 +224,7 @@ Morrigan's Monte Carlo draws use numpy's **global** random state, seeded once pe
 
 ### Optional-dependency imports
 
-Any test that imports an optional dependency (`hypothesis`, `zephyrus`) MUST call `pytest.importorskip('<dep>')` at module top. A dependency-light CI image will otherwise fail to collect.
+Any test that imports an optional dependency MUST call `pytest.importorskip('<dep>')` at module top. A dependency-light CI image will otherwise fail to collect.
 
 ### Float and numerical comparison
 
@@ -267,9 +267,9 @@ Conventions the schema guarantees:
 
 - `v_impact` is the speed at first contact (`sqrt(v_inf^2 + v_esc^2)`), the convention the Kegerreis et al. (2020) erosion law expects.
 - `M_merged_after` is the perfect-merger sum; atmospheric loss between impacts is left to the caller and bounded by PROTEUS's own timeline validation.
-- Bodies carry no separately modelled atmosphere in the record; masses and radii are bulk values.
+- Bodies carry no atmosphere at all, in the record or in the model; masses and radii are bulk values.
 - Densities are recovered from mass and radius, so mass, radius, and density in one record are exactly self-consistent.
-- Successive records for one body chain: each `M_target_before` follows from the previous `M_merged_after`, less any internal atmosphere shedding.
+- Successive records for one body chain: each `M_target_before` equals the previous `M_merged_after` exactly, since nothing removes mass between impacts.
 
 Any change to the record fields, units, or conventions is a breaking interface change for PROTEUS and must be flagged in the PR description.
 

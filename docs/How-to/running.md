@@ -15,8 +15,8 @@ Results are written under the `save_directory` named in the settings file. A rel
 | Path | Contents |
 | --- | --- |
 | `data/full_systems/` | State of every planet through time |
-| `data/mergers/` | One row per collision: the bodies involved, collision velocity, and atmospheric loss |
-| `data/survivors/` | Final mass, orbit, eccentricity, and atmosphere of each surviving planet |
+| `data/mergers/` | One row per collision: the bodies involved and the collision velocity |
+| `data/survivors/` | Final mass, orbit, and eccentricity of each surviving planet |
 | `batch_summary.csv` | Runtime and surviving-planet count for each system |
 
 A batch of several systems (the `[batch]` table in the settings file) runs on a process pool, one system per worker, each seeded from the base seed plus its own index.

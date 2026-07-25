@@ -76,10 +76,14 @@ def test_every_impact_record_is_physically_self_consistent():
             assert np.isfinite(r[key]), f'{key} is not finite'
 
         M_t, M_i = r['M_target_before'], r['M_impactor']
-        # Perfect merger: the reported merged mass is the plain sum, exactly.
+        # Perfect merger: the merged mass the dynamics produced equals the
+        # plain sum of the two bodies. The record carries the model's own
+        # value rather than re-adding these two fields, so this is a real
+        # cross-check: any mass sink in the merger would break it.
         assert r['M_merged_after'] == pytest.approx(M_t + M_i, rel=1e-12)
-        # Discrimination: reporting the model's post-loss target mass instead
-        # would differ by the whole impactor mass, ~30% here.
+        # Discrimination: the merged body is strictly heavier than the target
+        # alone, by the whole impactor, so reporting the target's own mass
+        # unchanged would fail.
         assert abs(r['M_merged_after'] - M_t) > 0.1 * r['M_merged_after']
 
         # Every extensive quantity is strictly positive.
@@ -326,7 +330,7 @@ def test_the_file_writing_path_produces_the_documented_tables(tmp_path):
     system is run into a temporary directory and the outputs are held
     to their contract: every documented merger column present, each
     merger row closing its dry-run mass sum exactly with a positive
-    collision speed and a bounded loss fraction, survivor masses
+    collision speed, survivor masses
     positive, and the full-system table covering every recorded body.
     The error contract is the schema itself: a renamed or dropped
     column fails here before any consumer sees it.

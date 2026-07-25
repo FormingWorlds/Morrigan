@@ -7,6 +7,7 @@
 import argparse
 import os
 import time
+import warnings
 from functools import partial
 from multiprocessing import Pool, cpu_count, current_process
 
@@ -143,6 +144,19 @@ def _run_once(run_idx, config, collect=False):
         print('Masses allocated = ', len(masses))
         raise ValueError('Initial masses and number of planets in system are mismatched!')
 
+    #a settings file written for an older version may still carry an atmosphere
+    #fraction per embryo. The model no longer tracks an atmosphere, so the key is
+    #ignored; say so once rather than running silently with different physics
+    #than the file asks for.
+    if 'atm_mass_fraction' in config['init_par']:
+        warnings.warn(
+            'atm_mass_fraction is present in init_par but is ignored: this model no '
+            'longer tracks an atmosphere, and mergers now conserve mass exactly. '
+            'Impact atmospheric loss belongs to the consumer.',
+            UserWarning,
+            stacklevel=2,
+        )
+
     Ms = config['init_par']['Ms'] * M_sun #stellar mass (relative to Msun)
     rho_p = config['init_par']['rho_p'] #planet density kg/m^3
     inner_edge = config['init_par']['inner_edge'] #orbit of the innermost planet (AU)
@@ -235,7 +249,7 @@ def _run_once(run_idx, config, collect=False):
                 'ecc': ecc[survivor_mask].copy()}
 
     ascii.write(data_to_table(history), os.path.join(save_directory+'/data/full_systems', f'full_system_{run_idx:02d}.csv'), format = 'fixed_width', overwrite = True)
-    #write out impact velocities + resultant atmospheric mass loss for every merger in this run
+    #write out the impact velocity and geometry for every merger in this run
     merger_cols = ['t', 'id_target', 'id_impactor', 'M_target_before', 'M_impactor_before',
                    'M_merged_after', 'v_c', 'a_final_AU']
     if mergers: #at least one merger happened this run (unlikely that there are no mergers)
@@ -246,7 +260,7 @@ def _run_once(run_idx, config, collect=False):
         merger_table = Table(names=merger_cols, dtype=[float]*len(merger_cols))
     ascii.write(merger_table, os.path.join(save_directory+'/data/mergers', f'mergers_{run_idx:02d}.csv'), format = 'fixed_width', overwrite = True)
 
-    #save the final surviving planets for this run: id, mass, semi-major axis, eccentricity, remaining atmosphere fraction
+    #save the final surviving planets for this run: id, mass, semi-major axis, and eccentricity
     survivors_table = Table([planet_id[survivor_mask], masses[survivor_mask], a[survivor_mask] / au2m, ecc[survivor_mask]],
         names=['id', 'Mp', 'a_AU', 'ecc'])
     ascii.write(survivors_table, os.path.join(save_directory+'/data/survivors', f'survivors_{run_idx:02d}.csv'), format = 'fixed_width', overwrite = True)
@@ -335,7 +349,11 @@ def run_system(seed, masses, eccentricity, inner_edge, spacing, density,
             'M_target_before': M_t,
             'M_impactor': M_i,
             #perfect-merger mass: the plain sum, leaving atmospheric loss to the caller
-            'M_merged_after': M_t + M_i,
+            # Carry the model's own merged mass rather than re-adding the two
+            # fields above: recomputing the sum here would make any consumer
+            # check of mass closure a tautology and hide a mass sink in the
+            # dynamics behind a record that always looks exact.
+            'M_merged_after': m['M_merged_after'],
             'v_impact': m['v_c'],
             #mutual escape velocity of the pair, the floor the collision speed sits above
             'v_esc': np.sqrt(2.0 * G * (M_t + M_i) / (R_t + R_i)),

@@ -43,10 +43,9 @@ The test contract: a regression that introduces a plausible bug must fail the te
 
 | Pattern | Bad (any-formula-passes) | Good (discriminates) |
 |---|---|---|
-| Kegerreis loss fraction | Equal masses only (`M_i/M_tot = 1/2` fixed) | Also an asymmetric pair, so the historical `M_i/M_t` denominator lands far from `M_i/M_tot` |
 | Crossing timescale with `10**` fit | Inputs where `exp` and `10**` nearly coincide | Inputs where the two bases differ by orders of magnitude |
 | Kepler period | `a` chosen so numeric coincidences mask a wrong exponent | Two semi-major axes spanning a decade; assert the `a^(3/2)` scaling between them |
-| Merger bookkeeping | Zero atmosphere fractions (loss path degenerate) | Non-zero, unequal atmosphere fractions on both bodies |
+| Merger bookkeeping | Equal masses (mass-index errors degenerate) | Unequal masses on the two bodies |
 
 ### Discrimination guard (REQUIRED for pinned-value tests)
 
@@ -91,26 +90,24 @@ src/morrigan/sort_planet.py    (dead-planet removal and sorting, pure bookkeepin
 ### The four invariant families, in Morrigan terms
 
 1. **Conservation**
-   - Merger mass closure: `M_merged_after = M_target_before + M_impactor` (perfect merger), and rock mass conserved through internal atmosphere shedding.
-   - Atmosphere bookkeeping closure: retained + lost = combined pre-merge atmospheres.
-   - Chain continuity: successive impacts on one body satisfy `M_target_before(n+1) <= M_merged_after(n)`, with equality when no shedding occurred.
+   - Merger mass closure: `M_merged_after = M_target_before + M_impactor`, exactly. Merging is perfect and the model sheds nothing, so this is an equality, not a bound.
+   - Chain continuity: successive impacts on one body satisfy `M_target_before(n+1) == M_merged_after(n)` exactly; a body only ever grows, and nothing removes mass between impacts.
 2. **Positivity / boundedness**
    - Masses, radii, densities, semi-major axes strictly positive; eccentricities in `[0, 1)`.
-   - `b = sin(beta)` in `[0, 1]`; loss fractions in `[0, 1]`.
+   - `b = sin(beta)` in `[0, 1]`.
    - `v_impact >= v_esc` (the contact speed carries the mutual escape speed as a floor).
    - Timeline times strictly increasing; system planet count non-increasing.
 3. **Monotonicity or symmetry**
    - Kepler period scaling `P propto a^(3/2)` at fixed stellar mass.
    - Hill radius increasing with planet mass and semi-major axis.
    - Escape eccentricity symmetric under swapping the two bodies.
-   - Loss fraction increasing with collision speed at fixed geometry.
 4. **Pinned numeric value with a discrimination guard**: Section 2. Acceptable as the sole invariant when a closed form or a published value is the contract.
 
 ### Validation certification markers
 
 - **`@pytest.mark.physics_invariant`**: the test asserts at least one of the four families. Tag every qualifying test in a physics-source test file.
 - **`@pytest.mark.reference_pinned`**: the test pins behavior against a **published benchmark** (Kimura et al. 2025 statistics and closed forms), an **analytical limit** (Kepler's third law, the mutual-Hill-radius closed form, Laplace-Lagrange two-planet eigenfrequencies), or a **cross-implementation cross-check**.
-  - **Per-source-file**: each of the eight physics files needs at least one `reference_pinned` test in `tests/test_<file>.py`, recorded in `docs/Validation/<file>.md`.
+  - **Per-source-file**: each of the seven physics files needs at least one `reference_pinned` test in `tests/test_<file>.py`, recorded in `docs/Validation/<file>.md`.
   - **Status report**: `python tools/check_test_quality.py --reference-pinned-status` prints the punch list.
 
 ---
@@ -148,10 +145,10 @@ hypothesis = pytest.importorskip('hypothesis')
 pytest.importorskip('zephyrus.collision')
 ```
 
-Optional deps recognized by the linter (`OPTIONAL_DEPS` in `tools/check_test_quality.py`):
-
-- `hypothesis` (property-based tests; `[develop]` extras).
-- `zephyrus` (cross-implementation check of the loss law; `[develop]` extras).
+No test currently imports an optional dependency, and neither `hypothesis` nor
+`zephyrus` is installed by any extra. The linter still recognises both in its
+`OPTIONAL_DEPS` list, so the rule fires the moment one is reintroduced; add the
+package to the `develop` extra in the same change.
 
 `pylaplace` is a hard dependency and is imported unguarded.
 
@@ -239,7 +236,6 @@ Real patterns from this codebase's history. The lint script catches some; review
 | **Wrong mass denominator in a fitted ratio** | The loss law evaluated `M_i / M_t` where the fit prescribes `M_i / (M_i + M_t)`; the error is invisible at small mass ratios and ~11-20 percent at the ratios this model produces | The docstring wrote the correct formula while the code evaluated the wrong one; no asymmetric-pair pin existed | Pin an asymmetric pair with the wrong-denominator value in the guard |
 | **`exp` vs `10**` in a fitted timescale** | A crossing-time fit published as a base-10 power law evaluated with `np.exp` | Both give "a big number"; no absolute pin at a tabulated point | Pin one tabulated point absolutely; guard with the wrong-base value |
 | **Wrong pair index in a mass product** | A stirring term used `Mp[0]*Mp[2]` where the interacting pair was `[0, 1]` | Symmetric test systems (equal masses) hide index errors | Unequal masses across the system in at least one test |
-| **Unclamped fitted power law** | The loss fraction exceeding 1 for strong impacts | The fit is only meaningful on `[0, 1]` but the formula does not know that | Clamp in source; boundary pin at the cap in tests |
 | **Unseeded draw in a test** | A test asserting on stochastic output without seeding | Passed locally by luck of import order | Seed explicitly per Section 4; state the seed in the docstring |
 | **Difference-based argument-order guard** | `abs(f(a) - f(b)) > delta` claimed to pin the argument mapping | A permuted dispatch permutes the values and preserves the difference | Absolute pins on both sides plus a direction assertion |
 | **Silent skip in helper** | `if actual is None: continue` masking broken introspection | Helper hides a real failure as a no-op | Hard assertion with a message |

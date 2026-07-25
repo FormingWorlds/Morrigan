@@ -12,7 +12,7 @@ pip install -e .
 
 ## Developer install
 
-The `develop` extra adds the test stack (pytest, coverage, hypothesis, the ZEPHYRUS cross-check dependency) and pre-commit:
+The `develop` extra adds the test stack (pytest, coverage, pytest-timeout, ruff, pre-commit) and pre-commit:
 
 ```bash
 pip install -e ".[develop]"

@@ -1,10 +1,10 @@
 """Tests for ``src/morrigan/merge_embryo.py``.
 
 ``merge_embryo`` is the merger bookkeeping: it must close the mass
-books (rock conserved, atmosphere split into retained and lost), place
+books (mass conserved exactly on the plain sum), place
 the merged body on the eq. 16 orbit of Kimura et al. (2025), bound the
 eq. 17 eccentricity, kill exactly the smaller body, and clamp the
-Kegerreis loss fraction into [0, 1]. ``collision_velocity`` must floor
+merged eccentricity inside its composition bounds. ``collision_velocity`` must floor
 at the mutual escape speed, the analytic zero-eccentricity limit of the
 sqrt(v_inf^2 + v_esc^2) contact-speed convention.
 """
@@ -147,17 +147,29 @@ def test_the_merged_eccentricity_stays_within_its_composition_bounds():
     cosine is interior to (-1, 1), so the drawn alignment genuinely
     varies with the seed; seeds 0-9 must therefore produce a
     non-degenerate spread of merged eccentricities inside the bounds. The
-    head-on impact at five times the contact floor is the edge case: a
-    merger is perfect however violent, so the survivor still carries the
-    exact sum of the two masses.
+    edge cases run on inputs the function actually reads: a pair of
+    circular orbits, where eq. 17 must compose exactly zero, and a
+    million-to-one mass ratio, where the merged orbit and eccentricity
+    must collapse onto the heavy body's own.
     """
-    ap, mp, rp, ecc, live = _pair(m1=1.0, m2=1.0, e1=0.05, e2=0.05)
-    v_esc = np.sqrt(2.0 * G * (mp[0] + mp[1]) / (rp[0] + rp[1]))
+    # Circular pair: the vector composition of two zero eccentricities is
+    # exactly zero, whatever alignment is drawn.
+    ap, mp, rp, ecc, live = _pair(m1=1.0, m2=1.0, e1=0.0, e2=0.0)
     mass_before = float(mp.sum())
     np.random.seed(0)
-    _, mp_n, _, _unused = merge_embryo(ap, mp, rp, M_sun, ecc, 5.0 * v_esc, live, 0.0)
+    _, mp_n, ecc_n, _ = merge_embryo(ap, mp, rp, M_sun, ecc, 1.0e4, live, 0.5)
+    assert float(ecc_n[0]) == pytest.approx(0.0, abs=1e-15)
     assert float(mp_n[0]) == pytest.approx(mass_before, rel=1e-12)
-    assert float(mp_n[0]) == pytest.approx(2.0 * M_earth, rel=1e-12)
+
+    # Extreme mass ratio: the heavy body dominates both the eq. 16 orbit and
+    # the eq. 17 eccentricity, so the merged values sit on its own.
+    np.random.seed(1)
+    ap, mp, rp, ecc, live = _pair(m1=1.0e6, m2=1.0, a1=1.0, a2=1.4, e1=0.02, e2=0.30)
+    a_heavy, e_heavy = float(ap[0]), float(ecc[0])
+    ap_n, mp_n, ecc_n, _ = merge_embryo(ap, mp, rp, M_sun, ecc, 1.0e4, live, 0.5)
+    assert float(ap_n[0]) == pytest.approx(a_heavy, rel=1e-4)
+    assert float(ecc_n[0]) == pytest.approx(e_heavy, rel=1e-4)
+    assert float(mp_n[0]) == pytest.approx((1.0e6 + 1.0) * M_earth, rel=1e-12)
 
     lo = abs(2.0 * 0.05 - 1.0 * 0.08) / 3.0
     hi = (2.0 * 0.05 + 1.0 * 0.08) / 3.0

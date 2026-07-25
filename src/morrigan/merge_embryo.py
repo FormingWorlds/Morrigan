@@ -2,7 +2,7 @@
 !!! info "`merge_embryo.py`"
     Handles merging events.
     collision_velocity: calculates collision velocity between target and impactor
-    merge_embryo: Computes resulting mass, orbital separation, eccentricity, and atmospheric mass loss
+    merge_embryo: Computes resulting mass, orbital separation, and eccentricity
     Author(s): Anna Grace Ulses
 """
 
@@ -43,7 +43,7 @@ def collision_velocity(ap, Mp, Rp, Ms, ecc):
 
 def merge_embryo(ap, Mp, Rp, Ms, ecc, v_c, live_status, b): #calculate orbital parameters post collision
     '''
-    Function to compute mass, orbital separation, eccentricity, and fractional atmospheric loss after a giant impact
+    Function to compute mass, orbital separation, and eccentricity after a giant impact
 
     Parameters
     ----------
@@ -79,6 +79,13 @@ def merge_embryo(ap, Mp, Rp, Ms, ecc, v_c, live_status, b): #calculate orbital p
     ap_new = Mp_new/(Mp[0]/ap[0] + Mp[1]/ap[1]) #eq 16
 
     if ap[1]*(1.0 - ecc[1]**2) < ap[0]*(1.0 - ecc[0]**2):
+        min_dvarpi = 0.0
+    elif ecc[0] == 0.0 or ecc[1] == 0.0:
+        #a circular orbit has no pericentre direction, so no alignment is
+        #forbidden and the draw is unrestricted. Handled explicitly because the
+        #general expression divides by the product of the two eccentricities;
+        #it happens to recover the same answer through an infinity and the
+        #clamp below, but only by accident, and it warns on the way.
         min_dvarpi = 0.0
     else:
         cosdvarpi = ((ecc[0]*ap[0])**2 + (ecc[1]*ap[1])**2 - (ap[1]-ap[0])**2) / (2.0 * ecc[0] * ecc[1] * ap[0] * ap[1])

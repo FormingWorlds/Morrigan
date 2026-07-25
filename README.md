@@ -20,7 +20,7 @@ pip install -e .
 
 ## Running a model
 
-Settings live in a `.toml` file; `initialise.toml` in the repository root is a worked example covering the number of systems, the embryo masses and atmospheric mass fractions, the stellar mass, and how long to evolve for.
+Settings live in a `.toml` file; `initialise.toml` in the repository root is a worked example covering the number of systems, the embryo masses, the stellar mass, and how long to evolve for.
 
 ```bash
 morrigan -c initialise.toml
@@ -35,8 +35,8 @@ Results are written under the `save_directory` named in the settings file. A rel
 | Path | Contents |
 | --- | --- |
 | `data/full_systems/` | State of every planet through time |
-| `data/mergers/` | One row per collision: the bodies involved, collision velocity, and atmospheric loss |
-| `data/survivors/` | Final mass, orbit, eccentricity, and atmosphere of each surviving planet |
+| `data/mergers/` | One row per collision: the bodies involved and the collision velocity |
+| `data/survivors/` | Final mass, orbit, and eccentricity of each surviving planet |
 | `batch_summary.csv` | Runtime and surviving-planet count for each system |
 
 To plot the results of a run, point the plotting script at the same settings file:
