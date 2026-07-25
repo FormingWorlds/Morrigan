@@ -122,7 +122,7 @@ One fraction governs both bodies at each impact; the [explanation](../Explanatio
         selector          = "mass"
 
 [interior_energetics]
-    module = "aragog"               # required: SPIDER has no re-melt path
+    module = "aragog"               # SPIDER is refused: it has no re-melt path
 ```
 
 Eight embryos between 0.05 and 0.11 AU at this spacing go unstable within a few thousand years, so the whole impact history is over long before the interior has cooled. That is deliberate: it makes the coupling visible in a short run. It is not a model of Earth's accretion, which plays out over 10<sup>7</sup> to 10<sup>8</sup> yr at 1 AU. Note also that these embryos need not orbit where the PROTEUS planet orbits; only the *fractional* orbit change is transferred, so the dynamical environment and the simulated planet's distance are independent choices.
@@ -139,13 +139,13 @@ During start-up, the run reports the system it evolved and the schedule it kept:
 
 Three of the eight embryos survive; `selector = "mass"` follows the heaviest, which grows from 1.3 to 2.5 M⊕ across two impacts, at about 912 yr (struck by body 5, adding 0.700 M⊕) and 1939 yr (struck by body 7, adding 0.500 M⊕).
 
-As each impact lands, the loop reports it in a block that opens with the time-stepper announcing the shortened step and the impact itself (its target, impactor and added mass), and closes with the planet's resulting mass, orbital distance and eccentricity. Between those, one indented line is written per consequence that actually applied: the volatile and loss modes in force, the erosion fraction the law returned, what was stripped and what was delivered, the re-melt heat booked into the energy budget, and the mantle reset. How many of those appear depends on the configuration, so expect more lines under `match_planet` and `zephyrus` than under `dry` and `none`.
+Each impact is then announced by a `Giant impact at t = ...` line naming its target, impactor and added mass, and closed by a `planet is now ... M_earth at ... AU, e = ...` line. Between the two, an indented line is written for each consequence that applied: which volatile and loss modes are in force, what the erosion law returned, what was stripped and what was delivered, the re-melt heat and the mantle reset. How many appear depends on the configuration, so expect more under `match_planet` and `zephyrus` than under `dry` and `none`. The structure re-solve in the middle is a full interior calculation and prints its own output, so those two anchor lines are not adjacent in the log.
 
 The added mass, the time and the two body ids come straight from the schedule above. The erosion fraction and the resulting planet state depend on the atmosphere the planet happens to have at that moment, so they differ from run to run even for the same schedule.
 
 ## Common pitfalls
 
-**Aragog is required.** `interior_energetics.module = "spider"` with accretion enabled is refused at config load. SPIDER keeps its state in a restart file written by an external binary and has no validated re-melt path, so an impact cannot reset its mantle.
+**SPIDER cannot be used.** `interior_energetics.module = "spider"` with accretion enabled is refused at config load. SPIDER keeps its state in a restart file written by an external binary and has no validated re-melt path, so an impact cannot reset its mantle. Aragog is the production choice; `dummy` and `boundary` also re-melt and are useful for a quick test of the coupling, though they reset a surface temperature rather than an entropy profile, so `planet.tsurf_init` governs their post-impact state rather than `planet.temperature_mode`, and they book no re-melt heat.
 
 **No impacts scheduled.** The most common cause is `evolution_time` being short relative to the instability time of the configuration you chose. [Choosing the initial conditions](configuration.md#choosing-the-initial-conditions) covers how spacing and eccentricity set that time.
 
