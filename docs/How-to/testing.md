@@ -2,6 +2,12 @@
 
 Morrigan's suite follows the PROTEUS ecosystem test standards: tiered markers, physics-invariant assertions on every physics routine, and reference-pinned anchors recorded per source file under [Validation anchors](../Validation/index.md).
 
+[![tests](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FFormingWorlds%2FMorrigan%2Fbadges%2Ftests-total.json)](https://github.com/FormingWorlds/Morrigan/tree/badges)
+[![unit tests](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FFormingWorlds%2FMorrigan%2Fbadges%2Ftests-unit.json)](https://github.com/FormingWorlds/Morrigan/tree/badges)
+[![integration tests](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FFormingWorlds%2FMorrigan%2Fbadges%2Ftests-integration.json)](https://github.com/FormingWorlds/Morrigan/tree/badges)
+
+These counts are regenerated from the suite on every push to `main`. They report how many tests exist, not whether they pass; the pass or fail state is the workflow status badge on the [front page](../index.md). The "integration tests" count covers the `smoke`, `integration` and `slow` tiers together, so it does not match any single row of the table below: most of it is the `smoke` tier, which runs on every pull request rather than nightly. Counting is by collection, so a test that is collected but skipped at run time, through `importorskip` or `skipif`, still counts.
+
 ## Tiers
 
 | Marker | What it tests | Budget | When CI runs it |
