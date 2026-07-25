@@ -6,7 +6,7 @@
 [![Unit Tests](https://img.shields.io/github/actions/workflow/status/FormingWorlds/Morrigan/tests.yaml?branch=main&label=Unit%20Tests)](https://github.com/FormingWorlds/Morrigan/actions/workflows/tests.yaml)
 [![Integration Tests](https://img.shields.io/github/actions/workflow/status/FormingWorlds/Morrigan/nightly.yml?branch=main&label=Integration%20Tests)](https://github.com/FormingWorlds/Morrigan/actions/workflows/nightly.yml)
 
-**Morrigan** is the dynamical evolution module of the [PROTEUS](https://proteus-framework.org/PROTEUS) coupled atmosphere-interior evolution framework. This module contains the (modified) Python version of the semi-analytical model for giant impacts developed by [Kimura et al 2025](https://iopscience.iop.org/article/10.3847/1538-4357/ade992/meta) that models the orbital and accretionary evolution of planets as a result of giant impacts and gravitational scattering.
+**Morrigan** is the protoplanet accretion module of the [PROTEUS](https://proteus-framework.org/PROTEUS) coupled atmosphere-interior evolution framework. It follows a system of protoplanets, the planetary embryos of the post-disk stage, through the giant impacts and gravitational scattering by which they accrete, tracking how each collision changes the masses and orbits of the bodies that survive. It implements the semi-analytical Monte Carlo model of [Kimura et al. (2025)](https://doi.org/10.3847/1538-4357/ade992).
 
 Named after Morrigan, a shapeshifting figure from Irish mythology thought to represent the dynamical nature of existence.
 

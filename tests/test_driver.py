@@ -19,8 +19,7 @@ import pytest
 
 import morrigan
 from morrigan.constants import G, M_earth, M_sun, au2m
-from morrigan.driver import allocate_a, read_config, time_step
-from morrigan.helper_functions import hill_sphere
+from morrigan.driver import allocate_a, read_config, system_seed, time_step
 
 pytestmark = [pytest.mark.smoke, pytest.mark.timeout(60)]
 
@@ -181,11 +180,28 @@ def test_impacts_are_keyed_only_by_survivors_and_each_is_present():
     that is not a survivor's and can even hold an unbound orbit, so the
     returned histories must be exactly the survivors, each present so a
     caller can always look one up, empty if that body never merged.
+
+    Two systems, because no single seed exercises both halves. Seed 1
+    has a body that absorbs an impact and is itself destroyed later, so
+    the filtering is doing real work there; without such a body the
+    equality holds trivially and a dropped filter would not be caught.
+    Seed 5 leaves a body untouched, which is the empty-history branch.
     """
-    out = _run()
+    # Filtering half: a body that merged and then died must not appear.
+    filtered = _run(seed=1)
+    survivors_1 = {s['id'] for s in filtered['survivors']}
+    assert set(filtered['impacts']) == survivors_1
+    targets = {r['id_target'] for chain in filtered['impacts'].values() for r in chain}
+    assert targets <= survivors_1
+    # This system really does destroy a body that was a merger target, so
+    # the equality above is a filter rather than an identity.
+    assert 5 not in survivors_1
+    assert 5 not in filtered['impacts']
+
+    # Empty-history half: a body that never merged is still queryable.
+    out = _run(seed=5)
     survivor_ids = {s['id'] for s in out['survivors']}
     assert set(out['impacts']) == survivor_ids
-    # A body that never merged is still queryable, with an empty history.
     never_hit = [sid for sid in survivor_ids if not out['impacts'][sid]]
     assert never_hit, 'this system leaves at least one body untouched'
     # No survivor's own chain carries an unbound post-merge orbit.
@@ -305,19 +321,30 @@ def test_time_step_lands_exactly_on_scheduled_events():
 def test_allocate_a_spaces_embryos_by_mutual_hill_radii():
     """Initial embryos are laid out by mutual-Hill-radius spacing.
 
-    For two equal-mass embryos from 0.1 au at spacing 10 the closed
-    form is a2 = a1 (1 + 10 ((M1+M2)/(3 Ms))^(1/3)), hand-derived to
-    1.6890514743e10 m with the model constants. Spacing zero is the
-    degenerate edge, collapsing the system onto one orbit, and a longer
-    chain must be strictly increasing: the layout can never fold back
-    inward.
+    The mutual Hill radius is evaluated at the mean of the pair's
+    orbits, so the outer orbit sits on both sides of the spacing
+    condition and the layout follows the closed form
+    a2 = a1 (1 + s C / 2) / (1 - s C / 2) with C = ((M1+M2)/(3 Ms))^(1/3).
+    The measured gap must then be exactly the configured number of true
+    mutual Hill radii, which is the assertion that matters: evaluating
+    the radius at the inner orbit instead is the plausible shortcut, and
+    it lays the system out about six per cent tighter.
+
+    Spacing zero is the degenerate edge, collapsing the system onto one
+    orbit, and a longer chain must be strictly increasing: the layout
+    can never fold back inward.
     """
     masses = np.array([1.0, 1.0]) * M_earth
     a = allocate_a(2, M_sun, masses, 0.1, 10)
-    expected = (0.1 + 10 * 0.1 * ((2 * M_earth) / (3 * M_sun)) ** (1 / 3)) * au2m
+    C = ((2 * M_earth) / (3 * M_sun)) ** (1 / 3)
+    expected = 0.1 * (1 + 10 * C / 2) / (1 - 10 * C / 2) * au2m
     assert a[0] == pytest.approx(0.1 * au2m, rel=1e-12)
     assert a[1] == pytest.approx(expected, rel=1e-12)
-    # Discrimination: single-mass Hill spacing (no mutual sum) differs.
+    # Discrimination: evaluating the Hill radius at the inner orbit gives a
+    # measurably tighter layout, 9.41 mutual Hill radii instead of 10.
+    inner_anchored = (0.1 + 10 * 0.1 * C) * au2m
+    assert abs(inner_anchored - a[1]) > 1e-3 * a[1]
+    # And single-mass Hill spacing, without the mutual sum, differs again.
     single = (0.1 + 10 * 0.1 * (M_earth / (3 * M_sun)) ** (1 / 3)) * au2m
     assert abs(single - a[1]) > 1e-3 * a[1]
 
@@ -326,12 +353,19 @@ def test_allocate_a_spaces_embryos_by_mutual_hill_radii():
     assert np.all(a_zero == pytest.approx(0.1 * au2m, rel=1e-12))
 
     # A five-body chain is strictly increasing.
-    chain = allocate_a(5, M_sun, np.ones(5) * M_earth, 0.1, 10)
+    chain_masses = np.array([0.5, 1.0, 2.0, 0.7, 1.5]) * M_earth
+    chain = allocate_a(5, M_sun, chain_masses, 0.1, 10)
     assert np.all(np.diff(chain) > 0.0)
 
-    # The mutual Hill radius of the first pair is what sets the first gap.
-    r_hill = hill_sphere(0.1, 2 * M_earth, M_sun)
-    assert (a[1] - a[0]) == pytest.approx(10 * r_hill * au2m, rel=1e-12)
+    # Every gap measures exactly the configured number of true mutual Hill
+    # radii, evaluated at the pair mean from that pair's own two masses.
+    # The masses are deliberately unequal and non-monotonic: with an
+    # equal-mass chain every pair sum is identical, so reaching for the
+    # wrong index in the sum is an exact no-op and the check cannot see it.
+    for i, (lo, hi) in enumerate(zip(chain[:-1], chain[1:])):
+        c = ((chain_masses[i] + chain_masses[i + 1]) / (3 * M_sun)) ** (1 / 3)
+        r_hill = c * (lo + hi) / 2
+        assert (hi - lo) == pytest.approx(10 * r_hill, rel=1e-12)
 
 
 def test_the_file_writing_path_produces_the_documented_tables(tmp_path):
@@ -390,3 +424,33 @@ def test_the_file_writing_path_produces_the_documented_tables(tmp_path):
     # Every surviving body appears in the history, and the clock runs forward.
     assert set(survivors['id']) <= set(full['id'])
     assert min(full['t']) == pytest.approx(0.0, abs=0.0)
+
+
+def test_neighbouring_ensembles_draw_independent_systems():
+    """A batch's per-system seeds are mixed from the two numbers, not added.
+
+    Adding the settings-file seed to the run index makes ensembles one
+    apart overlap almost completely: run k of seed s and run k-1 of seed
+    s+1 both land on s+k and therefore draw the identical system. Anyone
+    estimating scatter by rerunning with a few seeds would then be
+    averaging over nearly the same systems and would report it far too
+    small.
+
+    The property is checked on the derivation directly rather than by
+    running the model, since it is arithmetic: the pairs that collide
+    under addition must not collide under mixing, and a given pair must
+    still reproduce.
+    """
+    # The collision that addition produces, across a small grid.
+    for base in range(1, 5):
+        for idx in range(1, 4):
+            assert base + idx == (base + 1) + (idx - 1)  # the old rule's flaw
+            assert system_seed(base, idx) != system_seed(base + 1, idx - 1)
+
+    # Reproducible: the same settings file gives the same system every time.
+    assert system_seed(7, 3) == system_seed(7, 3)
+    # Distinct systems within one batch.
+    seeds = {system_seed(7, k) for k in range(8)}
+    assert len(seeds) == 8
+    # Valid for np.random.seed, which rejects anything outside 32 bits.
+    assert all(0 <= s < 2**32 for s in seeds)

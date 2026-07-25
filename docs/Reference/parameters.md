@@ -26,7 +26,7 @@ The command line reads one TOML file (`morrigan -c <file>`). Units at this bound
 | `Ms` | Stellar mass | solar masses |
 | `rho_p` | Bulk density shared by all embryos | kg m-3 |
 | `inner_edge` | Orbit of the innermost embryo | au |
-| `spacing` | Spacing between adjacent embryos, in Hill radii evaluated at the inner orbit of each pair (see [Model overview](../Explanations/model.md)) | Hill radii |
+| `spacing` | Spacing between adjacent embryos | mutual Hill radii |
 
 ### `[batch]` (optional)
 
