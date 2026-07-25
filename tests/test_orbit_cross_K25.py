@@ -106,41 +106,37 @@ def test_scattering_conserves_the_mass_weighted_orbit_sum():
 
 @pytest.mark.physics_invariant
 def test_ejection_removes_the_escaping_body_and_binds_the_survivor():
-    """An ejection kills exactly the body excited past e = 1 and leaves
-    the survivor on a bound orbit that closes the pair's energy books.
+    """An ejection kills the body excited past e = 1 and leaves the
+    survivor on the orbit that still reaches the encounter.
 
-    A compact massive pair at 30 au has a mutual escape eccentricity
-    far above one, so the scattering excitation drives an ejection
-    (seed 0). Exactly one body must die; the survivor must carry an
-    eccentricity inside [0, 1), sit inside its own original orbit
-    (it absorbs the escaper's binding energy), and satisfy the exact
-    energy closure M_s/a_new = M_s/a_s + M_l/a_l of the survivor
-    formula. This is the regression pin for the ejection bookkeeping:
-    flagging the wrong body would leave a hyperbolic e >= 1 orbit
-    alive, which the bound below rejects. The unequal-mass case
-    (1 and 50 Earth masses at 1.0 and 1.5 au, seed 0) pins the
-    ordering: the lighter body takes the larger kick and escapes, and
-    the heavy survivor can land between the two original orbits, so
-    only its own original orbit bounds it.
+    The survivor absorbs the escaper's binding energy, so its orbit
+    tightens to satisfy M_s/a_new = M_s/a_s + M_l/a_l exactly, and it
+    must still pass through the place the encounter happened. That
+    place now lies outside the tightened orbit, so it is the apocentre
+    and the eccentricity follows as a_old/a_new - 1.
+
+    Two regimes, and they end differently. An unequal pair (1 and 50
+    Earth masses at 1.0 and 1.5 au, seed 0) leaves a bound survivor:
+    the lighter body takes the larger kick and escapes, and the heavy
+    body barely moves. A comparable-mass pair (100 and 100 Earth
+    masses at 30 au, seed 0) leaves none: the orbit that closes the
+    energy books is too tight to still reach the encounter, so the
+    remaining body is unbound too and both are removed. The second
+    case is the discriminating one, since the previous form of the
+    eccentricity kept a survivor there whose apocentre never reached
+    the encounter radius.
     """
     np.random.seed(0)
     ap, mp, rp, e, interact, live, pid = _pair(0.3, 0.3, a1_au=30.0, m_earths=100.0)
     a_before = ap.copy()
-    m_before = mp.copy()
     rec = orbit_cross_K25(ap, mp, rp, M_sun, 0.5, e, interact, live, 2, pid, 0)
 
     assert rec is None
-    assert int(np.sum(live)) == 1  # exactly one body escapes
-
-    survivor = int(np.argmax(live))
-    ejected = 1 - survivor
-    assert 0.0 <= e[survivor] < 1.0
-    assert 0.0 < ap[survivor] < a_before[survivor]
-    # Exact energy closure of the survivor formula.
-    assert mp[survivor] / ap[survivor] == pytest.approx(
-        m_before[survivor] / a_before[survivor] + m_before[ejected] / a_before[ejected],
-        rel=1e-12,
-    )
+    # Comparable masses leave nothing bound: both bodies are removed.
+    assert int(np.sum(live)) == 0
+    # The energy closure still ran, so the retained slot tightened before
+    # its eccentricity was found to exceed unity.
+    assert 0.0 < ap[0] < a_before[0] or 0.0 < ap[1] < a_before[1]
 
     # Unequal masses: the lighter body escapes, the heavy survivor stays
     # bound between the original orbits, and the energy books still close.

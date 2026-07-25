@@ -20,7 +20,6 @@ import pytest
 import morrigan
 from morrigan.constants import G, M_earth, M_sun, au2m
 from morrigan.driver import allocate_a, read_config, time_step
-from morrigan.helper_functions import hill_sphere
 
 pytestmark = [pytest.mark.smoke, pytest.mark.timeout(60)]
 
@@ -181,8 +180,12 @@ def test_impacts_are_keyed_only_by_survivors_and_each_is_present():
     that is not a survivor's and can even hold an unbound orbit, so the
     returned histories must be exactly the survivors, each present so a
     caller can always look one up, empty if that body never merged.
+
+    Seed 5 rather than the file default: this case needs a system that
+    leaves at least one body untouched, so that the empty-history branch
+    is exercised rather than merely allowed for.
     """
-    out = _run()
+    out = _run(seed=5)
     survivor_ids = {s['id'] for s in out['survivors']}
     assert set(out['impacts']) == survivor_ids
     # A body that never merged is still queryable, with an empty history.
@@ -305,19 +308,30 @@ def test_time_step_lands_exactly_on_scheduled_events():
 def test_allocate_a_spaces_embryos_by_mutual_hill_radii():
     """Initial embryos are laid out by mutual-Hill-radius spacing.
 
-    For two equal-mass embryos from 0.1 au at spacing 10 the closed
-    form is a2 = a1 (1 + 10 ((M1+M2)/(3 Ms))^(1/3)), hand-derived to
-    1.6890514743e10 m with the model constants. Spacing zero is the
-    degenerate edge, collapsing the system onto one orbit, and a longer
-    chain must be strictly increasing: the layout can never fold back
-    inward.
+    The mutual Hill radius is evaluated at the mean of the pair's
+    orbits, so the outer orbit sits on both sides of the spacing
+    condition and the layout follows the closed form
+    a2 = a1 (1 + s C / 2) / (1 - s C / 2) with C = ((M1+M2)/(3 Ms))^(1/3).
+    The measured gap must then be exactly the configured number of true
+    mutual Hill radii, which is the assertion that matters: evaluating
+    the radius at the inner orbit instead is the plausible shortcut, and
+    it lays the system out about six per cent tighter.
+
+    Spacing zero is the degenerate edge, collapsing the system onto one
+    orbit, and a longer chain must be strictly increasing: the layout
+    can never fold back inward.
     """
     masses = np.array([1.0, 1.0]) * M_earth
     a = allocate_a(2, M_sun, masses, 0.1, 10)
-    expected = (0.1 + 10 * 0.1 * ((2 * M_earth) / (3 * M_sun)) ** (1 / 3)) * au2m
+    C = ((2 * M_earth) / (3 * M_sun)) ** (1 / 3)
+    expected = 0.1 * (1 + 10 * C / 2) / (1 - 10 * C / 2) * au2m
     assert a[0] == pytest.approx(0.1 * au2m, rel=1e-12)
     assert a[1] == pytest.approx(expected, rel=1e-12)
-    # Discrimination: single-mass Hill spacing (no mutual sum) differs.
+    # Discrimination: evaluating the Hill radius at the inner orbit gives a
+    # measurably tighter layout, 9.41 mutual Hill radii instead of 10.
+    inner_anchored = (0.1 + 10 * 0.1 * C) * au2m
+    assert abs(inner_anchored - a[1]) > 1e-3 * a[1]
+    # And single-mass Hill spacing, without the mutual sum, differs again.
     single = (0.1 + 10 * 0.1 * (M_earth / (3 * M_sun)) ** (1 / 3)) * au2m
     assert abs(single - a[1]) > 1e-3 * a[1]
 
@@ -329,9 +343,11 @@ def test_allocate_a_spaces_embryos_by_mutual_hill_radii():
     chain = allocate_a(5, M_sun, np.ones(5) * M_earth, 0.1, 10)
     assert np.all(np.diff(chain) > 0.0)
 
-    # The mutual Hill radius of the first pair is what sets the first gap.
-    r_hill = hill_sphere(0.1, 2 * M_earth, M_sun)
-    assert (a[1] - a[0]) == pytest.approx(10 * r_hill * au2m, rel=1e-12)
+    # Every gap measures exactly the configured number of true mutual Hill
+    # radii, evaluated at the pair mean. This is what the parameter promises.
+    for lo, hi in zip(chain[:-1], chain[1:]):
+        r_hill = ((2 * M_earth) / (3 * M_sun)) ** (1 / 3) * (lo + hi) / 2
+        assert (hi - lo) == pytest.approx(10 * r_hill, rel=1e-12)
 
 
 def test_the_file_writing_path_produces_the_documented_tables(tmp_path):

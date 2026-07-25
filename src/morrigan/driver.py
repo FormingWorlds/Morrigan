@@ -19,7 +19,7 @@ from astropy.table import Table
 #import functions and constants
 from morrigan.constants import G, M_earth, M_sun, au2m, gyr2sec
 from morrigan.crossing_pair import crossing_pair
-from morrigan.helper_functions import hill_sphere, planet_radius
+from morrigan.helper_functions import planet_radius
 from morrigan.orbit_cross_K25 import orbit_cross_K25
 from morrigan.secular_solution import secular_solution
 from morrigan.sort_planet import sort_planet
@@ -68,8 +68,16 @@ def allocate_a(N,Ms,masses,inner_edge,spacing=DEFAULT_SPACING):
     a[0] = inner_edge #AU
     for i in range(1,N): #allocate initial semi-major axes
         a_previous = a[i-1] #starting semi-major axis
-        hill = hill_sphere(a_previous,masses[i-1]+masses[i],Ms) #mutual hill radius of the adjacent pair
-        a[i] = a_previous + spacing*hill #planets are spaced out by this many hill radii
+        #The mutual Hill radius is evaluated at the mean of the pair's orbits,
+        #which is the standard definition, so the outer orbit appears on both
+        #sides of a_i - a_{i-1} = spacing * C * (a_i + a_{i-1}) / 2. Solving for
+        #a_i gives the ratio below. Evaluating the radius at the inner orbit
+        #instead, which avoids the algebra, lays the system out about six per
+        #cent tighter than the configured number: at a spacing of ten the gaps
+        #come out at 9.41 mutual Hill radii, and instability time depends
+        #steeply on spacing.
+        C = ((masses[i-1] + masses[i]) / (3.0 * Ms))**(1.0/3.0)
+        a[i] = a_previous * (1.0 + spacing*C/2.0) / (1.0 - spacing*C/2.0)
     return a*au2m #convert to [m] to stay in SI!
 
 #timestep when not at or during an event
@@ -88,7 +96,12 @@ def data_to_table(history):
         m_col.extend(h['masses'])
         e_col.extend(h['ecc'])
         rp_col.extend(h['Rp'])
-        alive_col.extend(h['live_status'])
+        #Write the live flag as 0 or 1 rather than a bool. Written as a bool it
+        #round trips out of the fixed-width file as the text 'True' or 'False',
+        #and both strings are non-empty, so filtering the column by truthiness
+        #silently keeps the destroyed planets alongside the survivors. An
+        #integer round trips as an integer and behaves the way a reader expects.
+        alive_col.extend(int(alive) for alive in h['live_status'])
         event_col.extend([h['event']] * n)
     return Table([t_col, id_col, a_col, m_col, e_col, rp_col, alive_col, event_col],names=['t', 'id', 'a_AU', 'Mp', 'ecc', 'Rp', 'live_status', 'event'])
 
@@ -111,7 +124,15 @@ def _run_once(run_idx, config, collect=False):
 
     #import settings from .toml file
     base_seed = config['run_simulation'].get('random_seed', 0)
-    np.random.seed(base_seed + run_idx) #unique seed for each planetary system to reproduce individual results exactly
+    #Derive this system's seed by mixing the settings-file seed with the run
+    #index rather than adding them. Adding makes neighbouring ensembles overlap:
+    #run k of seed s draws the same stream as run k-1 of seed s+1, so two
+    #ensembles one apart share all but one of their systems, and any scatter
+    #measured across seeds comes out far too small. Mixing decorrelates the
+    #streams while keeping each system exactly reproducible from its settings
+    #file, which is the property that matters for rerunning a result.
+    system_seed = int(np.random.SeedSequence([base_seed, run_idx]).generate_state(1)[0])
+    np.random.seed(system_seed)
 
     t = config['run_simulation']['t']
     t_ref = config['run_simulation']['t_ref']

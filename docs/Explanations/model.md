@@ -6,17 +6,20 @@ Morrigan implements the semi-analytical Monte Carlo model of Kimura et al. (2025
 
 A system starts as $N$ embryos on nearly circular orbits, spaced by a fixed number of mutual Hill radii,
 
-$$ r_\mathrm{H} = \left( \frac{M_i + M_{i+1}}{3 M_\ast} \right)^{1/3} a_i, $$
+$$ r_\mathrm{H} = \left( \frac{M_i + M_{i+1}}{3 M_\ast} \right)^{1/3} \frac{a_i + a_{i+1}}{2}, $$
 
 laid out from an inner edge outward, each orbit placed a fixed multiple of
-$r_\mathrm{H}$ beyond the one inside it. Note the radius is evaluated at the
-inner orbit of the pair rather than at the pair mean $(a_i + a_{i+1})/2$ that
-the standard mutual Hill radius uses. The two differ because the spacing is
-applied before the outer orbit exists, and the resulting system is slightly
-more compact than the configured number suggests: at a spacing of 10 the gaps
-measure 9.41 standard mutual Hill radii. Instability time depends steeply on
-spacing, so this offset matters when comparing an ensemble against published
-statistics quoted in the standard definition. Each embryo carries a mass, a bulk density (setting its radius), and an eccentricity. Bodies are bare: the model tracks no atmosphere, so a mass is always a bulk mass and a radius always follows from it at the configured density. All state is SI internally; the settings file is read once in Earth masses, au, degrees, and Gyr.
+$r_\mathrm{H}$ beyond the one inside it. The radius is evaluated at the mean of
+the pair's orbits, the standard mutual Hill radius, so the outer orbit appears
+on both sides of the spacing condition and the layout follows from solving it:
+$a_{i+1} = a_i (1 + sC/2)/(1 - sC/2)$ with $C = ((M_i + M_{i+1})/3M_\ast)^{1/3}$.
+Every gap then measures exactly the configured number of mutual Hill radii.
+
+Each embryo carries a mass, a bulk density (setting its radius), and an
+eccentricity. Bodies are bare: the model tracks no atmosphere, so a mass is
+always a bulk mass and a radius always follows from it at the configured
+density. All state is SI internally; the settings file is read once in Earth
+masses, au, degrees, and Gyr.
 
 ## Secular evolution between events
 
@@ -36,7 +39,7 @@ where $e_{ij}$ is the pair's relative eccentricity and $e_\mathrm{esc}$ the mutu
 
 - **Collision.** The eccentricities are re-drawn from a truncated Rayleigh distribution until the epicycles geometrically overlap, the contact speed is $v_c = \sqrt{v_\infty^2 + v_\mathrm{esc}^2}$, and the pair merges (see below).
 - **Scattering.** Both orbits are shifted apart by the excited epicycle amplitudes, weighted with the opposite body's mass fraction (eqs. 18-20), which conserves the mass-weighted sum of semi-major axes exactly.
-- **Ejection.** If scattering excites an eccentricity to or past unity, the more excited body escapes[^cite-kimura2025b]; the survivor is placed on the tighter orbit that conserves the pair's orbital energy, and the escaping body is removed.
+- **Ejection.** If scattering excites an eccentricity to or past unity, the more excited body escapes[^cite-kimura2025b]. The survivor absorbs the escaper's binding energy, so its orbit tightens to conserve the pair's $M/a$ sum, and it must still pass through the place the encounter happened: that place is now its apocentre, which fixes its eccentricity at $a_\mathrm{old}/a_\mathrm{new} - 1$. For a comparable-mass pair that eccentricity reaches unity, meaning no bound orbit satisfies both conditions, and both bodies leave.
 
 A body whose perihelion falls inside the inner cutoff is removed as having fallen into the star. Scattering can also leave a body on a hyperbolic orbit, which removes it as unbound; in practice this is the channel that fires most often, ahead of both the eccentricity-driven ejection and the infall cutoff.
 

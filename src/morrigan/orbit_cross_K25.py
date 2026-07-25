@@ -95,9 +95,14 @@ def orbit_cross_K25(ap, Mp, Rp, Ms, impact_parameter, ecc, interact, live_status
 
             if np.sqrt(ecc_cross[0]**2 + ecc_cross[1]**2) / e_esc > 2.0 or count > 500:
                 #unable to find a random draw that satisfies the condition, defaul to an orbital overlap of 0.1%
-                #if orbits will never overlap OR took too many interations
-                ecc[icross] = 1.001 * ecc_cross[0]
-                ecc[jcross] = 1.001 * ecc_cross[1]
+                #if orbits will never overlap OR took too many interations.
+                #Take the larger of the geometric default and the eccentricity
+                #the body already carries, the same convention as every other
+                #site: overwriting outright discards the secular value, which
+                #can be the larger of the two and then reports a collision
+                #slower than the incoming orbits imply.
+                ecc[icross] = max(1.001 * ecc_cross[0], ecc[icross])
+                ecc[jcross] = max(1.001 * ecc_cross[1], ecc[jcross])
                 break
             #check if epicycle amplitudes sum to at least aj-ai (they will overlap)
             #OVERLAP CONDITION
@@ -154,10 +159,21 @@ def orbit_cross_K25(ap, Mp, Rp, Ms, impact_parameter, ecc, interact, live_status
         if max(ecc[icross], ecc[jcross]) >= 1.0: #planet got bumped out
             #print(f"[EJECTION] Planet {planet_id[ilarge]} was ejected")
             #planet with smaller excited eccentricity remains in the system, and orbital parameters are recalculated
+            #The survivor absorbs the escaper's binding energy, so its orbit
+            #tightens. It must still pass through the place the encounter
+            #happened, and since that place is now outside its new orbit it
+            #becomes the apocentre: a_new (1 + e_new) = a_old. Capture the old
+            #axis before overwriting it.
+            a_rem_before = ap[ismall]
             ap[ismall] = Mp[ismall] / (Mp[ismall] / ap[ismall] + Mp[ilarge] / ap[ilarge])
-            #in K25 pt 2, this is ap[ismall] / aM - 1
-            ecc[ismall] = 1.0 - ap[ismall] / aM #mass-weighted mean, matches Fortran's aM (not the simple mean mma)
+            ecc[ismall] = a_rem_before / ap[ismall] - 1.0
             live_status[ilarge] = False #the body excited past e = 1 is the one that escapes
+            if ecc[ismall] >= 1.0:
+                #A comparable-mass pair leaves no bound survivor: the orbit that
+                #closes the energy books is too tight to still reach the
+                #encounter, so the remaining body is unbound too and the
+                #encounter destroys both.
+                live_status[ismall] = False
         else: #'normal' scattering conditions
             #'change in orbital separation is assumed to be equal to the sum of the excited epicycle amplitude'
             #db = delta_a essentially how much the orbit is shifted either in or out
