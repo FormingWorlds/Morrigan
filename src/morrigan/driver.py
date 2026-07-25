@@ -162,12 +162,12 @@ def _run_once(run_idx, config, collect=False):
     #state of each body at the start of the run, keyed by its persistent id, so a
     #surviving body's initial mass and orbit can be reported next to its final ones
     initial_state = {int(planet_id[i]): (float(masses[i]), float(a[i])) for i in range(N)}
-                                            
+
     history = []
     mergers = [] #specifically stores info about merge events, one row is one merge
     #stores timestep information about the system
     def snapshot(t, a, masses, ecc, Rp, live_status, planet_id, N, event=False):
-        history.append({'t': t, 'id': planet_id[:N].copy(), 'a': a[:N].copy()/1.5e11, 'masses': masses[:N].copy(),
+        history.append({'t': t, 'id': planet_id[:N].copy(), 'a': a[:N].copy() / au2m, 'masses': masses[:N].copy(),
             'ecc': ecc[:N].copy(),'Rp': Rp[:N].copy(),'live_status': live_status[:N].copy(),'event': event,})
 
     output_interval = max_time / 1000.0  #when not at an event, store information every 1000 step
@@ -184,24 +184,24 @@ def _run_once(run_idx, config, collect=False):
             a, masses, ecc, Rp, atm_mass_fraction, live_status, interact, densities, planet_id = sort_planet(a, masses, ecc, Rp, atm_mass_fraction, live_status, interact, densities, planet_id)
             N = len(a) #number of planets changes after an event!
             if N <= 1:
-                break 
+                break
             ecc_vec, g, beta = secular_solution(a, masses, ecc, Rp, Ms, N)
             t_ref = t #time for crossing_pair
             #identify indices of planetary pair that cross, and time of crossing (event)
             icross, t_event = crossing_pair(a, masses, Rp, Ms, ecc, ecc_vec, g, beta, interact, N, t, t_ref)
-            flag_event = 0 #event done, do not recalculate secular/crossing otherwise 
+            flag_event = 0 #event done, do not recalculate secular/crossing otherwise
 
         dt = time_step(t, t_event)
         t += dt #adjust time to account for event duration
-    
+
         #propagate secular (long-term) eccentricities
         h_t = np.zeros(N)
         k_t = np.zeros(N)
         for i in range(N):
             h_t[i] = np.sum(ecc_vec[i, :] * np.sin(g * (t - t_ref) + beta)) # eq A10
-            k_t[i] = np.sum(ecc_vec[i, :] * np.cos(g * (t - t_ref) + beta)) 
+            k_t[i] = np.sum(ecc_vec[i, :] * np.cos(g * (t - t_ref) + beta))
         ecc = np.sqrt(h_t**2 + k_t**2) # eq 3 finally!
-    
+
         #check for next crossings/close encounters
         if t >= t_event:
             flag_event = 1
@@ -210,10 +210,10 @@ def _run_once(run_idx, config, collect=False):
                 merge_record['t'] = t
                 mergers.append(merge_record)
             snapshot(t, a, masses, ecc, Rp, live_status, planet_id, N, event=True) #capture state of system right after event
-    
+
         #update planet radius
         Rp = np.array([planet_radius(masses[i], densities[i]) for i in range(N)])
-    
+
         #remove planets too close to the star
         for i in range(N):
             if (1.0 - ecc[i]) * a[i] < a_min:
@@ -422,16 +422,16 @@ def main(config_path):
         start = time.time()
         result = run_once(0, config)
         end = time.time()
- 
+
         summary = Table(rows=[result], names=['run_idx', 'runtime_s', 'n_survivors'])
         ascii.write(summary, os.path.join(config['run_simulation']['save_directory'], 'batch_summary.csv'),
                     format='fixed_width', overwrite=True)
         print(f'Ran 1 system in {round(end - start, 3)}s')
- 
+
     else:
         #number of cores to use, leaves one free by default
         nproc = config.get('batch', {}).get('nproc', max(1, cpu_count() - 1))
- 
+
         worker = partial(run_once, config=config)
 
         start = time.time()
@@ -469,4 +469,3 @@ def cli():
 
 if __name__ == '__main__':
     cli()
-
