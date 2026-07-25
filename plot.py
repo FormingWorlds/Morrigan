@@ -6,24 +6,24 @@
 
 import argparse
 
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 from astropy.io import ascii
-from morrigan.constants import M_earth, M_sun
-from morrigan.driver import DEFAULT_CONFIG, read_config
 from scipy.stats import variation
 
+from morrigan.constants import M_earth, M_sun
+from morrigan.driver import DEFAULT_CONFIG, read_config
 
 plt.rcParams["font.size"] = 12
-plt.rcParams['axes.linewidth'] = 2 
-plt.rcParams["xtick.major.width"] = 1.5             
+plt.rcParams['axes.linewidth'] = 2
+plt.rcParams["xtick.major.width"] = 1.5
 plt.rcParams["ytick.major.width"] = 1.5
-plt.rcParams["xtick.minor.width"] = 1  
-plt.rcParams["ytick.minor.width"] = 1  
-plt.rcParams["xtick.major.size"] = 12  
-plt.rcParams["ytick.major.size"] = 12  
-plt.rcParams["xtick.minor.size"] = 7   
-plt.rcParams["ytick.minor.size"] = 7  
+plt.rcParams["xtick.minor.width"] = 1
+plt.rcParams["ytick.minor.width"] = 1
+plt.rcParams["xtick.major.size"] = 12
+plt.rcParams["ytick.major.size"] = 12
+plt.rcParams["xtick.minor.size"] = 7
+plt.rcParams["ytick.minor.size"] = 7
 
 #filled in by main() from the same settings file the run used
 config = None
@@ -38,18 +38,18 @@ def plot_tracks(directory):
         full_system = ascii.read(directory+f'/data/full_systems/full_system_{n:02d}.csv', format = 'fixed_width')
         initial_N = config['init_par']['N'] #initial planets in each system
 
-        for p in range(initial_N): 
+        for p in range(initial_N):
             planet = full_system[full_system['id'] == p]
             if len(planet) == 0:
                 continue
             t_yr = planet['t']/365/24/60/60
             a = planet['a_AU']
             e = planet['ecc']
-    
+
             plt.grid(alpha = 0.5)
             line, = plt.plot(t_yr, a, label = f'Planet {p}')
             color = line.get_color()
-    
+
             # Plot pericenter/apocenter boundaries and fill the orbital sweep region
             plt.plot(t_yr, a * (1.0 - e), linestyle=':', alpha=0.4, color=color)
             plt.plot(t_yr, a * (1.0 + e), linestyle=':', alpha=0.4, color=color)
@@ -62,7 +62,7 @@ def plot_tracks(directory):
         plt.tight_layout()
         plt.savefig(directory+f'/figures/tracks/track{n:02d}.png', dpi = 300)
         plt.close()
- 
+
 
 def plot_orbits(directory):
 
@@ -79,7 +79,7 @@ def plot_orbits(directory):
         #data for the planets left after simulation
         remaining_system = full_system[-n_survivors:]
 
-        #plot orbits just for fun 
+        #plot orbits just for fun
         fig, ax = plt.subplots(figsize=(7, 7))
         theta = np.linspace(0, 2 * np.pi, 300)
         c = ['palevioletred', 'steelblue', 'midnightblue', 'mediumseagreen', 'black']
@@ -131,7 +131,7 @@ def mean_a_ecc(M,a,e,Ms):
     Np = len(a)
     if Np < 2:
         raise ValueError('Need at least 2 remaining planets')
-    
+
     order = np.argsort(a)
     M,a,e = M[order], a[order], e[order]
 
@@ -167,14 +167,14 @@ def plot_stats(directory):
     batch_a = []
     batch_ecc = []
     batch_mp = []
-    
+
     # Pre-allocate arrays for per-system statistics (initialized to NaN to handle cases with < 2 survivors)
     std_a_run = np.full(ndisk, np.nan)
     std_M_run = np.full(ndisk, np.nan)
     com_run = np.full(ndisk, np.nan)
     b_H_run = np.full(ndisk, np.nan)
     e_H_run = np.full(ndisk, np.nan)
-    
+
     for n in range(ndisk):
         full_system = ascii.read(directory+f'/data/full_systems/full_system_{n:02d}.csv', format = 'fixed_width')
         # Pull remaining planets from each system
@@ -203,14 +203,14 @@ def plot_stats(directory):
     fig,ax = plt.subplots(1,3, figsize = (15,5))
     ax[0].scatter(com_run, batch_planets, color = 'purple')
     ax[0].plot(np.nanmean(com_run), np.nanmean(batch_planets), marker='.', color='gold', markersize=15, markeredgecolor='black', zorder=5)
-    ax[0].errorbar(np.nanmean(com_run), np.nanmean(batch_planets), yerr=np.nanstd(batch_planets), xerr=np.nanstd(com_run), ecolor = 'purple', capsize = 4, fmt='none')  
+    ax[0].errorbar(np.nanmean(com_run), np.nanmean(batch_planets), yerr=np.nanstd(batch_planets), xerr=np.nanstd(com_run), ecolor = 'purple', capsize = 4, fmt='none')
     ax[0].set_ylabel('Remaining planets')
     ax[0].set_xlabel('Initial center of mass (AU)')
-    ax[0].grid(alpha = 0.5) 
+    ax[0].grid(alpha = 0.5)
 
     ax[1].scatter(e_H_run, b_H_run, color = 'seagreen')
     ax[1].plot(np.nanmean(e_H_run), np.nanmean(b_H_run), marker='.', color='midnightblue', markersize=15, markeredgecolor='black', zorder=5)
-    ax[1].errorbar(np.nanmean(e_H_run), np.nanmean(b_H_run), yerr=np.nanstd(b_H_run), xerr=np.nanstd(e_H_run), ecolor = 'seagreen', capsize = 4, fmt='none') 
+    ax[1].errorbar(np.nanmean(e_H_run), np.nanmean(b_H_run), yerr=np.nanstd(b_H_run), xerr=np.nanstd(e_H_run), ecolor = 'seagreen', capsize = 4, fmt='none')
     ax[1].set_xlabel('Mean eccentricity (Hill-scaled)')
     ax[1].set_ylabel('Mean orbital separation (Hill-scaled)')
     ax[1].grid(alpha = 0.5)
@@ -220,7 +220,7 @@ def plot_stats(directory):
     ax[2].plot(np.nanmean(std_a_run), np.nanmean(std_M_run), marker='.', color='gray', markersize=15, markeredgecolor='black', zorder=5)
     ax[2].errorbar(np.nanmean(std_a_run), np.nanmean(std_M_run), yerr=np.nanstd(std_M_run), xerr=np.nanstd(std_a_run), ecolor = 'coral', capsize = 4, fmt='none')
     ax[2].set_xlabel('Normalised a standard deviation (AU)')
-    ax[2].set_ylabel('Normalised M standard deviation ($M_\oplus$)')
+    ax[2].set_ylabel(r'Normalised M standard deviation ($M_\oplus$)')
     ax[2].grid(alpha = 0.5)
 
     plt.tight_layout()
@@ -238,14 +238,14 @@ def plot_stats(directory):
     ax[1].scatter(batch_mp, batch_ecc, color = 'palevioletred')
     ax[1].plot(np.mean(batch_mp), np.mean(batch_ecc), marker='.', color='steelblue', markersize=15, markeredgecolor='black', zorder=5)
     ax[1].errorbar(np.mean(batch_mp), np.mean(batch_ecc), np.std(batch_ecc), np.std(batch_mp), ecolor = 'palevioletred', capsize = 4)
-    ax[1].set_xlabel('M$_p$ ($M_\oplus$)')
+    ax[1].set_xlabel(r'M$_p$ ($M_\oplus$)')
     ax[1].grid(alpha = 0.5)
 
     ax[2].scatter(batch_a, batch_mp, color = 'forestgreen')
     ax[2].plot(np.mean(batch_a), np.mean(batch_mp), marker='.', color='purple', markersize=15, markeredgecolor='black', zorder=5)
     ax[2].errorbar(np.mean(batch_a), np.mean(batch_mp), np.std(batch_mp), np.std(batch_a), ecolor = 'forestgreen', capsize = 4)
     ax[2].set_xlabel('a (AU)')
-    ax[2].set_ylabel('M$_p$ ($M_\oplus$)')
+    ax[2].set_ylabel(r'M$_p$ ($M_\oplus$)')
     ax[2].grid(alpha = 0.5)
 
     plt.tight_layout()
