@@ -86,6 +86,50 @@ def time_step(t, t_event):
     dt = min(dt,abs(t_event - t) + 1.0)
     return dt
 
+def system_seed(base_seed, run_idx):
+    """Return the seed for one system of a batch.
+
+    Mixes the settings-file seed with the run index rather than adding
+    them. Adding makes neighbouring ensembles overlap: run k of seed s
+    draws the same stream as run k-1 of seed s+1, so two ensembles one
+    apart share all but one of their systems, and any scatter measured
+    across seeds comes out far too small. Mixing decorrelates them while
+    keeping each system exactly reproducible from its settings file,
+    which is the property that matters for rerunning a result.
+
+    Parameters
+    ----------
+    base_seed : int
+        Seed from the settings file, shared by the whole batch.
+    run_idx : int
+        Index of this system within the batch.
+
+    Returns
+    -------
+    int
+        Seed for this system, in numpy's valid seed range.
+    """
+    return int(np.random.SeedSequence([base_seed, run_idx]).generate_state(1)[0])
+
+
+def _write_table(table, path):
+    """Write a result table, tolerating the zero-row case.
+
+    The fixed-width writer sizes each column from its widest entry and so
+    raises on a table with no rows. A run can legitimately end with nothing
+    to report: a system whose last comparable-mass pair ejects both bodies
+    leaves no survivors, and a system that never collides leaves no mergers.
+    Write the header alone in that case, so the file exists with the
+    documented columns and a reader gets an empty table rather than a
+    missing file or a traceback.
+    """
+    if len(table) == 0:
+        with open(path, 'w') as handle:
+            handle.write(' ' + ' | '.join(table.colnames) + '\n')
+        return
+    ascii.write(table, path, format='fixed_width', overwrite=True)
+
+
 def data_to_table(history):
     t_col, id_col, a_col, m_col, e_col, rp_col, alive_col, event_col = [], [], [], [], [], [], [], []
     for h in history:
@@ -131,8 +175,7 @@ def _run_once(run_idx, config, collect=False):
     #measured across seeds comes out far too small. Mixing decorrelates the
     #streams while keeping each system exactly reproducible from its settings
     #file, which is the property that matters for rerunning a result.
-    system_seed = int(np.random.SeedSequence([base_seed, run_idx]).generate_state(1)[0])
-    np.random.seed(system_seed)
+    np.random.seed(system_seed(base_seed, run_idx))
 
     t = config['run_simulation']['t']
     t_ref = config['run_simulation']['t_ref']
@@ -279,12 +322,12 @@ def _run_once(run_idx, config, collect=False):
         merger_table = Table(rows=[{c: m[c] for c in merger_cols} for m in mergers], names=merger_cols)
     else: #keep the file schema consistent even for runs with zero mergers
         merger_table = Table(names=merger_cols, dtype=[float]*len(merger_cols))
-    ascii.write(merger_table, os.path.join(save_directory+'/data/mergers', f'mergers_{run_idx:02d}.csv'), format = 'fixed_width', overwrite = True)
+    _write_table(merger_table, os.path.join(save_directory+'/data/mergers', f'mergers_{run_idx:02d}.csv'))
 
     #save the final surviving planets for this run: id, mass, semi-major axis, and eccentricity
     survivors_table = Table([planet_id[survivor_mask], masses[survivor_mask], a[survivor_mask] / au2m, ecc[survivor_mask]],
         names=['id', 'Mp', 'a_AU', 'ecc'])
-    ascii.write(survivors_table, os.path.join(save_directory+'/data/survivors', f'survivors_{run_idx:02d}.csv'), format = 'fixed_width', overwrite = True)
+    _write_table(survivors_table, os.path.join(save_directory+'/data/survivors', f'survivors_{run_idx:02d}.csv'))
 
     end = time.time()
     runtime = round((end-start), 3)
