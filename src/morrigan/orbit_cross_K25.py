@@ -153,8 +153,18 @@ def orbit_cross_K25(ap, Mp, Rp, Ms, impact_parameter, ecc, interact, live_status
         ecc[icross] = rayleigh_ecc * np.sqrt(Mp[jcross]) / np.sqrt(Mp[icross] + Mp[jcross]) * e_esc
         ecc[jcross] = rayleigh_ecc * np.sqrt(Mp[icross]) / np.sqrt(Mp[icross] + Mp[jcross]) * e_esc
 
-        ilarge = icross if ecc[icross] >= ecc[jcross] else jcross #identify which planet was excited more
-        ismall = jcross if ecc[icross] >= ecc[jcross] else icross
+        #Identify which planet was excited more. Equipartition sets the two
+        #excitations in the fixed ratio sqrt(M_other/M_self), so for an
+        #equal-mass pair they are identical to the last bit and the choice is
+        #a tie that has to be made deliberately: the paper's prescription does
+        #not cover it, and it decides whether such an ejection removes one body
+        #or two. The outer body escapes, which leaves the survivor inside the
+        #escaper, where the apocentre closure below gives a bound orbit.
+        if ecc[icross] == ecc[jcross]:
+            ilarge, ismall = jcross, icross
+        else:
+            ilarge = icross if ecc[icross] > ecc[jcross] else jcross
+            ismall = jcross if ecc[icross] > ecc[jcross] else icross
 
         if max(ecc[icross], ecc[jcross]) >= 1.0: #planet got bumped out
             #print(f"[EJECTION] Planet {planet_id[ilarge]} was ejected")

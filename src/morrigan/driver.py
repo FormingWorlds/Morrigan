@@ -77,6 +77,17 @@ def allocate_a(N,Ms,masses,inner_edge,spacing=DEFAULT_SPACING):
         #come out at 9.41 mutual Hill radii, and instability time depends
         #steeply on spacing.
         C = ((masses[i-1] + masses[i]) / (3.0 * Ms))**(1.0/3.0)
+        #The pair-mean condition has a pole at spacing*C = 2, where the
+        #requested gap equals the whole span it is measured across. Past it
+        #the ratio turns negative and the layout silently folds inward, which
+        #flows on as the square root of a negative semi-major axis in the
+        #period and Hill radius. Refuse it here instead, naming the pair.
+        if spacing * C >= 2.0:
+            raise ValueError(
+                f'spacing {spacing} is too wide for embryos {i-1} and {i}: '
+                f'spacing * ((M1+M2)/3Ms)^(1/3) = {spacing*C:.3f}, which must '
+                'stay below 2. Reduce the spacing or the embryo masses.'
+            )
         a[i] = a_previous * (1.0 + spacing*C/2.0) / (1.0 - spacing*C/2.0)
     return a*au2m #convert to [m] to stay in SI!
 

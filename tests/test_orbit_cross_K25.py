@@ -106,26 +106,27 @@ def test_scattering_conserves_the_mass_weighted_orbit_sum():
 
 @pytest.mark.physics_invariant
 def test_ejection_removes_the_escaping_body_and_binds_the_survivor():
-    """An ejection kills the body excited past e = 1 and leaves the
-    survivor on the orbit that still reaches the encounter.
+    """An ejection removes the escaper and leaves the survivor on the
+    orbit that still reaches the encounter, or removes both if no such
+    orbit is bound.
 
     The survivor absorbs the escaper's binding energy, so its orbit
     tightens to satisfy M_s/a_new = M_s/a_s + M_l/a_l exactly, and it
-    must still pass through the place the encounter happened. That
-    place now lies outside the tightened orbit, so it is the apocentre
-    and the eccentricity follows as a_old/a_new - 1.
+    must still pass through the place the encounter happened. That place
+    now lies outside the tightened orbit, so it is the apocentre and the
+    eccentricity follows as a_old/a_new - 1, equivalently
+    (M_ejected/M_survivor)(a_survivor,0/a_escaper,0).
 
-    Two regimes, and they end differently. An unequal pair (1 and 50
-    Earth masses at 1.0 and 1.5 au, seed 0) leaves a bound survivor:
-    the lighter body takes the larger kick and escapes, the heavy body
-    barely moves, and its eccentricity is pinned exactly. An equal-mass
-    pair (100 and 100 Earth masses at 30.0 and 30.3 au, seed 0) leaves
-    none: for equal masses the apocentre condition reduces to the ratio
-    of the two initial axes, so it exceeds unity whenever the outer body
-    is the survivor, as it is here by one per cent. The remaining body is
-    then unbound too and both are removed. That second case is what the
-    previous form of the eccentricity got wrong, keeping a survivor whose
-    apocentre never reached the encounter radius.
+    That closed form says when nothing stays bound: the survivor must
+    start outside the escaper by more than their mass ratio. Equipartition
+    gives the lighter body the larger kick, so the survivor is the heavier
+    one and must also be the outer one.
+
+    Both regimes are pinned. An equal-mass pair at 30.0 and 30.3 au
+    (seed 0) leaves a bound survivor, because the tie is broken by
+    ejecting the outer body and the inner survivor is then inside the
+    escaper. A 1.0 inner, 1.2 outer pair at 30 and 40 au (seed 0) crosses
+    the threshold, 1.111 by the closed form, and both bodies go.
     """
     np.random.seed(0)
     ap, mp, rp, e, interact, live, pid = _pair(0.3, 0.3, a1_au=30.0, m_earths=100.0)
@@ -133,44 +134,35 @@ def test_ejection_removes_the_escaping_body_and_binds_the_survivor():
     rec = orbit_cross_K25(ap, mp, rp, M_sun, 0.5, e, interact, live, 2, pid, 0)
 
     assert rec is None
-    # Comparable masses leave nothing bound: both bodies are removed.
-    assert int(np.sum(live)) == 0
-    # The energy closure still ran on the retained slot before its
-    # eccentricity was found to exceed unity. Slot 1 is the one that moved;
-    # slot 0 is untouched on this path, so asserting on it would pass for
-    # any formula at all.
-    assert ap[1] == pytest.approx(
-        100.0 * M_earth / (100.0 * M_earth / a_before[1] + 100.0 * M_earth / a_before[0]),
+    # The tie sends the outer body out, so exactly one survives.
+    assert list(live) == [True, False]
+    # The survivor's orbit closes the pair's energy books exactly.
+    assert ap[0] == pytest.approx(
+        100.0 * M_earth / (100.0 * M_earth / a_before[0] + 100.0 * M_earth / a_before[1]),
         rel=1e-12,
     )
+    # And its eccentricity is the apocentre closure, 30.0/30.3 short of 1.
+    assert e[0] == pytest.approx(a_before[0] / ap[0] - 1.0, rel=1e-12)
+    assert e[0] == pytest.approx(0.990099, rel=1e-5)
+    assert 0.0 <= e[0] < 1.0
+    # Discrimination: the pre-change form gives 0.502, a factor of two out.
+    assert abs((1.0 - ap[0] / ((a_before[0] + a_before[1]) / 2)) - e[0]) > 1e-2
 
-    # Unequal masses: the lighter body escapes, the heavy survivor stays
-    # bound between the original orbits, and the energy books still close.
+    # Nothing stays bound when the survivor starts outside the escaper by
+    # more than the mass ratio: 1.0 inner and 1.2 outer at 30 and 40 au
+    # gives (1.0/1.2)(40/30) = 1.111, so the survivor is unbound too.
     np.random.seed(0)
-    ap2 = np.array([1.0, 1.5]) * au2m
-    mp2 = np.array([1.0, 50.0]) * M_earth
+    ap2 = np.array([30.0, 40.0]) * au2m
+    mp2 = np.array([1.0, 1.2]) * M_earth
     rp2 = np.array([planet_radius(m, _RHO) for m in mp2])
     e2 = np.array([0.3, 0.3])
     live2 = np.array([True, True])
     rec2 = orbit_cross_K25(ap2, mp2, rp2, M_sun, 0.5, e2,
                            np.ones(2, dtype=bool), live2, 2, np.arange(2), 0)
     assert rec2 is None
-    assert list(live2) == [False, True]  # the 1 Earth-mass body is ejected
-    # The eccentricity itself, pinned. The apocentre condition gives
-    # a_old / a_new - 1, which is 0.030000 for this pair. The pre-change
-    # form 1 - a_new / a_old gives 0.029126, three per cent away, so the
-    # tolerance has to be tight enough to separate them.
-    assert e2[1] == pytest.approx(1.5 * au2m / ap2[1] - 1.0, rel=1e-12)
-    assert e2[1] == pytest.approx(0.0300000, rel=1e-5)
-    assert abs((1.0 - ap2[1] / (1.5 * au2m)) - e2[1]) > 1e-3 * e2[1]
-    assert 0.0 <= e2[1] < 1.0
-    assert ap2[1] == pytest.approx(
-        50.0 * M_earth / (50.0 * M_earth / (1.5 * au2m) + 1.0 * M_earth / (1.0 * au2m)),
-        rel=1e-12,
-    )
-    # The survivor sits inside its own orbit but outside the escaper's,
-    # which discriminates the true bound from the min-of-both wrong bound.
-    assert 1.0 * au2m < ap2[1] < 1.5 * au2m
+    assert list(live2) == [False, False]
+    assert e2[1] == pytest.approx((1.0 / 1.2) * (40.0 / 30.0), rel=1e-3)
+    assert e2[1] >= 1.0
 
 
 @pytest.mark.physics_invariant
