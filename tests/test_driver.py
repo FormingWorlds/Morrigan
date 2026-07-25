@@ -123,6 +123,15 @@ def test_every_impact_record_is_physically_self_consistent():
         assert 0.0 <= r['impact_parameter'] <= 1.0
         assert 0.0 <= r['e_after'] < 1.0
 
+    # A merger leaves the survivor on an eccentric orbit, and the value is
+    # carried per impact rather than being a constant. The consumer writes
+    # this straight into the coupled planet's eccentricity, so reporting a
+    # fixed zero would silently circularise its orbit at every impact while
+    # every bound above still held.
+    eccentricities = [r['e_after'] for r in records]
+    assert any(e > 0.0 for e in eccentricities)
+    assert len(set(eccentricities)) > 1
+
 
 @pytest.mark.physics_invariant
 def test_a_body_grows_monotonically_along_its_impact_chain():
