@@ -45,8 +45,13 @@ def test_tau_vis_pins_its_closed_form():
     Kimura et al. (2025) eqs. 6, 8-10 and 23 at a hand-checked point.
 
     Two Earths at 0.95 / 1.05 au with e = 0.05 give 1.74771e11 s
-    (5538 yr), evaluated by hand through the chain e_cross -> rep_e ->
-    random speed -> surface density -> stirring time. The two guards are
+    (5538 yr), evaluated by hand through the chain rep_e -> random
+    speed -> surface density -> stirring time. At this point the input
+    eccentricities set rep_e: eq. 23 takes the larger of sum(e_cross)
+    and sum(e), and for an equal-mass pair the two are equal to within
+    one bit (0.09999999999999999 against 0.1), so the crossing
+    eccentricities are not what the pin resolves. The unequal-mass case
+    at the end of this test is what exercises eq. 6. The two guards are
     the transcription slips this chain invites: the factor-3 variant of
     the final expression (the paper-vs-Fortran discrepancy the source
     resolves in favour of the Fortran) and a dropped 2 pi in the surface
@@ -107,6 +112,20 @@ def test_tau_col_pins_and_returns_a_time_not_a_rate():
     # Focusing and cross-section: bigger bodies collide sooner.
     rp_big = [2 * r for r in rp]
     assert tau_col(ap, mp, rp_big, M_sun, [0.05, 0.05]) < t_col
+
+    # The eq. 6 denominator appears twice in the module, once per timescale,
+    # so it needs pinning on both. An unequal 1 and 10 Earth-mass pair at
+    # near-zero input eccentricity puts sum(e_cross) = 0.1027 far above
+    # sum(e) = 0.002, so eq. 23 takes the crossing branch and the shared
+    # denominator is what sets the answer: 2.4354420e11 s, hand-derived.
+    # Building e_cross_j on its own swapped denominator instead gives
+    # 2.3769219e11 s, 2.4 percent away and outside the tolerance band, which
+    # the equal-mass reference point cannot distinguish at all.
+    mp_uneq = [M_earth, 10 * M_earth]
+    rp_uneq = [planet_radius(m, _RHO) for m in mp_uneq]
+    t_uneq = tau_col(ap, mp_uneq, rp_uneq, M_sun, [0.001, 0.001])
+    assert t_uneq == pytest.approx(2.4354420e11, rel=1e-4)
+    assert abs(2.3769219e11 - t_uneq) > 100 * 1e-4 * t_uneq
 
     # Edge: a near-circular pair still returns a positive, finite time
     # (the geometric crossing eccentricity keeps rep_e above zero).
