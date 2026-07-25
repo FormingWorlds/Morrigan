@@ -5,8 +5,8 @@ function wire() {
   if (logo) logo.href = homepage;
 
   const title = document.querySelector(".md-header__title[data-md-component='header-title']");
-  if (title && !title.dataset.titleWired) {
-    title.dataset.titleWired = "1";
+  if (title && !title.dataset.spiderWired) {
+    title.dataset.spiderWired = "1";
     title.style.cursor = "pointer";
 
     // always go to /Morrigan/ when hosted there, else "/" (mkdocs serve)

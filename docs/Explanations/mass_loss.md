@@ -2,7 +2,7 @@
 
 Every merger strips a fraction of the colliding pair's combined atmosphere following the scaling law of [Kegerreis et al. (2020, ApJL, 901, L31)](https://iopscience.iop.org/article/10.3847/2041-8213/abb5fb), fitted to smoothed-particle hydrodynamics simulations of giant impacts onto terrestrial planets:
 
-$$ X = 0.64 \left[ \left( \frac{v_c}{v_\mathrm{esc}} \right)^2 \left( \frac{M_i}{M_\mathrm{tot}} \right)^{1/2} \left( \frac{\rho_i}{\rho_t} \right)^{1/2} f(b) \right]^{0.65}, $$
+$$ X = 0.64 \left\[ \left( \frac{v_c}{v_\mathrm{esc}} \right)^2 \left( \frac{M_i}{M_\mathrm{tot}} \right)^{1/2} \left( \frac{\rho_i}{\rho_t} \right)^{1/2} f(b) \right]^{0.65}, $$
 
 where $v_c$ is the speed at first contact, $v_\mathrm{esc} = \sqrt{2 G (M_t + M_i) / (R_t + R_i)}$ the mutual escape speed, $M_\mathrm{tot} = M_t + M_i$, and $b = \sin \beta$ the impact parameter of an impact at angle $\beta$.
 
