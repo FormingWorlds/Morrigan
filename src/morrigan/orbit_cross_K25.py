@@ -6,6 +6,7 @@
 
 import numpy as np
 
+from morrigan.constants import au2m
 from morrigan.helper_functions import esc_ecc, hill_sphere, rayleigh
 from morrigan.merge_embryo import collision_velocity, merge_embryo
 
@@ -139,7 +140,7 @@ def orbit_cross_K25(ap, Mp, Rp, Ms, atm_mass_fraction, impact_parameter, ecc, in
         #are kept alongside so the full impact geometry can be reconstructed later
         merge_record = {'id_target': id_target,'id_impactor': id_impactor,'M_target_before': M_target_before,
             'M_impactor_before': M_impactor_before,'M_merged_after': Mp[target_idx],'v_c': v_c,
-            'atm_mass_loss_frac': frac_lost, 'a_final_AU': ap[target_idx] / 1.5e11,
+            'atm_mass_loss_frac': frac_lost, 'a_final_AU': ap[target_idx] / au2m,
             'R_target_before': R_target_before, 'R_impactor': R_impactor,
             'a_before': a_target_before, 'e_after': ecc[target_idx],}
 

@@ -167,7 +167,7 @@ def _run_once(run_idx, config, collect=False):
     mergers = [] #specifically stores info about merge events, one row is one merge
     #stores timestep information about the system
     def snapshot(t, a, masses, ecc, Rp, live_status, planet_id, N, event=False):
-        history.append({'t': t, 'id': planet_id[:N].copy(), 'a': a[:N].copy()/1.5e11, 'masses': masses[:N].copy(),
+        history.append({'t': t, 'id': planet_id[:N].copy(), 'a': a[:N].copy() / au2m, 'masses': masses[:N].copy(),
             'ecc': ecc[:N].copy(),'Rp': Rp[:N].copy(),'live_status': live_status[:N].copy(),'event': event,})
 
     output_interval = max_time / 1000.0  #when not at an event, store information every 1000 step

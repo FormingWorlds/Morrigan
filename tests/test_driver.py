@@ -27,6 +27,9 @@ pytestmark = [pytest.mark.smoke, pytest.mark.timeout(60)]
 #a system that produces several mergers, a body hit more than once, and a body
 #left untouched, so the chain and empty-history assertions are all exercised
 _MASSES = [0.2, 0.9, 0.4, 1.1, 0.3, 0.7, 1.3, 0.5]
+# The bulk density every body is given, and the anchor the recorded radii and
+# densities are checked against.
+_DENSITY = 5500.0
 _SCHEMA = (
     'time', 'M_target_before', 'M_impactor', 'M_merged_after', 'v_impact',
     'v_esc', 'impact_parameter', 'R_target_before', 'R_impactor', 'rho_target',
@@ -42,7 +45,7 @@ def _run(seed=7, atm_mass_fraction=0.0, impact_angle=20.0):
         eccentricity=0.05,
         inner_edge=0.05 * au2m,
         spacing=10,
-        density=5500.0,
+        density=_DENSITY,
         impact_angle=impact_angle,
         evolution_time=1.0,
         inner_cutoff=0.005 * au2m,
@@ -88,11 +91,33 @@ def test_every_impact_record_is_physically_self_consistent():
 
         # Collision speed cannot fall below the mutual escape speed.
         assert r['v_impact'] >= r['v_esc'] * (1.0 - 1e-9)
-        # And that escape speed is the mutual one for this pair; a wrong mass
-        # or radius in the record would not reproduce it to this tolerance.
+        # And that escape speed is the mutual one for this pair. Rebuilding it
+        # from the record's own radii cannot catch a swap between them, since
+        # R_t + R_i is symmetric, so anchor the radii on the configured bulk
+        # density instead: each body's radius must follow from its own mass.
+        for mass, radius in ((M_t, r['R_target_before']), (M_i, r['R_impactor'])):
+            r_expected = (3.0 * mass / (4.0 * np.pi * _DENSITY)) ** (1.0 / 3.0)
+            assert radius == pytest.approx(r_expected, rel=1e-9)
         v_esc_expected = np.sqrt(2.0 * G * (M_t + M_i)
                                  / (r['R_target_before'] + r['R_impactor']))
         assert r['v_esc'] == pytest.approx(v_esc_expected, rel=1e-9)
+
+        # The model carries one bulk density, so both recorded densities must
+        # equal the configured value exactly. Building either from the other
+        # body's radius leaves them unequal by (M_i/M_t)**2, which feeds the
+        # erosion law's (rho_i/rho_t)**0.5 term straight into PROTEUS.
+        assert r['rho_target'] == pytest.approx(_DENSITY, rel=1e-9)
+        assert r['rho_impactor'] == pytest.approx(_DENSITY, rel=1e-9)
+
+        # The target is the body that survives, so it is the heavier of the
+        # pair, and the two identifiers name different bodies.
+        assert M_t >= M_i
+        assert r['id_target'] != r['id_impactor']
+
+        # The orbit moves: a merger rewrites the survivor's semi-major axis,
+        # so reporting a_before twice would leave the coupled planet's orbit
+        # frozen at every impact.
+        assert r['a_after'] != r['a_before']
 
         # Geometry and eccentricity stay in their physical ranges.
         assert 0.0 <= r['impact_parameter'] <= 1.0
@@ -168,10 +193,14 @@ def test_a_head_on_impact_reports_a_zero_impact_parameter():
     It is the sine of the impact angle, so a head-on run reports zero and a
     grazing run reports one; a run in between is strictly inside the open
     interval. This is the edge behaviour of the geometry the schema carries.
+    The 30 degree case is the discriminating one: 0 and 90 degrees are the
+    two fixed points of x -> x**2, so squaring the geometry passes both, and
+    only an intermediate angle with its value pinned resolves sin from sin**2.
     """
     head_on = _run(impact_angle=0.0)
     grazing = _run(impact_angle=90.0)
     oblique = _run(impact_angle=20.0)
+    half = _run(impact_angle=30.0)
 
     def _b_values(out):
         return [r['impact_parameter'] for chain in out['impacts'].values() for r in chain]
@@ -180,6 +209,12 @@ def test_a_head_on_impact_reports_a_zero_impact_parameter():
     assert all(b == pytest.approx(1.0, rel=1e-12) for b in _b_values(grazing))
     oblique_b = _b_values(oblique)
     assert oblique_b and all(0.0 < b < 1.0 for b in oblique_b)
+
+    # sin(30 deg) = 0.5 exactly; the squared variant gives 0.25, far outside
+    # the tolerance, and the cosine variant gives 0.866.
+    half_b = _b_values(half)
+    assert half_b and all(b == pytest.approx(0.5, rel=1e-12) for b in half_b)
+    assert abs(0.25 - half_b[0]) > 1e-3 and abs(0.8660254 - half_b[0]) > 1e-3
 
 
 @pytest.mark.physics_invariant
