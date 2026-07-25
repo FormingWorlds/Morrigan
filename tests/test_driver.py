@@ -37,8 +37,8 @@ _SCHEMA = (
 )
 
 
-def _run(seed=7, atm_mass_fraction=0.0, impact_angle=20.0):
-    """Evolve one reference system dry, unless an atmosphere is asked for."""
+def _run(seed=7, impact_angle=20.0):
+    """Evolve one reference system."""
     return morrigan.run_system(
         seed=seed,
         masses=[m * M_earth for m in _MASSES],
@@ -50,7 +50,6 @@ def _run(seed=7, atm_mass_fraction=0.0, impact_angle=20.0):
         evolution_time=1.0,
         inner_cutoff=0.005 * au2m,
         stellar_mass=1.0,
-        atm_mass_fraction=atm_mass_fraction,
     )
 
 
@@ -77,10 +76,14 @@ def test_every_impact_record_is_physically_self_consistent():
             assert np.isfinite(r[key]), f'{key} is not finite'
 
         M_t, M_i = r['M_target_before'], r['M_impactor']
-        # Perfect merger: the reported merged mass is the plain sum, exactly.
+        # Perfect merger: the merged mass the dynamics produced equals the
+        # plain sum of the two bodies. The record carries the model's own
+        # value rather than re-adding these two fields, so this is a real
+        # cross-check: any mass sink in the merger would break it.
         assert r['M_merged_after'] == pytest.approx(M_t + M_i, rel=1e-12)
-        # Discrimination: reporting the model's post-loss target mass instead
-        # would, even dry, differ by the whole impactor mass, ~30% here.
+        # Discrimination: the merged body is strictly heavier than the target
+        # alone, by the whole impactor, so reporting the target's own mass
+        # unchanged would fail.
         assert abs(r['M_merged_after'] - M_t) > 0.1 * r['M_merged_after']
 
         # Every extensive quantity is strictly positive.
@@ -139,9 +142,8 @@ def test_a_body_grows_monotonically_along_its_impact_chain():
 
     A survivor is the target of every impact it appears in, so its chain
     must advance in time and its target mass must pick up where the last
-    merger left off. Run dry, that handover is exact, which is the sharp
-    discriminator: it holds only because the merged mass is reported as the
-    plain sum, so a naive post-loss report would break the equality.
+    merger left off. The handover is exact, since nothing removes mass
+    between impacts: a body only ever grows by absorbing another.
     """
     out = _run()
     chains = [c for c in out['impacts'].values() if len(c) >= 2]
@@ -152,12 +154,24 @@ def test_a_body_grows_monotonically_along_its_impact_chain():
         assert times == sorted(times), 'impacts must be returned in time order'
         assert len(set(times)) == len(times), 'two impacts share a time'
         for earlier, later in zip(chain, chain[1:]):
-            # Dry: the next target mass equals the previous merged mass exactly.
+            # The next target mass equals the previous merged mass exactly.
             assert later['M_target_before'] == pytest.approx(
                 earlier['M_merged_after'], rel=1e-12
             )
             # The body is strictly heavier after absorbing an impactor.
             assert later['M_merged_after'] > earlier['M_merged_after']
+            # The orbit hands over the same way the mass does: the next
+            # impact starts from the orbit the last one left the body on.
+            # Without this, sourcing a_before from the destroyed body gives
+            # a positive, finite, entirely wrong orbit that nothing catches,
+            # and the consumer writes it into the coupled planet.
+            assert later['a_before'] == pytest.approx(earlier['a_after'], rel=1e-12)
+
+    # The first impact of a chain starts from the body's initial orbit.
+    initial_a = {s['id']: s['a_initial'] for s in out['survivors']}
+    for body_id, chain in out['impacts'].items():
+        if chain:
+            assert chain[0]['a_before'] == pytest.approx(initial_a[body_id], rel=1e-12)
 
 
 def test_impacts_are_keyed_only_by_survivors_and_each_is_present():
@@ -328,7 +342,7 @@ def test_the_file_writing_path_produces_the_documented_tables(tmp_path):
     system is run into a temporary directory and the outputs are held
     to their contract: every documented merger column present, each
     merger row closing its dry-run mass sum exactly with a positive
-    collision speed and a bounded loss fraction, survivor masses
+    collision speed, survivor masses
     positive, and the full-system table covering every recorded body.
     The error contract is the schema itself: a renamed or dropped
     column fails here before any consumer sees it.
@@ -345,7 +359,7 @@ def test_the_file_writing_path_produces_the_documented_tables(tmp_path):
         },
         'init_par': {
             'N': len(_MASSES), 'e': 0.05, 'impact_angle': 20.0,
-            'Mp': list(_MASSES), 'atm_mass_fraction': [0.0] * len(_MASSES),
+            'Mp': list(_MASSES),
             'Ms': 1.0, 'rho_p': 5500.0, 'inner_edge': 0.05, 'spacing': 10,
         },
     }
@@ -355,24 +369,19 @@ def test_the_file_writing_path_produces_the_documented_tables(tmp_path):
     mergers = astropy_ascii.read(tmp_path / 'data' / 'mergers' / 'mergers_00.csv',
                                  format='fixed_width')
     expected_cols = ['t', 'id_target', 'id_impactor', 'M_target_before',
-                     'M_impactor_before', 'M_merged_after', 'v_c',
-                     'atm_mass_loss_frac', 'a_final_AU']
+                     'M_impactor_before', 'M_merged_after', 'v_c', 'a_final_AU']
     assert list(mergers.colnames) == expected_cols
     assert len(mergers) >= 1
     for row in mergers:
-        # Run dry, the merged mass is the exact sum of the two bodies.
+        # A merger is perfect: the merged mass is the exact sum.
         assert row['M_merged_after'] == pytest.approx(
             row['M_target_before'] + row['M_impactor_before'], rel=1e-12
         )
-        # The loss fraction is the law's geometric value even when the run
-        # is dry (there is simply no mass for it to act on), so it is
-        # bounded, not zero.
-        assert 0.0 <= row['atm_mass_loss_frac'] <= 1.0
         assert row['v_c'] > 0.0 and row['t'] > 0.0
 
     survivors = astropy_ascii.read(tmp_path / 'data' / 'survivors' / 'survivors_00.csv',
                                    format='fixed_width')
-    assert list(survivors.colnames) == ['id', 'Mp', 'a_AU', 'ecc', 'atm_mass_fraction']
+    assert list(survivors.colnames) == ['id', 'Mp', 'a_AU', 'ecc']
     assert len(survivors) == summary['n_survivors']
     assert all(survivors['Mp'] > 0.0) and all(survivors['a_AU'] > 0.0)
 

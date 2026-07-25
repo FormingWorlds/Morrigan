@@ -26,10 +26,6 @@ The public entry point is `morrigan.run_system`; the modules below are the model
 
 ::: morrigan.merge_embryo
 
-## Impact atmosphere loss
-
-::: morrigan.mass_loss
-
 ## Helper functions
 
 ::: morrigan.helper_functions

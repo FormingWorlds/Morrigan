@@ -24,12 +24,17 @@ _RHO = 3000.0
 _STABLE = 1e20
 
 
-def _call(a_au, ecc, t, n=None):
-    """Call crossing_pair on a system given in au, with zero secular modes."""
+def _call(a_au, ecc, t, n=None, masses=None):
+    """Call crossing_pair on a system given in au, with zero secular modes.
+
+    ``masses`` is in Earth masses and defaults to an equal-mass system.
+    Pass unequal masses to resolve the eq. 6 denominator, which is
+    symmetric under any mass-index error when every body weighs the same.
+    """
     n = n if n is not None else len(a_au)
     ap = np.asarray(a_au, dtype=float) * au2m
-    mp = np.full(n, M_earth)
-    rp = np.full(n, planet_radius(M_earth, _RHO))
+    mp = np.full(n, M_earth) if masses is None else np.asarray(masses, dtype=float) * M_earth
+    rp = np.array([planet_radius(m, _RHO) for m in mp])
     ecc = np.asarray(ecc, dtype=float)
     ecc_vec = np.zeros((n, n))
     g = np.zeros(n)
@@ -121,3 +126,37 @@ def test_event_times_run_forward_for_a_packed_system():
     a_wide = [1.0, 1.3, 1.6, 1.9, 2.2]
     _, t_wide = _call(a_wide, [0.01] * 5, t=1e8)
     assert t_wide > 100.0 * t_event
+
+
+@pytest.mark.physics_invariant
+@pytest.mark.reference_pinned
+def test_unequal_masses_resolve_the_crossing_eccentricity_denominator():
+    """The scheduled event time carries the shared eq. 6 denominator.
+
+    Eq. 6 gives both bodies of a pair the same denominator,
+    sqrt(M_j) a_i + sqrt(M_i) a_j, pairing each mass with the OTHER
+    body's semi-major axis. Building each body's crossing eccentricity
+    on its own denominator instead is the transcription slip the form
+    invites, and it is invisible in an equal-mass system, where the two
+    expressions are algebraically identical. A 1, 4 and 0.5 Earth-mass
+    triplet at 1.00, 1.06 and 1.13 au resolves them.
+
+    The eccentricity matters here: eq. 23 takes the larger of the input
+    and crossing eccentricities, and at e = 0.02 the correctly built
+    crossing value wins while the swapped one is clamped away by the
+    input, so the two forms schedule measurably different events. The
+    pinned separation is 2.2e-4 relative, which is why the tolerance is
+    tight; at lower eccentricities the two forms coincide and the pin
+    would not discriminate at all.
+    """
+    icross, t_event = _call([1.0, 1.06, 1.13], [0.02, 0.02, 0.02], 0.0,
+                            masses=[1.0, 4.0, 0.5])
+
+    assert icross == 0
+    assert t_event == pytest.approx(2.5199888664e11, rel=1e-6)
+    # Discrimination: the per-body denominator schedules 2.5194397394e11 s,
+    # 2.2e-4 away, which is 200 times the tolerance above.
+    assert abs(2.5194397394e11 - t_event) > 100 * 1e-6 * t_event
+    # The event is scheduled, not deferred: the stable sentinel would pass
+    # the bounds above by accident.
+    assert t_event < _STABLE

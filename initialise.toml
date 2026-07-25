@@ -21,7 +21,6 @@ nproc = 8
 N = 10 #number of planets
 e = 0.01
 Mp = [0.1, 1.5, 0.9, 0.6, 0.75, 1.2, 1.4, 0.45, 0.5, 1.0] #planet mass (relative to Mearth)
-atm_mass_fraction = [0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01] #atmospheric mass fraction
 impact_angle = 45 #[deg]
 
 Ms = 1 #stellar mass (relative to Msun)

@@ -1,10 +1,10 @@
 """Tests for ``src/morrigan/merge_embryo.py``.
 
 ``merge_embryo`` is the merger bookkeeping: it must close the mass
-books (rock conserved, atmosphere split into retained and lost), place
+books (mass conserved exactly on the plain sum), place
 the merged body on the eq. 16 orbit of Kimura et al. (2025), bound the
 eq. 17 eccentricity, kill exactly the smaller body, and clamp the
-Kegerreis loss fraction into [0, 1]. ``collision_velocity`` must floor
+merged eccentricity inside its composition bounds. ``collision_velocity`` must floor
 at the mutual escape speed, the analytic zero-eccentricity limit of the
 sqrt(v_inf^2 + v_esc^2) contact-speed convention.
 """
@@ -23,15 +23,14 @@ pytestmark = [pytest.mark.unit, pytest.mark.timeout(30)]
 _RHO = 3000.0
 
 
-def _pair(m1=2.0, m2=1.0, a1=1.0, a2=1.2, e1=0.05, e2=0.08, f1=0.01, f2=0.02):
+def _pair(m1=2.0, m2=1.0, a1=1.0, a2=1.2, e1=0.05, e2=0.08):
     """Return the mutable arrays merge_embryo works on, in model units."""
     ap = np.array([a1, a2]) * au2m
     mp = np.array([m1, m2]) * M_earth
     rp = np.array([planet_radius(m, _RHO) for m in mp])
     ecc = np.array([e1, e2])
     live = np.array([True, True])
-    f_atm = np.array([f1, f2])
-    return ap, mp, rp, ecc, live, f_atm
+    return ap, mp, rp, ecc, live
 
 
 @pytest.mark.physics_invariant
@@ -49,7 +48,7 @@ def test_collision_velocity_floors_at_the_mutual_escape_speed():
     linear combination v_inf + v_esc (14317.5 m/s there). Speed grows
     monotonically with eccentricity.
     """
-    ap, mp, rp, _, _, _ = _pair()
+    ap, mp, rp, _, _ = _pair()
     v_esc = np.sqrt(2.0 * G * (mp[0] + mp[1]) / (rp[0] + rp[1]))
 
     v_circ = collision_velocity(list(ap), list(mp), list(rp), M_sun, [0.0, 0.0])
@@ -72,28 +71,26 @@ def test_collision_velocity_floors_at_the_mutual_escape_speed():
 @pytest.mark.physics_invariant
 @pytest.mark.reference_pinned
 def test_merger_closes_its_mass_and_orbit_books():
-    """A merger conserves rock, splits the atmosphere into retained plus
-    lost, and lands on the eq. 16 orbit.
+    """A merger conserves mass exactly and lands on the eq. 16 orbit.
 
     Seeded with 7 (the pericentre-alignment draw). The merged
     semi-major axis is the orbital-energy-weighted form of eq. 16 of
     Kimura et al. (2025): a = (M1 + M2) / (M1/a1 + M2/a2), by hand
     1.05882 au for 2 M_e at 1.0 au absorbing 1 M_e at 1.2 au. Both the
     arithmetic mean (1.1 au) and the mass-weighted mean (1.0667 au),
-    the two plausible wrong forms, sit far outside the pin. Rock
-    closure is exact: total mass minus atmosphere is unchanged by the
-    merger, and the surviving atmosphere fraction is stored over the
-    new total mass, guarding the mass-into-fraction-array slip.
+    the two plausible wrong forms, sit far outside the pin. The merger
+    is perfect, so the surviving body carries the plain sum of the two
+    masses and nothing is shed.
     """
-    ap, mp, rp, ecc, live, f_atm = _pair()
-    atm_before = float(mp[0] * f_atm[0] + mp[1] * f_atm[1])
-    rock_before = float(mp.sum() - atm_before)
+    ap, mp, rp, ecc, live = _pair()
+    # merge_embryo mutates these arrays in place, so capture the pre-merge
+    # masses before the call rather than reading them back afterwards.
+    mass_before = float(mp.sum())
+    target_before = float(mp[0])
 
     np.random.seed(7)
     v_c = collision_velocity(list(ap), list(mp), list(rp), M_sun, list(ecc))
-    ap_n, mp_n, ecc_n, live_n, f_n, frac_lost = merge_embryo(
-        ap, mp, rp, M_sun, ecc, v_c, live, 0.5, f_atm
-    )
+    ap_n, mp_n, ecc_n, live_n = merge_embryo(ap, mp, rp, M_sun, ecc, v_c, live, 0.5)
 
     a_expected = 3.0 * M_earth / (2.0 * M_earth / (1.0 * au2m) + 1.0 * M_earth / (1.2 * au2m))
     assert ap_n[0] == pytest.approx(a_expected, rel=1e-12)
@@ -101,19 +98,15 @@ def test_merger_closes_its_mass_and_orbit_books():
     assert abs(1.1 * au2m - a_expected) > 1e6
     assert abs((2.0 * 1.0 + 1.0 * 1.2) / 3.0 * au2m - a_expected) > 1e6
 
-    # Rock is conserved through the atmosphere loss, exactly.
-    rock_after = float(mp_n[0] * (1.0 - f_n[0]))
-    assert rock_after == pytest.approx(rock_before, rel=1e-12)
-    # Atmosphere books close: retained + lost = combined.
-    atm_after = float(mp_n[0] * f_n[0])
-    assert atm_after + frac_lost * atm_before == pytest.approx(atm_before, rel=1e-9)
-    assert 0.0 <= frac_lost <= 1.0
+    # Mass is conserved exactly: the survivor is the plain sum.
+    assert float(mp_n[0]) == pytest.approx(mass_before, rel=1e-12)
+    # Discrimination: the survivor gains the whole impactor, so the merged
+    # mass differs from the pre-merge target by a third of the total here.
+    # Reporting the target's own mass unchanged would fail this.
+    assert abs(float(mp_n[0]) - target_before) > 0.3 * mass_before
 
-    # The smaller body is dead with no atmosphere left on its slot.
+    # The smaller body is dead.
     assert list(live_n) == [True, False]
-    assert f_n[1] == pytest.approx(0.0, abs=0.0)
-    # The stored fraction refers to the new total mass, not the old one.
-    assert f_n[0] == pytest.approx(atm_after / mp_n[0], rel=1e-12)
 
 
 @pytest.mark.physics_invariant
@@ -128,54 +121,64 @@ def test_survivor_selection_is_by_mass_not_position():
     test that always puts the heavy body first.
     """
     np.random.seed(11)
-    ap, mp, rp, ecc, live, f_atm = _pair(m1=1.0, m2=2.0)
+    ap, mp, rp, ecc, live = _pair(m1=1.0, m2=2.0)
+    mass_before = float(mp.sum())
     v_c = collision_velocity(list(ap), list(mp), list(rp), M_sun, list(ecc))
-    _, _, _, live_n, f_n, _ = merge_embryo(ap, mp, rp, M_sun, ecc, v_c, live, 0.5, f_atm)
+    _, mp_n, _, live_n = merge_embryo(ap, mp, rp, M_sun, ecc, v_c, live, 0.5)
     assert list(live_n) == [False, True]
-    assert f_n[0] == pytest.approx(0.0, abs=0.0)
+    # The survivor, whichever slot it is in, carries the whole pair's mass.
+    assert float(mp_n[1]) == pytest.approx(mass_before, rel=1e-12)
 
     np.random.seed(11)
-    ap, mp, rp, ecc, live, f_atm = _pair(m1=1.0, m2=1.0)
+    ap, mp, rp, ecc, live = _pair(m1=1.0, m2=1.0)
     v_c = collision_velocity(list(ap), list(mp), list(rp), M_sun, list(ecc))
-    _, _, _, live_tie, _, _ = merge_embryo(ap, mp, rp, M_sun, ecc, v_c, live, 0.5, f_atm)
+    _, _, _, live_tie = merge_embryo(ap, mp, rp, M_sun, ecc, v_c, live, 0.5)
     assert list(live_tie) == [True, False]
 
 
 @pytest.mark.physics_invariant
-def test_extreme_impacts_clamp_the_loss_and_bound_the_eccentricity():
-    """A far-above-escape impact clamps the loss fraction at one, and
-    the merged eccentricity stays inside its vector-composition bounds.
+def test_the_merged_eccentricity_stays_within_its_composition_bounds():
+    """A far-above-escape impact still conserves mass, and the merged
+    eccentricity stays inside its vector-composition bounds.
 
-    The raw Kegerreis law exceeds one for a head-on equal-mass impact
-    at five times the contact floor, so the returned fraction must be
-    exactly one and the merged body left with zero atmosphere: the
-    call-site clamp contract. The eq. 17 eccentricity is a vector
-    composition, so across seeds it must stay within
-    [|M1 e1 - M2 e2|, M1 e1 + M2 e2] / (M1 + M2). The sweep uses a
-    close pair (1.0 and 1.05 au) whose pericentre-alignment cosine is
-    interior to (-1, 1), so the drawn alignment genuinely varies with
-    the seed; seeds 0-9 must therefore produce a non-degenerate spread
-    of merged eccentricities inside the bounds.
+    The eq. 17 eccentricity is a vector composition, so across seeds it
+    must stay within [|M1 e1 - M2 e2|, M1 e1 + M2 e2] / (M1 + M2). The
+    sweep uses a close pair (1.0 and 1.05 au) whose pericentre-alignment
+    cosine is interior to (-1, 1), so the drawn alignment genuinely
+    varies with the seed; seeds 0-9 must therefore produce a
+    non-degenerate spread of merged eccentricities inside the bounds. The
+    edge cases run on inputs the function actually reads: a pair of
+    circular orbits, where eq. 17 must compose exactly zero, and a
+    million-to-one mass ratio, where the merged orbit and eccentricity
+    must collapse onto the heavy body's own.
     """
-    ap, mp, rp, ecc, live, f_atm = _pair(m1=1.0, m2=1.0, e1=0.05, e2=0.05)
-    v_esc = np.sqrt(2.0 * G * (mp[0] + mp[1]) / (rp[0] + rp[1]))
+    # Circular pair: the vector composition of two zero eccentricities is
+    # exactly zero, whatever alignment is drawn.
+    ap, mp, rp, ecc, live = _pair(m1=1.0, m2=1.0, e1=0.0, e2=0.0)
+    mass_before = float(mp.sum())
     np.random.seed(0)
-    _, mp_n, _, _, f_n, frac_lost = merge_embryo(
-        ap, mp, rp, M_sun, ecc, 5.0 * v_esc, live, 0.0, f_atm
-    )
-    assert frac_lost == pytest.approx(1.0, rel=0.0, abs=0.0)
-    assert f_n[0] == pytest.approx(0.0, abs=1e-15)
-    # The lost atmosphere came off the merged mass.
-    assert mp_n[0] < 2.0 * M_earth
+    _, mp_n, ecc_n, _ = merge_embryo(ap, mp, rp, M_sun, ecc, 1.0e4, live, 0.5)
+    assert float(ecc_n[0]) == pytest.approx(0.0, abs=1e-15)
+    assert float(mp_n[0]) == pytest.approx(mass_before, rel=1e-12)
+
+    # Extreme mass ratio: the heavy body dominates both the eq. 16 orbit and
+    # the eq. 17 eccentricity, so the merged values sit on its own.
+    np.random.seed(1)
+    ap, mp, rp, ecc, live = _pair(m1=1.0e6, m2=1.0, a1=1.0, a2=1.4, e1=0.02, e2=0.30)
+    a_heavy, e_heavy = float(ap[0]), float(ecc[0])
+    ap_n, mp_n, ecc_n, _ = merge_embryo(ap, mp, rp, M_sun, ecc, 1.0e4, live, 0.5)
+    assert float(ap_n[0]) == pytest.approx(a_heavy, rel=1e-4)
+    assert float(ecc_n[0]) == pytest.approx(e_heavy, rel=1e-4)
+    assert float(mp_n[0]) == pytest.approx((1.0e6 + 1.0) * M_earth, rel=1e-12)
 
     lo = abs(2.0 * 0.05 - 1.0 * 0.08) / 3.0
     hi = (2.0 * 0.05 + 1.0 * 0.08) / 3.0
     merged_eccs = []
     for seed in range(10):
         np.random.seed(seed)
-        ap, mp, rp, ecc, live, f_atm = _pair(a2=1.05)
+        ap, mp, rp, ecc, live = _pair(a2=1.05)
         v_c = collision_velocity(list(ap), list(mp), list(rp), M_sun, list(ecc))
-        _, _, ecc_n, _, _, _ = merge_embryo(ap, mp, rp, M_sun, ecc, v_c, live, 0.5, f_atm)
+        _, _, ecc_n, _ = merge_embryo(ap, mp, rp, M_sun, ecc, v_c, live, 0.5)
         assert lo * (1.0 - 1e-9) <= ecc_n[0] <= hi * (1.0 + 1e-9)
         merged_eccs.append(float(ecc_n[0]))
     # The alignment draw genuinely varies: the sweep is not degenerate.

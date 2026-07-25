@@ -10,8 +10,7 @@ When reviewing Morrigan code (either your own or via code-reviewer agents), appl
 - Eccentricities must stay in `[0, 1)`. Flag any orbital update that can push `e` to or past unity without an explicit hyperbolic-orbit treatment (there is none in this model; such a state is a bug).
 - The impact parameter is `b = sin(beta)` and lives in `[0, 1]`.
 - The collision speed at contact is `sqrt(v_inf^2 + v_esc^2)` and therefore never below the mutual escape speed. Flag any speed computed another way.
-- Loss fractions are meaningful only on `[0, 1]`; every fitted power law that can exceed 1 must clamp at the call site or in the function.
-- Atmosphere mass fractions are dimensionless in `[0, 1]`. Flag any assignment of an absolute mass into a fraction array; the two have identical dtypes and numpy will not complain.
+- Merged masses are exact sums. Flag anything that reduces a body's mass in a merger; the model sheds nothing and the coupled framework validates that chain to machine precision.
 - The planet count is non-increasing over a run; a merger removes exactly one body.
 - Timeline records are strictly ordered in time, and successive records for one body chain their masses.
 
@@ -39,11 +38,11 @@ The Monte Carlo layer draws from numpy's global random state, seeded once at the
 - Any field rename, unit change, or convention change (contact speed, perfect-merger mass, bulk radii) is a breaking change for PROTEUS and must be called out in the PR description.
 - `v_esc` in the record is recomputed from the pair's masses and radii with the mutual formula; keep it consistent with the speed convention.
 - Densities in the record are recovered from mass and radius so each record is exactly self-consistent; flag any change that writes an independent density.
-- The internal atmosphere bookkeeping (fractions threaded through successive collisions) shapes the record's mass chain but is NOT exported; PROTEUS applies its own loss law to its own atmosphere. Keep the two responsibilities separate: this repo's `mass_loss.py` serves the internal population statistics, `zephyrus.collision.mass_loss` serves the coupled framework. At equal bulk densities the two are algebraically identical, which the cross-implementation test pins.
+- The model carries no atmosphere, so `M_merged_after` is always the plain sum of the two bodies and nothing is shed between impacts. Impact erosion belongs to the consumer: in a coupled run PROTEUS applies `zephyrus.collision.mass_loss` to its own atmosphere, from the geometry the record carries. A change that reintroduces atmosphere tracking here would break that separation and the exact mass chain PROTEUS validates against.
 
 ## Fitted-law fidelity
 
-Several formulas are fits transcribed from papers (Kimura et al. 2025 timescales; Kegerreis et al. 2020 loss law). For any transcription change:
+Several formulas are fits transcribed from Kimura et al. (2025). For any transcription change:
 
 - Verify the base of every exponential against the paper (`10**` vs `exp` is a historical bug class here).
 - Verify every ratio's denominator against the paper (`M_i / M_tot` vs `M_i / M_t` is a historical bug class here).

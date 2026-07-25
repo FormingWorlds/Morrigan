@@ -24,17 +24,16 @@ pytestmark = [pytest.mark.unit, pytest.mark.timeout(30)]
 _RHO = 3000.0
 
 
-def _pair(sep_au, ecc, a1_au=1.0, m_earths=1.0, f_atm=0.01):
+def _pair(sep_au, ecc, a1_au=1.0, m_earths=1.0):
     """Build the mutable state arrays for a two-planet crossing call."""
     ap = np.array([a1_au, a1_au + sep_au]) * au2m
     mp = np.array([m_earths, m_earths]) * M_earth
     rp = np.array([planet_radius(m, _RHO) for m in mp])
     e = np.array([ecc, ecc])
-    f = np.array([f_atm, f_atm])
     interact = np.array([True, True])
     live = np.array([True, True])
     pid = np.arange(2)
-    return ap, mp, rp, f, e, interact, live, pid
+    return ap, mp, rp, e, interact, live, pid
 
 
 @pytest.mark.physics_invariant
@@ -45,25 +44,24 @@ def test_merger_kills_one_body_and_closes_its_record():
     Seed 9 on a nearly touching equal-mass pair lands in the collision
     branch (the collision probability is close to one there). The
     record must carry the pre-merge masses it was given, a merged mass
-    equal to the sum minus the atmosphere actually lost, a loss
-    fraction inside [0, 1], and a contact speed at or above the mutual
-    escape speed of the recorded bodies, which discriminates any
+    equal to their plain sum, and a contact speed at or above the
+    mutual escape speed of the recorded bodies, which discriminates any
     mass / radius mix-up in the bookkeeping.
     """
     np.random.seed(9)
-    ap, mp, rp, f, e, interact, live, pid = _pair(0.005, 0.05)
-    rec = orbit_cross_K25(ap, mp, rp, M_sun, f, 0.5, e, interact, live, 2, pid, 0)
+    ap, mp, rp, e, interact, live, pid = _pair(0.005, 0.05)
+    rec = orbit_cross_K25(ap, mp, rp, M_sun, 0.5, e, interact, live, 2, pid, 0)
 
     assert rec is not None
     assert int(np.sum(live)) == 1  # a merger removes exactly one body
 
     assert rec['M_target_before'] == pytest.approx(M_earth, rel=1e-12)
     assert rec['M_impactor_before'] == pytest.approx(M_earth, rel=1e-12)
-    # Mass books: merged mass = sum - lost atmosphere, exactly.
-    atm_combined = 2.0 * M_earth * 0.01
-    expected = 2.0 * M_earth - rec['atm_mass_loss_frac'] * atm_combined
-    assert rec['M_merged_after'] == pytest.approx(expected, rel=1e-12)
-    assert 0.0 <= rec['atm_mass_loss_frac'] <= 1.0
+    # Mass books: a merger is perfect, so the merged mass is the plain sum.
+    assert rec['M_merged_after'] == pytest.approx(2.0 * M_earth, rel=1e-12)
+    # Discrimination: reporting either body's own mass, or their mean, would
+    # land a whole Earth mass away from the sum.
+    assert abs(rec['M_merged_after'] - M_earth) > 0.5 * M_earth
 
     # Contact speed floors at the mutual escape speed of the recorded pair.
     v_esc = np.sqrt(2.0 * G * 2.0 * M_earth / (rec['R_target_before'] + rec['R_impactor']))
@@ -90,10 +88,10 @@ def test_scattering_conserves_the_mass_weighted_orbit_sum():
     transcription, would break the conservation at the percent level.
     """
     np.random.seed(0)
-    ap, mp, rp, f, e, interact, live, pid = _pair(0.05, 0.05)
+    ap, mp, rp, e, interact, live, pid = _pair(0.05, 0.05)
     a_before = ap.copy()
     m_before = mp.copy()
-    rec = orbit_cross_K25(ap, mp, rp, M_sun, f, 0.5, e, interact, live, 2, pid, 0)
+    rec = orbit_cross_K25(ap, mp, rp, M_sun, 0.5, e, interact, live, 2, pid, 0)
 
     assert rec is None
     assert bool(np.all(live))
@@ -126,10 +124,10 @@ def test_ejection_removes_the_escaping_body_and_binds_the_survivor():
     only its own original orbit bounds it.
     """
     np.random.seed(0)
-    ap, mp, rp, f, e, interact, live, pid = _pair(0.3, 0.3, a1_au=30.0, m_earths=100.0, f_atm=0.0)
+    ap, mp, rp, e, interact, live, pid = _pair(0.3, 0.3, a1_au=30.0, m_earths=100.0)
     a_before = ap.copy()
     m_before = mp.copy()
-    rec = orbit_cross_K25(ap, mp, rp, M_sun, f, 0.5, e, interact, live, 2, pid, 0)
+    rec = orbit_cross_K25(ap, mp, rp, M_sun, 0.5, e, interact, live, 2, pid, 0)
 
     assert rec is None
     assert int(np.sum(live)) == 1  # exactly one body escapes
@@ -152,7 +150,7 @@ def test_ejection_removes_the_escaping_body_and_binds_the_survivor():
     rp2 = np.array([planet_radius(m, _RHO) for m in mp2])
     e2 = np.array([0.3, 0.3])
     live2 = np.array([True, True])
-    rec2 = orbit_cross_K25(ap2, mp2, rp2, M_sun, np.zeros(2), 0.5, e2,
+    rec2 = orbit_cross_K25(ap2, mp2, rp2, M_sun, 0.5, e2,
                            np.ones(2, dtype=bool), live2, 2, np.arange(2), 0)
     assert rec2 is None
     assert list(live2) == [False, True]  # the 1 Earth-mass body is ejected
@@ -179,12 +177,12 @@ def test_a_stable_wide_pair_is_left_untouched():
     (the follow-up draw matches a fresh seed-5 draw exactly).
     """
     np.random.seed(5)
-    ap, mp, rp, f, e, interact, live, pid = _pair(0.5, 0.001)
-    before = [ap.copy(), mp.copy(), e.copy(), live.copy(), f.copy()]
-    rec = orbit_cross_K25(ap, mp, rp, M_sun, f, 0.5, e, interact, live, 2, pid, 0)
+    ap, mp, rp, e, interact, live, pid = _pair(0.5, 0.001)
+    before = [ap.copy(), mp.copy(), e.copy(), live.copy()]
+    rec = orbit_cross_K25(ap, mp, rp, M_sun, 0.5, e, interact, live, 2, pid, 0)
 
     assert rec is None
-    for now, then in zip([ap, mp, e, live, f], before):
+    for now, then in zip([ap, mp, e, live], before):
         np.testing.assert_array_equal(now, then)
 
     # No random draw was consumed: the next draw equals a fresh one.

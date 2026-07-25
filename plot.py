@@ -97,11 +97,11 @@ def plot_orbits(directory):
             r = a * (1 - e**2) / (1 + e * np.cos(theta))
             x = r * np.cos(theta)
             y = r * np.sin(theta)
-            ax.plot(x, y, lw=3, color=c[f], label=f'e = {round(e,3)}, Mp = {mp}' + r' $M_\oplus$')
+            ax.plot(x, y, lw=3, color=c[f % len(c)], label=f'e = {round(e,3)}, Mp = {mp}' + r' $M_\oplus$')
 
             # mark planet position at periapsis (theta=0)
             r_peri = a * (1 - e)
-            ax.scatter(r_peri, 0, s=ms, color=c[f], edgecolor='k', zorder=6)
+            ax.scatter(r_peri, 0, s=ms, color=c[f % len(c)], edgecolor='k', zorder=6)
 
         ax.plot(0, 0, marker='*', color='gold', markersize=15, markeredgecolor='orange', zorder=5)
         ax.set_aspect('equal')

@@ -5,7 +5,6 @@ Every physics source file in Morrigan carries at least one test pinned against a
 | Source file | Anchor | Authority |
 | --- | --- | --- |
 | [helper_functions.py](helper_functions.md) | Kepler's third law, the Earth Hill radius, the Earth mean radius | Analytical limits and published values |
-| [mass_loss.py](mass_loss.md) | The erosion scaling's closed form; equal-density agreement with ZEPHYRUS | Kegerreis et al. (2020); cross-implementation |
 | [interaction_timescales.py](interaction_timescales.md) | Timescale closed forms; the analytic stability boundary | Kimura et al. (2025) eqs. 6-11, 23, 28 |
 | [crossing_pair.py](crossing_pair.md) | Perihelion-gap pair selection | Kimura et al. (2025) eq. 4 |
 | [secular_solution.py](secular_solution.md) | Epoch recovery of the eigen-decomposition | Laplace-Lagrange theory (Murray & Dermott 1999) |

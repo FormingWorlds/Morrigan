@@ -42,7 +42,6 @@ def _s0_config(seed):
         'init_par': {
             'N': _N_INI, 'e': 0.01, 'impact_angle': 45.0,
             'Mp': [_M_EACH / M_earth] * _N_INI,
-            'atm_mass_fraction': [0.0] * _N_INI,
             'Ms': 1.0, 'rho_p': _RHO, 'inner_edge': 0.1, 'spacing': 10.0,
         },
     }

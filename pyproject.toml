@@ -44,8 +44,6 @@ plot = [
 ]
 develop = [
   "coverage[toml]",
-  "fwl-zephyrus>=26.7.24",
-  "hypothesis",
   "pre-commit",
   "pytest",
   "pytest-cov",

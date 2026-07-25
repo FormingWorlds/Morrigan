@@ -81,7 +81,6 @@ PHYSICS_SOURCES = {
     'driver.py',
     'helper_functions.py',
     'interaction_timescales.py',
-    'mass_loss.py',
     'merge_embryo.py',
     'orbit_cross_K25.py',
     'secular_solution.py',

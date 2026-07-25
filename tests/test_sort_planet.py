@@ -20,9 +20,9 @@ pytestmark = [pytest.mark.unit, pytest.mark.timeout(30)]
 def _system(a, live):
     """Build a system whose per-planet values encode their identity.
 
-    Each planet's mass, radius, eccentricity, fraction, and density are
-    simple functions of its id, so after any filter-and-sort the
-    cross-array consistency can be checked per body.
+    Each planet's mass, radius, eccentricity, and density are simple
+    functions of its id, so after any filter-and-sort the cross-array
+    consistency can be checked per body.
     """
     n = len(a)
     pid = np.arange(n)
@@ -31,7 +31,6 @@ def _system(a, live):
         Mp=1.0e24 * (1.0 + pid.astype(float)),
         ecc=0.01 * (1.0 + pid.astype(float)),
         Rp=1.0e6 * (1.0 + pid.astype(float)),
-        atm_mass_fraction=0.001 * (1.0 + pid.astype(float)),
         live_status=np.asarray(live, dtype=bool),
         interact=np.ones(n, dtype=bool),
         densities=3000.0 + 100.0 * pid.astype(float),
@@ -45,11 +44,11 @@ def test_dead_bodies_are_dropped_and_survivors_sorted_together():
     Three of five bodies survive, listed out of semi-major-axis order,
     so the result must be length three, ascending in a, and each
     surviving id must still carry its own identity-encoded mass,
-    radius, eccentricity, fraction, and density: any array left out of
-    the shared permutation breaks at least one of these equalities.
+    radius, eccentricity, and density: any array left out of the
+    shared permutation breaks at least one of these equalities.
     """
     s = _system([3.0, 1.0, 5.0, 2.0, 4.0], [True, False, True, True, False])
-    ap, mp, ecc, rp, f, live, interact, rho, pid = sort_planet(**s)
+    ap, mp, ecc, rp, live, interact, rho, pid = sort_planet(**s)
 
     assert len(ap) == 3
     assert list(pid) == [3, 0, 2]  # ascending a: 2.0, 3.0, 5.0
@@ -60,14 +59,13 @@ def test_dead_bodies_are_dropped_and_survivors_sorted_together():
         assert mp[k] == pytest.approx(1.0e24 * (1.0 + planet), rel=1e-15)
         assert rp[k] == pytest.approx(1.0e6 * (1.0 + planet), rel=1e-15)
         assert ecc[k] == pytest.approx(0.01 * (1.0 + planet), rel=1e-15)
-        assert f[k] == pytest.approx(0.001 * (1.0 + planet), rel=1e-15)
         assert rho[k] == pytest.approx(3000.0 + 100.0 * planet, rel=1e-15)
 
 
 def test_edge_systems_survive_the_cleanup():
     """An all-dead system empties cleanly and a sorted one is unchanged.
 
-    The all-dead edge must return nine empty arrays rather than raise,
+    The all-dead edge must return eight empty arrays rather than raise,
     since the driver reaches this state when the last event kills the
     final interacting body. An already-sorted all-alive system must
     pass through as the identity, which guards against a spurious
@@ -78,7 +76,7 @@ def test_edge_systems_survive_the_cleanup():
     assert all(len(arr) == 0 for arr in out)
 
     s = _system([1.0, 2.0, 3.0], [True, True, True])
-    ap, mp, ecc, rp, f, live, interact, rho, pid = sort_planet(**s)
+    ap, mp, ecc, rp, live, interact, rho, pid = sort_planet(**s)
     assert list(pid) == [0, 1, 2]
     np.testing.assert_array_equal(ap, np.array([1.0, 2.0, 3.0]))
     np.testing.assert_array_equal(mp, 1.0e24 * np.array([1.0, 2.0, 3.0]))

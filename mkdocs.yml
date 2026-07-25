@@ -16,7 +16,6 @@ nav:
 
   - Explanations:
       - Model overview: Explanations/model.md
-      - Impact atmosphere loss: Explanations/mass_loss.md
       - Coupling to PROTEUS: Explanations/proteus_coupling.md
       - Limitations: Explanations/limitations.md
 
@@ -26,7 +25,6 @@ nav:
       - Validation anchors:
           - Overview: Validation/index.md
           - Helper functions: Validation/helper_functions.md
-          - Mass loss: Validation/mass_loss.md
           - Interaction timescales: Validation/interaction_timescales.md
           - Crossing pair: Validation/crossing_pair.md
           - Secular solution: Validation/secular_solution.md
