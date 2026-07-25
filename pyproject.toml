@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "fwl-morrigan"
 dynamic = ["version"]
-description = "Semi-analytical model for the dynamical evolution of planetary systems via giant impacts."
+description = "Accretion and dynamical evolution of a system of protoplanets via giant impacts."
 readme = "README.md"
 authors = [
     {name = "Anna Grace Ulses", email = "aulses@uw.edu"},

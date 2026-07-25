@@ -22,7 +22,7 @@
 
 ## Ecosystem Context
 
-Morrigan is the giant-impact accretion module of the PROTEUS ecosystem: a semi-analytical Monte Carlo model for the post-disk dynamical evolution of planetary systems, following Kimura et al. (2025). It evolves a system of planetary embryos through orbital crossings, gravitational scatterings, and giant impacts, and reports the impact history of a selected survivor. The main [PROTEUS](https://github.com/FormingWorlds/PROTEUS) coupled atmosphere-interior framework consumes that history through `morrigan.run_system` to drive its accretion coupling: each reported impact grows the PROTEUS planet, re-melts its mantle, delivers volatiles, strips atmosphere, and moves its orbit.
+Morrigan is the protoplanet accretion module of the PROTEUS ecosystem: a semi-analytical Monte Carlo model of how a system of protoplanets, the planetary embryos of the post-disk stage, accretes after the disk disperses, following Kimura et al. (2025). It evolves a system of planetary embryos through orbital crossings, gravitational scatterings, and giant impacts, and reports the impact history of a selected survivor. The main [PROTEUS](https://github.com/FormingWorlds/PROTEUS) coupled atmosphere-interior framework consumes that history through `morrigan.run_system` to drive its accretion coupling: each reported impact grows the PROTEUS planet, re-melts its mantle, delivers volatiles, strips atmosphere, and moves its orbit.
 
 Sister modules: AGNI (radiative transfer), SOCRATES (spectral radiative transfer), JANUS (1D atmosphere), MORS (stellar evolution), CALLIOPE (outgassing), ARAGOG / SPIDER (interior), VULCAN (chemistry), ZEPHYRUS / BOREAS (escape), Zalmoxis (structure), Obliqua (tides).
 
