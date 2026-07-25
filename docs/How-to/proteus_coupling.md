@@ -125,7 +125,7 @@ One fraction governs both bodies at each impact; the [explanation](../Explanatio
     module = "aragog"               # required: SPIDER has no re-melt path
 ```
 
-Eight embryos between 0.05 and 0.10 AU at this spacing go unstable within a few thousand years, so the whole impact history is over long before the interior has cooled. That is deliberate: it makes the coupling visible in a short run. It is not a model of Earth's accretion, which plays out over 10<sup>7</sup> to 10<sup>8</sup> yr at 1 AU. Note also that these embryos need not orbit where the PROTEUS planet orbits; only the *fractional* orbit change is transferred, so the dynamical environment and the simulated planet's distance are independent choices.
+Eight embryos between 0.05 and 0.11 AU at this spacing go unstable within a few thousand years, so the whole impact history is over long before the interior has cooled. That is deliberate: it makes the coupling visible in a short run. It is not a model of Earth's accretion, which plays out over 10<sup>7</sup> to 10<sup>8</sup> yr at 1 AU. Note also that these embryos need not orbit where the PROTEUS planet orbits; only the *fractional* orbit change is transferred, so the dynamical environment and the simulated planet's distance are independent choices.
 
 During start-up, the run reports the system it evolved and the schedule it kept:
 
@@ -139,7 +139,9 @@ During start-up, the run reports the system it evolved and the schedule it kept:
 
 Three of the eight embryos survive; `selector = "mass"` follows the heaviest, which grows from 1.3 to 2.5 M⊕ across two impacts, at about 912 yr (struck by body 5, adding 0.700 M⊕) and 1939 yr (struck by body 7, adding 0.500 M⊕).
 
-As each impact lands, the loop reports it over five lines: the time-stepper announcing the shortened step, the impact itself with its target, impactor and added mass, the volatile and loss modes in force, the erosion fraction the law returned, and the planet's resulting mass, orbital distance and eccentricity. The added mass, the time and the two body ids come straight from the schedule above; the erosion fraction and the resulting planet state depend on the atmosphere the planet happens to have at that moment, so they differ from run to run even for the same schedule.
+As each impact lands, the loop reports it in a block that opens with the time-stepper announcing the shortened step and the impact itself (its target, impactor and added mass), and closes with the planet's resulting mass, orbital distance and eccentricity. Between those, one indented line is written per consequence that actually applied: the volatile and loss modes in force, the erosion fraction the law returned, what was stripped and what was delivered, the re-melt heat booked into the energy budget, and the mantle reset. How many of those appear depends on the configuration, so expect more lines under `match_planet` and `zephyrus` than under `dry` and `none`.
+
+The added mass, the time and the two body ids come straight from the schedule above. The erosion fraction and the resulting planet state depend on the atmosphere the planet happens to have at that moment, so they differ from run to run even for the same schedule.
 
 ## Common pitfalls
 
