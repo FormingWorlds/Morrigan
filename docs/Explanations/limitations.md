@@ -8,7 +8,7 @@ Morrigan is a statistical model of the giant-impact phase, not an N-body integra
 - **Perfect merging.** Collisions always merge the pair. There is no fragmentation, no hit-and-run channel, and no debris, so a body only ever grows: the merged mass is the exact sum of the two, and mass leaves a system only when a body is ejected or falls into the star.
 - **Single impact angle.** One configured impact angle applies to every collision of a run; the model does not draw a distribution of impact geometries.
 - **Linear secular theory.** Eccentricities between events follow the Laplace-Lagrange solution, which is linear in eccentricity and excludes inclination; the model is two-dimensional, and radially overlapping neighbours are simply decoupled from the secular solution.
-- **No dissipation.** There is no gas drag, no tidal damping, and no dynamical friction from a planetesimal population; excitation is removed only by mergers, ejections, and the star-infall cutoff.
+- **No dissipation.** There is no gas drag, no tidal damping, and no dynamical friction from a planetesimal population; excitation is removed only by mergers, ejections[^cite-kimura2025b] (whether through an eccentricity driven past unity or a scattering that leaves an orbit hyperbolic), and the star-infall cutoff.
 
 ## Atmospheres
 
@@ -24,6 +24,8 @@ Morrigan is a statistical model of the giant-impact phase, not an N-body integra
 ## References
 
 [^cite-kimura2025]: Kimura, T., Hoshino, H., Kokubo, E., Matsumoto, Y. & Ikoma, M., *[Semi-analytical Model for the Dynamical Evolution of Planetary Systems via Giant Impacts](https://doi.org/10.3847/1538-4357/ade992)*, The Astrophysical Journal, 989, 109, 2025.
+
+[^cite-kimura2025b]: Kimura, T., Kokubo, E., Matsumoto, Y., Mordasini, C. & Ikoma, M., *[Semi-analytical model for the dynamical evolution of planetary system II: Application to systems formed by a planet formation model](https://arxiv.org/abs/2507.03906)*, arXiv:2507.03906, 2025.
 
 [^cite-petit2020]: Petit, A.C., Pichierri, G., Davies, M.B. & Johansen, A., *[The path to instability in compact multi-planetary systems](https://doi.org/10.1051/0004-6361/202038764)*, Astronomy & Astrophysics, 641, A176, 2020.
 

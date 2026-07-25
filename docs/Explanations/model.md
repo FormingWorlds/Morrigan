@@ -1,14 +1,22 @@
 # Model overview
 
-Morrigan implements the semi-analytical Monte Carlo model of Kimura et al. (2025)[^cite-kimura2025] for the giant-impact phase of terrestrial planet formation. Instead of integrating orbits directly, the model predicts *when* a system of embryos becomes unstable, resolves each instability into a collision, a scattering, or an ejection with analytic prescriptions calibrated against N-body simulations, and steps the system forward between events with the linear secular solution. Equation numbers below refer to that paper.
+Morrigan implements the semi-analytical Monte Carlo model of Kimura et al. (2025)[^cite-kimura2025] for the giant-impact phase of terrestrial planet formation. Instead of integrating orbits directly, the model predicts *when* a system of embryos becomes unstable, resolves each instability into a collision, a scattering, or an ejection with analytic prescriptions calibrated against N-body simulations, and steps the system forward between events with the linear secular solution. Equation numbers below refer to that paper, which does not treat ejection; the ejection branch follows the companion application paper[^cite-kimura2025b].
 
 ## System setup
 
 A system starts as $N$ embryos on nearly circular orbits, spaced by a fixed number of mutual Hill radii,
 
-$$ r_\mathrm{H} = \left( \frac{M_i + M_{i+1}}{3 M_\ast} \right)^{1/3} \frac{a_i + a_{i+1}}{2}, $$
+$$ r_\mathrm{H} = \left( \frac{M_i + M_{i+1}}{3 M_\ast} \right)^{1/3} a_i, $$
 
-from an inner edge outward. Each embryo carries a mass, a bulk density (setting its radius), and an eccentricity. Bodies are bare: the model tracks no atmosphere, so a mass is always a bulk mass and a radius always follows from it at the configured density. All state is SI internally; the settings file is read once in Earth masses, au, degrees, and Gyr.
+laid out from an inner edge outward, each orbit placed a fixed multiple of
+$r_\mathrm{H}$ beyond the one inside it. Note the radius is evaluated at the
+inner orbit of the pair rather than at the pair mean $(a_i + a_{i+1})/2$ that
+the standard mutual Hill radius uses. The two differ because the spacing is
+applied before the outer orbit exists, and the resulting system is slightly
+more compact than the configured number suggests: at a spacing of 10 the gaps
+measure 9.41 standard mutual Hill radii. Instability time depends steeply on
+spacing, so this offset matters when comparing an ensemble against published
+statistics quoted in the standard definition. Each embryo carries a mass, a bulk density (setting its radius), and an eccentricity. Bodies are bare: the model tracks no atmosphere, so a mass is always a bulk mass and a radius always follows from it at the configured density. All state is SI internally; the settings file is read once in Earth masses, au, degrees, and Gyr.
 
 ## Secular evolution between events
 
@@ -28,9 +36,9 @@ where $e_{ij}$ is the pair's relative eccentricity and $e_\mathrm{esc}$ the mutu
 
 - **Collision.** The eccentricities are re-drawn from a truncated Rayleigh distribution until the epicycles geometrically overlap, the contact speed is $v_c = \sqrt{v_\infty^2 + v_\mathrm{esc}^2}$, and the pair merges (see below).
 - **Scattering.** Both orbits are shifted apart by the excited epicycle amplitudes, weighted with the opposite body's mass fraction (eqs. 18-20), which conserves the mass-weighted sum of semi-major axes exactly.
-- **Ejection.** If scattering excites an eccentricity to or past unity, the more excited body escapes; the survivor is placed on the tighter orbit that conserves the pair's orbital energy, and the escaping body is removed.
+- **Ejection.** If scattering excites an eccentricity to or past unity, the more excited body escapes[^cite-kimura2025b]; the survivor is placed on the tighter orbit that conserves the pair's orbital energy, and the escaping body is removed.
 
-A body whose perihelion falls inside the inner cutoff is removed as having fallen into the star.
+A body whose perihelion falls inside the inner cutoff is removed as having fallen into the star. Scattering can also leave a body on a hyperbolic orbit, which removes it as unbound; in practice this is the channel that fires most often, ahead of both the eccentricity-driven ejection and the infall cutoff.
 
 ## Merging
 
@@ -49,6 +57,8 @@ All Monte Carlo draws go through numpy's global random state, seeded once per sy
 ## References
 
 [^cite-kimura2025]: Kimura, T., Hoshino, H., Kokubo, E., Matsumoto, Y. & Ikoma, M., *[Semi-analytical Model for the Dynamical Evolution of Planetary Systems via Giant Impacts](https://doi.org/10.3847/1538-4357/ade992)*, The Astrophysical Journal, 989, 109, 2025.
+
+[^cite-kimura2025b]: Kimura, T., Kokubo, E., Matsumoto, Y., Mordasini, C. & Ikoma, M., *[Semi-analytical model for the dynamical evolution of planetary system II: Application to systems formed by a planet formation model](https://arxiv.org/abs/2507.03906)*, arXiv:2507.03906, 2025.
 
 [^cite-petit2020]: Petit, A.C., Pichierri, G., Davies, M.B. & Johansen, A., *[The path to instability in compact multi-planetary systems](https://doi.org/10.1051/0004-6361/202038764)*, Astronomy & Astrophysics, 641, A176, 2020.
 

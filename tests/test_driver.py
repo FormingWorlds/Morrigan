@@ -160,6 +160,18 @@ def test_a_body_grows_monotonically_along_its_impact_chain():
             )
             # The body is strictly heavier after absorbing an impactor.
             assert later['M_merged_after'] > earlier['M_merged_after']
+            # The orbit hands over the same way the mass does: the next
+            # impact starts from the orbit the last one left the body on.
+            # Without this, sourcing a_before from the destroyed body gives
+            # a positive, finite, entirely wrong orbit that nothing catches,
+            # and the consumer writes it into the coupled planet.
+            assert later['a_before'] == pytest.approx(earlier['a_after'], rel=1e-12)
+
+    # The first impact of a chain starts from the body's initial orbit.
+    initial_a = {s['id']: s['a_initial'] for s in out['survivors']}
+    for body_id, chain in out['impacts'].items():
+        if chain:
+            assert chain[0]['a_before'] == pytest.approx(initial_a[body_id], rel=1e-12)
 
 
 def test_impacts_are_keyed_only_by_survivors_and_each_is_present():

@@ -166,7 +166,9 @@ def orbit_cross_K25(ap, Mp, Rp, Ms, impact_parameter, ecc, interact, live_status
             ap[icross] = ap[icross] - Mp[jcross] / (Mp[icross] + Mp[jcross]) * db #eq 19
             ap[jcross] = ap[jcross] + Mp[icross] / (Mp[icross] + Mp[jcross]) * db #eq 20
 
-    if ap[icross] < 0.0: #inner planet fell into star oops
+    #a negative semi-major axis is a hyperbolic orbit: the scattering unbound
+    #the inner body, so it leaves the system rather than falling inward
+    if ap[icross] < 0.0:
         live_status[icross] = False #it's now dead
 
     return merge_record
