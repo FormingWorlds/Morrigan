@@ -12,7 +12,7 @@ from morrigan.constants import G
 
 
 def collision_velocity(ap, Mp, Rp, Ms, ecc):
-    '''
+    """
     Velocity of collision between target and impactor during merge events
 
     Parameters:
@@ -31,18 +31,20 @@ def collision_velocity(ap, Mp, Rp, Ms, ecc):
     -------
     v_c : float
         Collision velocity between target and impactor during merging [m/s]
-    '''
+    """
     mu_a = sum(ap) / 2
     kep_vel = np.sqrt(G * Ms / mu_a)
-    rep_e = np.sqrt(ecc[0]**2 + ecc[1]**2)  # same as eij in orbit_cross_K25
+    rep_e = np.sqrt(ecc[0] ** 2 + ecc[1] ** 2)  # same as eij in orbit_cross_K25
     v_inf = rep_e * kep_vel
     v_esc = np.sqrt(2 * G * (Mp[0] + Mp[1]) / (Rp[0] + Rp[1]))
     v_c = np.sqrt(v_inf**2 + v_esc**2)
     return v_c
 
 
-def merge_embryo(ap, Mp, Rp, Ms, ecc, v_c, live_status, b): #calculate orbital parameters post collision
-    '''
+def merge_embryo(
+    ap, Mp, Rp, Ms, ecc, v_c, live_status, b
+):  # calculate orbital parameters post collision
+    """
     Function to compute mass, orbital separation, and eccentricity after a giant impact
 
     Parameters
@@ -73,36 +75,45 @@ def merge_embryo(ap, Mp, Rp, Ms, ecc, v_c, live_status, b): #calculate orbital p
     live_status : list
         Sets consumed planet's status to 'False'
 
-    '''
-    #Mp is a list containing interacting pair masses
-    Mp_new = sum(Mp) #eq 15
-    ap_new = Mp_new/(Mp[0]/ap[0] + Mp[1]/ap[1]) #eq 16
+    """
+    # Mp is a list containing interacting pair masses
+    Mp_new = sum(Mp)  # eq 15
+    ap_new = Mp_new / (Mp[0] / ap[0] + Mp[1] / ap[1])  # eq 16
 
-    if ap[1]*(1.0 - ecc[1]**2) < ap[0]*(1.0 - ecc[0]**2):
+    if ap[1] * (1.0 - ecc[1] ** 2) < ap[0] * (1.0 - ecc[0] ** 2):
         min_dvarpi = 0.0
     elif ecc[0] == 0.0 or ecc[1] == 0.0:
-        #a circular orbit has no pericentre direction, so no alignment is
-        #forbidden and the draw is unrestricted. Handled explicitly because the
-        #general expression divides by the product of the two eccentricities;
-        #it happens to recover the same answer through an infinity and the
-        #clamp below, but only by accident, and it warns on the way.
+        # a circular orbit has no pericentre direction, so no alignment is
+        # forbidden and the draw is unrestricted. Handled explicitly because the
+        # general expression divides by the product of the two eccentricities;
+        # it happens to recover the same answer through an infinity and the
+        # clamp below, but only by accident, and it warns on the way.
         min_dvarpi = 0.0
     else:
-        cosdvarpi = ((ecc[0]*ap[0])**2 + (ecc[1]*ap[1])**2 - (ap[1]-ap[0])**2) / (2.0 * ecc[0] * ecc[1] * ap[0] * ap[1])
+        cosdvarpi = ((ecc[0] * ap[0]) ** 2 + (ecc[1] * ap[1]) ** 2 - (ap[1] - ap[0]) ** 2) / (
+            2.0 * ecc[0] * ecc[1] * ap[0] * ap[1]
+        )
         cosdvarpi = max(-1.0, min(1.0, cosdvarpi))
         min_dvarpi = np.arccos(cosdvarpi)
 
     dvarpi = np.random.uniform(min_dvarpi, 2.0 * np.pi - min_dvarpi)
-    ecc_new = np.sqrt(((Mp[0]**2*ecc[0]**2) + (Mp[1]**2*ecc[1]**2) + 2*Mp[0]*Mp[1]*ecc[0]*ecc[1]*np.cos(dvarpi)) / Mp_new**2) #eq 17
+    ecc_new = np.sqrt(
+        (
+            (Mp[0] ** 2 * ecc[0] ** 2)
+            + (Mp[1] ** 2 * ecc[1] ** 2)
+            + 2 * Mp[0] * Mp[1] * ecc[0] * ecc[1] * np.cos(dvarpi)
+        )
+        / Mp_new**2
+    )  # eq 17
 
-    if Mp[0] >= Mp[1]: #larger planet consumes smaller one
-        alive, dead = 0,1
+    if Mp[0] >= Mp[1]:  # larger planet consumes smaller one
+        alive, dead = 0, 1
     else:
-        alive, dead = 1,0
+        alive, dead = 1, 0
 
-    live_status[dead] = False #kill consumed planet
+    live_status[dead] = False  # kill consumed planet
     ap[alive] = ap_new
     Mp[alive] = Mp_new
     ecc[alive] = ecc_new
 
-    return ap,Mp,ecc,live_status
+    return ap, Mp, ecc, live_status

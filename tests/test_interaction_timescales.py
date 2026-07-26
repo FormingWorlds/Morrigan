@@ -157,15 +157,15 @@ def test_tau_cross_petit_orders_by_separation_and_guards_overlap():
 
     # Guard: already-crossing orbits are instantaneously unstable.
     a_overlap = [1.0 * au2m, 1.02 * au2m, 1.04 * au2m]
-    assert tau_cross_petit(
-        a_overlap, [M_earth] * 3, M_sun, [0.3] * 3, 3
-    ) == pytest.approx(0.0, abs=0.0)
+    assert tau_cross_petit(a_overlap, [M_earth] * 3, M_sun, [0.3] * 3, 3) == pytest.approx(
+        0.0, abs=0.0
+    )
 
     # Guard: a wide triplet is stable indefinitely.
     a_wide = [0.5 * au2m, 1.0 * au2m, 2.0 * au2m]
-    assert tau_cross_petit(
-        a_wide, [M_earth] * 3, M_sun, [0.01] * 3, 3
-    ) == pytest.approx(_STABLE)
+    assert tau_cross_petit(a_wide, [M_earth] * 3, M_sun, [0.01] * 3, 3) == pytest.approx(
+        _STABLE
+    )
 
 
 @pytest.mark.physics_invariant
@@ -195,8 +195,11 @@ def test_interaction_wrapper_pins_the_analytic_stability_boundary():
         # with a third body 100 Hill radii out, too remote to matter
         da = x * h * a1 / (1.0 - x * h / 2.0)
         return interaction_wrapper(
-            [a1, a1 + da, a1 + da + 100.0 * h * a1], [M_earth] * 3, M_sun,
-            [ecc, ecc, 0.0], 2,
+            [a1, a1 + da, a1 + da + 100.0 * h * a1],
+            [M_earth] * 3,
+            M_sun,
+            [ecc, ecc, 0.0],
+            2,
         )
 
     inside = gate(4.95)

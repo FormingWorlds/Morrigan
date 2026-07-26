@@ -7,8 +7,10 @@
 import numpy as np
 
 
-def sort_planet(ap, Mp, ecc, Rp, live_status, interact, densities, planet_id): #clean up system after event
-    '''
+def sort_planet(
+    ap, Mp, ecc, Rp, live_status, interact, densities, planet_id
+):  # clean up system after event
+    """
     Removes dead planets and sorts system by increasing semi-major axis
 
     Parameters
@@ -34,8 +36,8 @@ def sort_planet(ap, Mp, ecc, Rp, live_status, interact, densities, planet_id): #
     -------
     Sorted arrays for ap, Mp, ecc, Rp, live_status, interact, densities, and planet_id
 
-    '''
-    #remove ejected or dead ones
+    """
+    # remove ejected or dead ones
     live_planets = live_status
     ap = ap[live_planets]
     Mp = Mp[live_planets]
@@ -47,7 +49,7 @@ def sort_planet(ap, Mp, ecc, Rp, live_status, interact, densities, planet_id): #
     interact = interact[live_planets]
     live_status = live_status[live_planets]
 
-    #sort by new semi-major axes
+    # sort by new semi-major axes
     sort_order = np.argsort(ap)
     ap = ap[sort_order]
     Mp = Mp[sort_order]

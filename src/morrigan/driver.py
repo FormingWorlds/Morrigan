@@ -16,7 +16,7 @@ import toml
 from astropy.io import ascii
 from astropy.table import Table
 
-#import functions and constants
+# import functions and constants
 from morrigan.constants import G, M_earth, M_sun, au2m, gyr2sec
 from morrigan.crossing_pair import crossing_pair
 from morrigan.helper_functions import planet_radius
@@ -24,7 +24,7 @@ from morrigan.orbit_cross_K25 import orbit_cross_K25
 from morrigan.secular_solution import secular_solution
 from morrigan.sort_planet import sort_planet
 
-#name of the settings file read when none is given on the command line
+# name of the settings file read when none is given on the command line
 DEFAULT_CONFIG = 'initialise.toml'
 
 
@@ -60,42 +60,45 @@ def read_config(config_path=DEFAULT_CONFIG):
 
 ####ALLOCATE PARAMETERS FOR THE SYSTEM###
 
-#default spacing between adjacent embryos, in mutual Hill radii (K25)
+# default spacing between adjacent embryos, in mutual Hill radii (K25)
 DEFAULT_SPACING = 10
 
-def allocate_a(N,Ms,masses,inner_edge,spacing=DEFAULT_SPACING):
+
+def allocate_a(N, Ms, masses, inner_edge, spacing=DEFAULT_SPACING):
     a = np.empty(N)
-    a[0] = inner_edge #AU
-    for i in range(1,N): #allocate initial semi-major axes
-        a_previous = a[i-1] #starting semi-major axis
-        #The mutual Hill radius is evaluated at the mean of the pair's orbits,
-        #which is the standard definition, so the outer orbit appears on both
-        #sides of a_i - a_{i-1} = spacing * C * (a_i + a_{i-1}) / 2. Solving for
-        #a_i gives the ratio below. Evaluating the radius at the inner orbit
-        #instead, which avoids the algebra, lays the system out about six per
-        #cent tighter than the configured number: at a spacing of ten the gaps
-        #come out at 9.41 mutual Hill radii, and instability time depends
-        #steeply on spacing.
-        C = ((masses[i-1] + masses[i]) / (3.0 * Ms))**(1.0/3.0)
-        #The pair-mean condition has a pole at spacing*C = 2, where the
-        #requested gap equals the whole span it is measured across. Past it
-        #the ratio turns negative and the layout silently folds inward, which
-        #flows on as the square root of a negative semi-major axis in the
-        #period and Hill radius. Refuse it here instead, naming the pair.
+    a[0] = inner_edge  # AU
+    for i in range(1, N):  # allocate initial semi-major axes
+        a_previous = a[i - 1]  # starting semi-major axis
+        # The mutual Hill radius is evaluated at the mean of the pair's orbits,
+        # which is the standard definition, so the outer orbit appears on both
+        # sides of a_i - a_{i-1} = spacing * C * (a_i + a_{i-1}) / 2. Solving for
+        # a_i gives the ratio below. Evaluating the radius at the inner orbit
+        # instead, which avoids the algebra, lays the system out about six per
+        # cent tighter than the configured number: at a spacing of ten the gaps
+        # come out at 9.41 mutual Hill radii, and instability time depends
+        # steeply on spacing.
+        C = ((masses[i - 1] + masses[i]) / (3.0 * Ms)) ** (1.0 / 3.0)
+        # The pair-mean condition has a pole at spacing*C = 2, where the
+        # requested gap equals the whole span it is measured across. Past it
+        # the ratio turns negative and the layout silently folds inward, which
+        # flows on as the square root of a negative semi-major axis in the
+        # period and Hill radius. Refuse it here instead, naming the pair.
         if spacing * C >= 2.0:
             raise ValueError(
-                f'spacing {spacing} is too wide for embryos {i-1} and {i}: '
-                f'spacing * ((M1+M2)/3Ms)^(1/3) = {spacing*C:.3f}, which must '
+                f'spacing {spacing} is too wide for embryos {i - 1} and {i}: '
+                f'spacing * ((M1+M2)/3Ms)^(1/3) = {spacing * C:.3f}, which must '
                 'stay below 2. Reduce the spacing or the embryo masses.'
             )
-        a[i] = a_previous * (1.0 + spacing*C/2.0) / (1.0 - spacing*C/2.0)
-    return a*au2m #convert to [m] to stay in SI!
+        a[i] = a_previous * (1.0 + spacing * C / 2.0) / (1.0 - spacing * C / 2.0)
+    return a * au2m  # convert to [m] to stay in SI!
 
-#timestep when not at or during an event
+
+# timestep when not at or during an event
 def time_step(t, t_event):
-    dt = 0.1*(t+1.0e2*365*24*60*60) #timestep in seconds
-    dt = min(dt,abs(t_event - t) + 1.0)
+    dt = 0.1 * (t + 1.0e2 * 365 * 24 * 60 * 60)  # timestep in seconds
+    dt = min(dt, abs(t_event - t) + 1.0)
     return dt
+
 
 def system_seed(base_seed, run_idx):
     """Return the seed for one system of a batch.
@@ -142,7 +145,16 @@ def _write_table(table, path):
 
 
 def data_to_table(history):
-    t_col, id_col, a_col, m_col, e_col, rp_col, alive_col, event_col = [], [], [], [], [], [], [], []
+    t_col, id_col, a_col, m_col, e_col, rp_col, alive_col, event_col = (
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+    )
     for h in history:
         n = len(h['id'])
         t_col.extend([h['t']] * n)
@@ -151,20 +163,24 @@ def data_to_table(history):
         m_col.extend(h['masses'])
         e_col.extend(h['ecc'])
         rp_col.extend(h['Rp'])
-        #Write the live flag as 0 or 1 rather than a bool. Written as a bool it
-        #round trips out of the fixed-width file as the text 'True' or 'False',
-        #and both strings are non-empty, so filtering the column by truthiness
-        #silently keeps the destroyed planets alongside the survivors. An
-        #integer round trips as an integer and behaves the way a reader expects.
+        # Write the live flag as 0 or 1 rather than a bool. Written as a bool it
+        # round trips out of the fixed-width file as the text 'True' or 'False',
+        # and both strings are non-empty, so filtering the column by truthiness
+        # silently keeps the destroyed planets alongside the survivors. An
+        # integer round trips as an integer and behaves the way a reader expects.
         alive_col.extend(int(alive) for alive in h['live_status'])
         event_col.extend([h['event']] * n)
-    return Table([t_col, id_col, a_col, m_col, e_col, rp_col, alive_col, event_col],names=['t', 'id', 'a_AU', 'Mp', 'ecc', 'Rp', 'live_status', 'event'])
+    return Table(
+        [t_col, id_col, a_col, m_col, e_col, rp_col, alive_col, event_col],
+        names=['t', 'id', 'a_AU', 'Mp', 'ecc', 'Rp', 'live_status', 'event'],
+    )
+
 
 def run_once(run_idx, config, collect=False):
 
-    #seeding numpy sets the state for the whole process, which would reach into
-    #a program that imported this model and make its own draws follow from our
-    #seed, so put back whatever state we found once the system has run
+    # seeding numpy sets the state for the whole process, which would reach into
+    # a program that imported this model and make its own draws follow from our
+    # seed, so put back whatever state we found once the system has run
     entry_random_state = np.random.get_state()
     try:
         return _run_once(run_idx, config, collect=collect)
@@ -173,19 +189,19 @@ def run_once(run_idx, config, collect=False):
 
 
 def _run_once(run_idx, config, collect=False):
-    #collect=True runs a single system for an in-process caller: it writes no
-    #files and returns the system's arrays and merger records in memory, rather
-    #than the run-summary dict the file-writing path returns
+    # collect=True runs a single system for an in-process caller: it writes no
+    # files and returns the system's arrays and merger records in memory, rather
+    # than the run-summary dict the file-writing path returns
 
-    #import settings from .toml file
+    # import settings from .toml file
     base_seed = config['run_simulation'].get('random_seed', 0)
-    #Derive this system's seed by mixing the settings-file seed with the run
-    #index rather than adding them. Adding makes neighbouring ensembles overlap:
-    #run k of seed s draws the same stream as run k-1 of seed s+1, so two
-    #ensembles one apart share all but one of their systems, and any scatter
-    #measured across seeds comes out far too small. Mixing decorrelates the
-    #streams while keeping each system exactly reproducible from its settings
-    #file, which is the property that matters for rerunning a result.
+    # Derive this system's seed by mixing the settings-file seed with the run
+    # index rather than adding them. Adding makes neighbouring ensembles overlap:
+    # run k of seed s draws the same stream as run k-1 of seed s+1, so two
+    # ensembles one apart share all but one of their systems, and any scatter
+    # measured across seeds comes out far too small. Mixing decorrelates the
+    # streams while keeping each system exactly reproducible from its settings
+    # file, which is the property that matters for rerunning a result.
     np.random.seed(system_seed(base_seed, run_idx))
 
     t = config['run_simulation']['t']
@@ -193,25 +209,31 @@ def _run_once(run_idx, config, collect=False):
     t_event = config['run_simulation']['t_event']
     flag_event = config['run_simulation']['flag_event']
 
-    a_min = config['run_simulation']['a_min'] * au2m #defines when a planet has fallen into the star
-    max_time = config['run_simulation']['max_time'] * gyr2sec #evolution time gyr converted to seconds
+    a_min = (
+        config['run_simulation']['a_min'] * au2m
+    )  # defines when a planet has fallen into the star
+    max_time = (
+        config['run_simulation']['max_time'] * gyr2sec
+    )  # evolution time gyr converted to seconds
     save_directory = config['run_simulation']['save_directory']
     if not collect:
-        os.makedirs(save_directory, exist_ok=True) #creates directory if it doesnt already exist
-        #sub-directories for data tables and figures respectively
-        os.makedirs(save_directory+'/data', exist_ok = True)
-        os.makedirs(save_directory+'/data/mergers', exist_ok = True)
-        os.makedirs(save_directory+'/data/full_systems', exist_ok = True)
-        os.makedirs(save_directory+'/data/survivors', exist_ok = True)
-        os.makedirs(save_directory+'/figures', exist_ok = True)
-        os.makedirs(save_directory + '/figures/tracks', exist_ok = True)
-        os.makedirs(save_directory + '/figures/stats', exist_ok = True)
-        os.makedirs(save_directory + '/figures/orbits', exist_ok = True)
+        os.makedirs(
+            save_directory, exist_ok=True
+        )  # creates directory if it doesnt already exist
+        # sub-directories for data tables and figures respectively
+        os.makedirs(save_directory + '/data', exist_ok=True)
+        os.makedirs(save_directory + '/data/mergers', exist_ok=True)
+        os.makedirs(save_directory + '/data/full_systems', exist_ok=True)
+        os.makedirs(save_directory + '/data/survivors', exist_ok=True)
+        os.makedirs(save_directory + '/figures', exist_ok=True)
+        os.makedirs(save_directory + '/figures/tracks', exist_ok=True)
+        os.makedirs(save_directory + '/figures/stats', exist_ok=True)
+        os.makedirs(save_directory + '/figures/orbits', exist_ok=True)
 
-    N = config['init_par']['N'] #number of planets
-    e = config['init_par']['e'] #initial eccentricity
+    N = config['init_par']['N']  # number of planets
+    e = config['init_par']['e']  # initial eccentricity
     impact_angle = config['init_par']['impact_angle']
-    impact_parameter = np.sin(np.deg2rad(impact_angle)) #impact parameter =  sin(impact_angle)
+    impact_parameter = np.sin(np.deg2rad(impact_angle))  # impact parameter =  sin(impact_angle)
     masses = np.array(config['init_par']['Mp']) * M_earth
 
     if N != len(masses):
@@ -219,10 +241,10 @@ def _run_once(run_idx, config, collect=False):
         print('Masses allocated = ', len(masses))
         raise ValueError('Initial masses and number of planets in system are mismatched!')
 
-    #a settings file written for an older version may still carry an atmosphere
-    #fraction per embryo. The model no longer tracks an atmosphere, so the key is
-    #ignored; say so once rather than running silently with different physics
-    #than the file asks for.
+    # a settings file written for an older version may still carry an atmosphere
+    # fraction per embryo. The model no longer tracks an atmosphere, so the key is
+    # ignored; say so once rather than running silently with different physics
+    # than the file asks for.
     if 'atm_mass_fraction' in config['init_par']:
         warnings.warn(
             'atm_mass_fraction is present in init_par but is ignored: this model no '
@@ -232,32 +254,53 @@ def _run_once(run_idx, config, collect=False):
             stacklevel=2,
         )
 
-    Ms = config['init_par']['Ms'] * M_sun #stellar mass (relative to Msun)
-    rho_p = config['init_par']['rho_p'] #planet density kg/m^3
-    inner_edge = config['init_par']['inner_edge'] #orbit of the innermost planet (AU)
-    spacing = config['init_par'].get('spacing', DEFAULT_SPACING) #embryo spacing in mutual Hill radii, defaults to 10
+    Ms = config['init_par']['Ms'] * M_sun  # stellar mass (relative to Msun)
+    rho_p = config['init_par']['rho_p']  # planet density kg/m^3
+    inner_edge = config['init_par']['inner_edge']  # orbit of the innermost planet (AU)
+    spacing = config['init_par'].get(
+        'spacing', DEFAULT_SPACING
+    )  # embryo spacing in mutual Hill radii, defaults to 10
 
-    #actually initialising system here with arrays for every parameter
-    a = allocate_a(N,Ms,masses,inner_edge,spacing)
-    ecc = np.full(N,e)
+    # actually initialising system here with arrays for every parameter
+    a = allocate_a(N, Ms, masses, inner_edge, spacing)
+    ecc = np.full(N, e)
     densities = np.full(N, rho_p)
-    live_status = np.ones(N, dtype = bool) #set initial status of planets, all are live by definition at the start
-    interact = np.ones(N, dtype = bool) #stores the indices of which planets are participating in an event
-    Rp = np.array([planet_radius(i, j) for i,j in zip(masses,densities)])
-    planet_id = np.arange(N) #persistent id for a particular planet to track its evolution and what events it participates in
+    live_status = np.ones(
+        N, dtype=bool
+    )  # set initial status of planets, all are live by definition at the start
+    interact = np.ones(
+        N, dtype=bool
+    )  # stores the indices of which planets are participating in an event
+    Rp = np.array([planet_radius(i, j) for i, j in zip(masses, densities)])
+    planet_id = np.arange(
+        N
+    )  # persistent id for a particular planet to track its evolution and what events it participates in
 
-    #state of each body at the start of the run, keyed by its persistent id, so a
-    #surviving body's initial mass and orbit can be reported next to its final ones
+    # state of each body at the start of the run, keyed by its persistent id, so a
+    # surviving body's initial mass and orbit can be reported next to its final ones
     initial_state = {int(planet_id[i]): (float(masses[i]), float(a[i])) for i in range(N)}
 
     history = []
-    mergers = [] #specifically stores info about merge events, one row is one merge
-    #stores timestep information about the system
-    def snapshot(t, a, masses, ecc, Rp, live_status, planet_id, N, event=False):
-        history.append({'t': t, 'id': planet_id[:N].copy(), 'a': a[:N].copy() / au2m, 'masses': masses[:N].copy(),
-            'ecc': ecc[:N].copy(),'Rp': Rp[:N].copy(),'live_status': live_status[:N].copy(),'event': event,})
+    mergers = []  # specifically stores info about merge events, one row is one merge
 
-    output_interval = max_time / 1000.0  #when not at an event, store information every 1000 step
+    # stores timestep information about the system
+    def snapshot(t, a, masses, ecc, Rp, live_status, planet_id, N, event=False):
+        history.append(
+            {
+                't': t,
+                'id': planet_id[:N].copy(),
+                'a': a[:N].copy() / au2m,
+                'masses': masses[:N].copy(),
+                'ecc': ecc[:N].copy(),
+                'Rp': Rp[:N].copy(),
+                'live_status': live_status[:N].copy(),
+                'event': event,
+            }
+        )
+
+    output_interval = (
+        max_time / 1000.0
+    )  # when not at an event, store information every 1000 step
     next_output = 0.0
 
     # initial snapshot at t=0
@@ -265,43 +308,65 @@ def _run_once(run_idx, config, collect=False):
     next_output += output_interval
 
     start = time.time()
-    #run simulation
+    # run simulation
     while t <= max_time and N > 1:
-        if flag_event == 1: #only recompute secular solution and crossing pair when something has changed
-            a, masses, ecc, Rp, live_status, interact, densities, planet_id = sort_planet(a, masses, ecc, Rp, live_status, interact, densities, planet_id)
-            N = len(a) #number of planets changes after an event!
+        if (
+            flag_event == 1
+        ):  # only recompute secular solution and crossing pair when something has changed
+            a, masses, ecc, Rp, live_status, interact, densities, planet_id = sort_planet(
+                a, masses, ecc, Rp, live_status, interact, densities, planet_id
+            )
+            N = len(a)  # number of planets changes after an event!
             if N <= 1:
                 break
             ecc_vec, g, beta = secular_solution(a, masses, ecc, Rp, Ms, N)
-            t_ref = t #time for crossing_pair
-            #identify indices of planetary pair that cross, and time of crossing (event)
-            icross, t_event = crossing_pair(a, masses, Rp, Ms, ecc, ecc_vec, g, beta, interact, N, t, t_ref)
-            flag_event = 0 #event done, do not recalculate secular/crossing otherwise
+            t_ref = t  # time for crossing_pair
+            # identify indices of planetary pair that cross, and time of crossing (event)
+            icross, t_event = crossing_pair(
+                a, masses, Rp, Ms, ecc, ecc_vec, g, beta, interact, N, t, t_ref
+            )
+            flag_event = 0  # event done, do not recalculate secular/crossing otherwise
 
         dt = time_step(t, t_event)
-        t += dt #adjust time to account for event duration
+        t += dt  # adjust time to account for event duration
 
-        #propagate secular (long-term) eccentricities
+        # propagate secular (long-term) eccentricities
         h_t = np.zeros(N)
         k_t = np.zeros(N)
         for i in range(N):
-            h_t[i] = np.sum(ecc_vec[i, :] * np.sin(g * (t - t_ref) + beta)) # eq A10
+            h_t[i] = np.sum(ecc_vec[i, :] * np.sin(g * (t - t_ref) + beta))  # eq A10
             k_t[i] = np.sum(ecc_vec[i, :] * np.cos(g * (t - t_ref) + beta))
-        ecc = np.sqrt(h_t**2 + k_t**2) # eq 3 finally!
+        ecc = np.sqrt(h_t**2 + k_t**2)  # eq 3 finally!
 
-        #check for next crossings/close encounters
+        # check for next crossings/close encounters
         if t >= t_event:
             flag_event = 1
-            merge_record = orbit_cross_K25(a, masses, Rp, Ms, impact_parameter, ecc, interact, live_status, N, planet_id, icross)
-            if merge_record is not None: #None for scattering/ejection events, ONLY for mergers
+            merge_record = orbit_cross_K25(
+                a,
+                masses,
+                Rp,
+                Ms,
+                impact_parameter,
+                ecc,
+                interact,
+                live_status,
+                N,
+                planet_id,
+                icross,
+            )
+            if (
+                merge_record is not None
+            ):  # None for scattering/ejection events, ONLY for mergers
                 merge_record['t'] = t
                 mergers.append(merge_record)
-            snapshot(t, a, masses, ecc, Rp, live_status, planet_id, N, event=True) #capture state of system right after event
+            snapshot(
+                t, a, masses, ecc, Rp, live_status, planet_id, N, event=True
+            )  # capture state of system right after event
 
-        #update planet radius
+        # update planet radius
         Rp = np.array([planet_radius(masses[i], densities[i]) for i in range(N)])
 
-        #remove planets too close to the star
+        # remove planets too close to the star
         for i in range(N):
             if (1.0 - ecc[i]) * a[i] < a_min:
                 live_status[i] = False
@@ -311,42 +376,85 @@ def _run_once(run_idx, config, collect=False):
             snapshot(t, a, masses, ecc, Rp, live_status, planet_id, N, event=False)
             next_output += output_interval
 
-    snapshot(t, a, masses, ecc, Rp, live_status, planet_id, N, event=False) #final system snapshot
+    snapshot(
+        t, a, masses, ecc, Rp, live_status, planet_id, N, event=False
+    )  # final system snapshot
 
     survivor_mask = live_status.astype(bool)
 
     if collect:
-        #hand the raw system back to the in-process caller instead of writing files
-        return {'mergers': mergers, 'initial_state': initial_state,
-                'planet_id': planet_id[survivor_mask].copy(),
-                'masses': masses[survivor_mask].copy(),
-                'a': a[survivor_mask].copy(),
-                'ecc': ecc[survivor_mask].copy()}
+        # hand the raw system back to the in-process caller instead of writing files
+        return {
+            'mergers': mergers,
+            'initial_state': initial_state,
+            'planet_id': planet_id[survivor_mask].copy(),
+            'masses': masses[survivor_mask].copy(),
+            'a': a[survivor_mask].copy(),
+            'ecc': ecc[survivor_mask].copy(),
+        }
 
-    ascii.write(data_to_table(history), os.path.join(save_directory+'/data/full_systems', f'full_system_{run_idx:02d}.csv'), format = 'fixed_width', overwrite = True)
-    #write out the impact velocity and geometry for every merger in this run
-    merger_cols = ['t', 'id_target', 'id_impactor', 'M_target_before', 'M_impactor_before',
-                   'M_merged_after', 'v_c', 'a_final_AU']
-    if mergers: #at least one merger happened this run (unlikely that there are no mergers)
-        #a merge record carries extra geometry for in-memory consumers; the file keeps
-        #the original columns, so project each row down to them before writing
-        merger_table = Table(rows=[{c: m[c] for c in merger_cols} for m in mergers], names=merger_cols)
-    else: #keep the file schema consistent even for runs with zero mergers
-        merger_table = Table(names=merger_cols, dtype=[float]*len(merger_cols))
-    _write_table(merger_table, os.path.join(save_directory+'/data/mergers', f'mergers_{run_idx:02d}.csv'))
+    ascii.write(
+        data_to_table(history),
+        os.path.join(save_directory + '/data/full_systems', f'full_system_{run_idx:02d}.csv'),
+        format='fixed_width',
+        overwrite=True,
+    )
+    # write out the impact velocity and geometry for every merger in this run
+    merger_cols = [
+        't',
+        'id_target',
+        'id_impactor',
+        'M_target_before',
+        'M_impactor_before',
+        'M_merged_after',
+        'v_c',
+        'a_final_AU',
+    ]
+    if mergers:  # at least one merger happened this run (unlikely that there are no mergers)
+        # a merge record carries extra geometry for in-memory consumers; the file keeps
+        # the original columns, so project each row down to them before writing
+        merger_table = Table(
+            rows=[{c: m[c] for c in merger_cols} for m in mergers], names=merger_cols
+        )
+    else:  # keep the file schema consistent even for runs with zero mergers
+        merger_table = Table(names=merger_cols, dtype=[float] * len(merger_cols))
+    _write_table(
+        merger_table,
+        os.path.join(save_directory + '/data/mergers', f'mergers_{run_idx:02d}.csv'),
+    )
 
-    #save the final surviving planets for this run: id, mass, semi-major axis, and eccentricity
-    survivors_table = Table([planet_id[survivor_mask], masses[survivor_mask], a[survivor_mask] / au2m, ecc[survivor_mask]],
-        names=['id', 'Mp', 'a_AU', 'ecc'])
-    _write_table(survivors_table, os.path.join(save_directory+'/data/survivors', f'survivors_{run_idx:02d}.csv'))
+    # save the final surviving planets for this run: id, mass, semi-major axis, and eccentricity
+    survivors_table = Table(
+        [
+            planet_id[survivor_mask],
+            masses[survivor_mask],
+            a[survivor_mask] / au2m,
+            ecc[survivor_mask],
+        ],
+        names=['id', 'Mp', 'a_AU', 'ecc'],
+    )
+    _write_table(
+        survivors_table,
+        os.path.join(save_directory + '/data/survivors', f'survivors_{run_idx:02d}.csv'),
+    )
 
     end = time.time()
-    runtime = round((end-start), 3)
+    runtime = round((end - start), 3)
     return {'run_idx': run_idx, 'runtime_s': runtime, 'n_survivors': int(np.sum(live_status))}
 
 
-def run_system(seed, masses, eccentricity, inner_edge, spacing, density,
-               impact_angle, evolution_time, inner_cutoff, stellar_mass):
+def run_system(
+    seed,
+    masses,
+    eccentricity,
+    inner_edge,
+    spacing,
+    density,
+    impact_angle,
+    evolution_time,
+    inner_cutoff,
+    stellar_mass,
+):
     """Evolve one system and return its survivors and impact history in memory.
 
     This is the entry point an in-process caller uses instead of the
@@ -391,20 +499,23 @@ def run_system(seed, masses, eccentricity, inner_edge, spacing, density,
     n = len(masses)
     config = {
         'run_simulation': {
-            't': 0.0, 't_ref': 0.0, 't_event': 0.0, 'flag_event': 1,
-            'a_min': inner_cutoff / au2m,   # [AU]
-            'max_time': evolution_time,     # [Gyr]
+            't': 0.0,
+            't_ref': 0.0,
+            't_event': 0.0,
+            'flag_event': 1,
+            'a_min': inner_cutoff / au2m,  # [AU]
+            'max_time': evolution_time,  # [Gyr]
             'random_seed': seed,
-            'save_directory': '',           # unused: collect mode writes nothing
+            'save_directory': '',  # unused: collect mode writes nothing
         },
         'init_par': {
             'N': n,
             'e': eccentricity,
             'impact_angle': impact_angle,
-            'Mp': [m / M_earth for m in masses],           # [M_earth]
-            'Ms': stellar_mass,                            # [Msun]
+            'Mp': [m / M_earth for m in masses],  # [M_earth]
+            'Ms': stellar_mass,  # [Msun]
             'rho_p': density,
-            'inner_edge': inner_edge / au2m,               # [AU]
+            'inner_edge': inner_edge / au2m,  # [AU]
             'spacing': spacing,
         },
     }
@@ -420,26 +531,29 @@ def run_system(seed, masses, eccentricity, inner_edge, spacing, density,
         R_t, R_i = m['R_target_before'], m['R_impactor']
         target = int(m['id_target'])
         record = {
-            'time': m['t'] / year_sec,                     # [yr]
+            'time': m['t'] / year_sec,  # [yr]
             'M_target_before': M_t,
             'M_impactor': M_i,
-            #perfect-merger mass: the plain sum, leaving atmospheric loss to the caller
+            # perfect-merger mass: the plain sum, leaving atmospheric loss to the caller
             # Carry the model's own merged mass rather than re-adding the two
             # fields above: recomputing the sum here would make any consumer
             # check of mass closure a tautology and hide a mass sink in the
             # dynamics behind a record that always looks exact.
             'M_merged_after': m['M_merged_after'],
             'v_impact': m['v_c'],
-            #mutual escape velocity of the pair, the floor the collision speed sits above
+            # mutual escape velocity of the pair, the floor the collision speed sits above
             'v_esc': np.sqrt(2.0 * G * (M_t + M_i) / (R_t + R_i)),
             'impact_parameter': b,
             'R_target_before': R_t,
             'R_impactor': R_i,
-            #shared bulk density recovered from mass and radius
+            # shared bulk density recovered from mass and radius
             'rho_target': M_t / ((4.0 / 3.0) * np.pi * R_t**3),
             'rho_impactor': M_i / ((4.0 / 3.0) * np.pi * R_i**3),
-            'a_before': m['a_before'],                     # [m]
-            'a_after': m['a_final_AU'] * au2m,             # [m]
+            'a_before': m['a_before'],  # [m]
+            'a_after': m['a_final_AU'] * au2m,  # [m]
+            # both elements before and after, so a consumer following a planet on a
+            # different orbit can apply the change rather than the absolute value
+            'e_before': m['e_before'],
             'e_after': m['e_after'],
             'id_target': target,
             'id_impactor': int(m['id_impactor']),
@@ -452,17 +566,25 @@ def run_system(seed, masses, eccentricity, inner_edge, spacing, density,
     for pid, mf, af in zip(raw['planet_id'], raw['masses'], raw['a']):
         pid = int(pid)
         mass_initial, a_initial = raw['initial_state'][pid]
-        survivors.append({'id': pid, 'mass_initial': mass_initial, 'a_initial': a_initial,
-                          'mass_final': float(mf), 'a_final': float(af)})
+        survivors.append(
+            {
+                'id': pid,
+                'mass_initial': mass_initial,
+                'a_initial': a_initial,
+                'mass_final': float(mf),
+                'a_final': float(af),
+            }
+        )
 
-    #a body that was a target early and then died carries a partial history that
-    #belongs to no survivor, and can even hold an unbound post-merge orbit, so keep
-    #only the survivors' chains; each survivor is present, with an empty list if it
-    #never merged, so a caller can always look one up
+    # a body that was a target early and then died carries a partial history that
+    # belongs to no survivor, and can even hold an unbound post-merge orbit, so keep
+    # only the survivors' chains; each survivor is present, with an empty list if it
+    # never merged, so a caller can always look one up
     survivor_ids = {s['id'] for s in survivors}
     impacts = {pid: impacts.get(pid, []) for pid in survivor_ids}
 
     return {'survivors': survivors, 'impacts': impacts}
+
 
 def main(config_path):
     """
@@ -483,36 +605,40 @@ def main(config_path):
     its systems one after another instead, which gives the same numbers
     because each system seeds itself from its own index.
     """
-    #a worker re-importing an unguarded caller arrives back here, where it
-    #would launch the batch a second time; it has its own task to get on with
+    # a worker re-importing an unguarded caller arrives back here, where it
+    # would launch the batch a second time; it has its own task to get on with
     if current_process().name != 'MainProcess':
         return
 
-    #each disk is initialised with the same conditions
+    # each disk is initialised with the same conditions
     config = read_config(config_path)
 
-    #number of systems to run (defaults to a single run, unless specified)
+    # number of systems to run (defaults to a single run, unless specified)
     ndisk = config.get('batch', {}).get('ndisk', 1)
 
-    #a relative save_directory is taken from the working directory, which is
-    #not necessarily where the settings file lives, so say where results land
+    # a relative save_directory is taken from the working directory, which is
+    # not necessarily where the settings file lives, so say where results land
     save_directory = config['run_simulation']['save_directory']
     os.makedirs(save_directory, exist_ok=True)
     print(f'Writing results to {os.path.abspath(save_directory)}')
 
     if ndisk <= 1:
-        #single run so skip multiprocessing entirely, allows for debugging
+        # single run so skip multiprocessing entirely, allows for debugging
         start = time.time()
         result = run_once(0, config)
         end = time.time()
 
         summary = Table(rows=[result], names=['run_idx', 'runtime_s', 'n_survivors'])
-        ascii.write(summary, os.path.join(config['run_simulation']['save_directory'], 'batch_summary.csv'),
-                    format='fixed_width', overwrite=True)
+        ascii.write(
+            summary,
+            os.path.join(config['run_simulation']['save_directory'], 'batch_summary.csv'),
+            format='fixed_width',
+            overwrite=True,
+        )
         print(f'Ran 1 system in {round(end - start, 3)}s')
 
     else:
-        #number of cores to use, leaves one free by default
+        # number of cores to use, leaves one free by default
         nproc = config.get('batch', {}).get('nproc', max(1, cpu_count() - 1))
 
         worker = partial(run_once, config=config)
@@ -522,17 +648,23 @@ def main(config_path):
             with Pool(processes=nproc) as pool:
                 results = pool.map(worker, range(ndisk))
         except RuntimeError:
-            #the caller's top level is unguarded, so a worker cannot re-import
-            #it safely; run the systems in turn instead of failing the batch
-            print('Could not start a process pool, running the systems one at a time. '
-                  "Put the call behind if __name__ == '__main__': to run them in parallel.")
+            # the caller's top level is unguarded, so a worker cannot re-import
+            # it safely; run the systems in turn instead of failing the batch
+            print(
+                'Could not start a process pool, running the systems one at a time. '
+                "Put the call behind if __name__ == '__main__': to run them in parallel."
+            )
             results = [run_once(i, config) for i in range(ndisk)]
         end = time.time()
 
-        #high-level statistics for each system (remaining planets, ids, etc)
+        # high-level statistics for each system (remaining planets, ids, etc)
         summary = Table(rows=results, names=['run_idx', 'runtime_s', 'n_survivors'])
-        ascii.write(summary, os.path.join(config['run_simulation']['save_directory'], 'batch_summary.csv'),
-                    format='fixed_width', overwrite=True)
+        ascii.write(
+            summary,
+            os.path.join(config['run_simulation']['save_directory'], 'batch_summary.csv'),
+            format='fixed_width',
+            overwrite=True,
+        )
         print(f'Ran {ndisk} systems in {round(end - start, 3)}s')
 
 
@@ -545,8 +677,9 @@ def cli():
     command line.
     """
     parser = argparse.ArgumentParser(description='Run the Morrigan giant-impact model')
-    parser.add_argument('-c', '--config', default=DEFAULT_CONFIG,
-                        help='path to the .toml settings file')
+    parser.add_argument(
+        '-c', '--config', default=DEFAULT_CONFIG, help='path to the .toml settings file'
+    )
     main(parser.parse_args().config)
 
 

@@ -109,7 +109,7 @@ ruff format src/ tests/ tools/
 3. **Test structure**: `bash tools/validate_test_structure.sh`.
 4. **Test quality**: `python tools/check_test_quality.py --check` (blocking).
 5. **Coverage ratchet guard**: rejects any PR that lowers `[tool.coverage.report].fail_under` below `min(base_ref, 90.0)`.
-6. **Lint**: `ruff check src/ tests/ tools/`.
+6. **Lint and format**: `ruff check src/ tests/ tools/` and `ruff format --check src/ tests/ tools/`, both blocking.
 
 The test job carries `timeout-minutes: 10`; a PR tier that cannot finish inside it belongs in the nightly tier.
 
@@ -262,7 +262,7 @@ Both gates ratchet toward 90, capped at 90 (`tools/update_coverage_threshold.py`
 
 PROTEUS consumes `run_system` through `proteus.accretion.morrigan`. The per-impact record schema is the interface:
 
-`time [yr], M_target_before [kg], M_impactor [kg], M_merged_after [kg], v_impact [m/s], v_esc [m/s], impact_parameter, R_target_before [m], R_impactor [m], rho_target [kg/m3], rho_impactor [kg/m3], a_before [m], a_after [m], e_after, id_target, id_impactor`
+`time [yr], M_target_before [kg], M_impactor [kg], M_merged_after [kg], v_impact [m/s], v_esc [m/s], impact_parameter, R_target_before [m], R_impactor [m], rho_target [kg/m3], rho_impactor [kg/m3], a_before [m], a_after [m], e_before, e_after, id_target, id_impactor`
 
 Conventions the schema guarantees:
 
@@ -271,6 +271,7 @@ Conventions the schema guarantees:
 - Bodies carry no atmosphere at all, in the record or in the model; masses and radii are bulk values.
 - Densities are recovered from mass and radius, so mass, radius, and density in one record are exactly self-consistent.
 - Successive records for one body chain: each `M_target_before` equals the previous `M_merged_after` exactly, since nothing removes mass between impacts.
+- Both orbital elements are reported on each side of the collision, so a consumer following a planet on a different orbit can apply the change the impact made rather than transplanting an absolute value that belongs to this body.
 
 Any change to the record fields, units, or conventions is a breaking interface change for PROTEUS and must be flagged in the PR description.
 
@@ -278,7 +279,7 @@ Any change to the record fields, units, or conventions is a breaking interface c
 
 **Style** (enforced by ruff): line length < 96, `snake_case` functions, `UPPER_CASE` constants, standard type hints, docstrings with brief physical descriptions.
 
-**Pre-commit**: runs `ruff check --fix` and the file-size hook automatically.
+**Pre-commit**: runs `ruff check --fix`, `ruff format`, and the file-size hook automatically. CI enforces both `ruff check` and `ruff format --check`, so an unformatted file fails the PR.
 
 ## Common Workflows
 

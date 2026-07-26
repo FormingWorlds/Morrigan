@@ -203,8 +203,8 @@ def main() -> int:
     partitioned = counts['unit'] + counts['integration']
     if counts['total'] != partitioned:
         raise RuntimeError(
-            f"badge counts do not partition: total {counts['total']} but "
-            f"unit {counts['unit']} + integration {counts['integration']} "
+            f'badge counts do not partition: total {counts["total"]} but '
+            f'unit {counts["unit"]} + integration {counts["integration"]} '
             f'= {partitioned}. A tier marker exists that neither category '
             'selects; add it to the integration expression in _BADGES.'
         )

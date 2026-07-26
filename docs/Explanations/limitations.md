@@ -20,6 +20,7 @@ Morrigan is a statistical model of the giant-impact phase, not an N-body integra
 - The gravitational constant is carried at three significant figures (6.67e-11), the au as 1.5e11 m (0.27 % from the defined value), and the year as 365 days; results agree with CODATA-constant implementations only to the corresponding relative level, which matters when cross-checking against other codes.
 - All Monte Carlo draws share numpy's global random state, seeded per system. Library code must never reseed mid-run; a hidden reseed would silently correlate ensemble members.
 - Ejections remove the body excited past unity eccentricity; its unbound orbit is not followed, and the survivor's orbit conserves the pair's orbital energy at the moment of the event.
+- The excitation applied to a pair before a collision is drawn without an upper bound, and so is the fallback taken when no draw satisfies the overlap condition. A body can therefore enter the collision branch already past unity eccentricity, which the ejection branch treats as grounds for removing it: the two branches disagree about what an unbound orbit means. Such a body is removed on the same step by the perihelion cut, so it does not survive to be reported, and the impact histories `run_system` returns are unaffected. A caller reading the raw merger list rather than the returned histories can see an eccentricity at or above one and should check for it.
 
 ## References
 

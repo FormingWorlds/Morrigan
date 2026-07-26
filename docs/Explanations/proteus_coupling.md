@@ -98,9 +98,11 @@ When the loop reaches a scheduled time, `apply_impact` applies seven consequence
 
 Still on Aragog, how molten the reset state is depends on `planet.temperature_mode`: only `liquidus_super` solves for a profile guaranteed fully molten, raising if the requested superheat cannot be reached. `adiabatic_from_cmb` reaches one if `tcmb_init` is pinned high enough, but neither it nor `accretion` is checked against the liquidus. The remaining modes are only as molten as the configured initial condition, and an Aragog run warns about those at start-up. The scalar backends ignore `temperature_mode` entirely: they reset a surface temperature taken from `planet.tsurf_init`, and warn at the impact if that leaves the mantle short of fully molten.
 6. **Clear the solidification latch.** A mantle that had crystallised is molten again, so the one-way latch is lifted. Without this step outgassing would stay frozen and the volatiles would be treated as locked in a solid mantle for good.
-7. **Move the orbit.** The semi-major axis is scaled by the impact's *fractional* change and the eccentricity is set to its post-impact value.
+7. **Move the orbit.** Both orbital elements move by the *change* this impact made, not by the followed body's absolute values.
 
-The orbit step is worth expanding. Morrigan's absolute orbits belong to its own system, which need not sit where the PROTEUS planet sits. So the coupling applies the **ratio** `a_after / a_before`, not the absolute value: the planet keeps its configured orbital distance and inherits the dynamical model's fractional kick.
+The orbit step is worth expanding. Morrigan's absolute orbits belong to its own system, which need not sit where the PROTEUS planet sits. So the coupling applies the **ratio** `a_after / a_before` to the semi-major axis and the **difference** `e_after - e_before` to the eccentricity: the planet keeps its configured orbit and inherits the dynamical model's kick. A ratio suits the semi-major axis because it is a scale; a difference suits the eccentricity because it is dimensionless and routinely zero, which a ratio cannot express. The result is clamped to a bound orbit. This is why the record reports both eccentricities and not only the post-impact one.
+
+Both are bounded in the histories `run_system` returns, because a body carrying an unbound eccentricity is removed on the step it acquires one and never reaches the returned history. See the [limitations](limitations.md) for the case where the two branches of the model disagree about that, which is visible only to a caller reading the raw merger list.
 
 ## What PROTEUS adds that Morrigan does not do
 
@@ -114,7 +116,7 @@ Morrigan reports bare bodies. Three pieces of physics live entirely on the PROTE
 
 `out['impacts']` is a dictionary keyed by surviving-body id; each value is that body's impacts in time order, and every surviving body is present, with an empty list if it never merged. Each record carries:
 
-`time [yr]`, `M_target_before [kg]`, `M_impactor [kg]`, `M_merged_after [kg]`, `v_impact [m/s]`, `v_esc [m/s]`, `impact_parameter`, `R_target_before [m]`, `R_impactor [m]`, `rho_target [kg/m3]`, `rho_impactor [kg/m3]`, `a_before [m]`, `a_after [m]`, `e_after`, `id_target`, `id_impactor`.
+`time [yr]`, `M_target_before [kg]`, `M_impactor [kg]`, `M_merged_after [kg]`, `v_impact [m/s]`, `v_esc [m/s]`, `impact_parameter`, `R_target_before [m]`, `R_impactor [m]`, `rho_target [kg/m3]`, `rho_impactor [kg/m3]`, `a_before [m]`, `a_after [m]`, `e_before`, `e_after`, `id_target`, `id_impactor`.
 
 Conventions the schema guarantees:
 

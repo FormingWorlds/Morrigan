@@ -67,8 +67,23 @@ def test_merger_kills_one_body_and_closes_its_record():
     v_esc = np.sqrt(2.0 * G * 2.0 * M_earth / (rec['R_target_before'] + rec['R_impactor']))
     assert rec['v_c'] >= v_esc * (1.0 - 1e-9)
 
-    # The survivor's post-merge eccentricity is recorded and bound.
+    # The survivor's eccentricity is recorded on both sides of the merger and
+    # both are bound. Reporting both is what lets a consumer following a planet
+    # on a different orbit apply the change this collision made rather than
+    # transplanting an absolute value that belongs to this body.
     assert 0.0 <= rec['e_after'] < 1.0
+    assert 0.0 <= rec['e_before'] < 1.0
+
+    # e_before is the target's eccentricity at the moment of the merger, read
+    # from the state before merge_embryo overwrites it. That is not the value
+    # the pair went in with: viscous stirring excites the orbits first, so the
+    # pair entered at 0.05 and collides well above it. Both facts matter, since
+    # recording the input value instead would describe a collision that never
+    # happened at that geometry.
+    assert rec['e_before'] > 0.05
+    # Reading the same array one line too late would report the merged value,
+    # which is the easy mistake because both come from `ecc[target_idx]`.
+    assert rec['e_before'] != pytest.approx(rec['e_after'], rel=1e-6)
 
 
 @pytest.mark.physics_invariant
@@ -98,7 +113,9 @@ def test_scattering_conserves_the_mass_weighted_orbit_sum():
     np.testing.assert_array_equal(mp, m_before)  # scattering moves orbits, not mass
 
     # Conservation: the mass-weighted orbit sum is exact.
-    assert float(np.sum(mp * ap)) == pytest.approx(float(np.sum(m_before * a_before)), rel=1e-12)
+    assert float(np.sum(mp * ap)) == pytest.approx(
+        float(np.sum(m_before * a_before)), rel=1e-12
+    )
     # Direction: inner in, outer out, by a nonzero amount.
     assert ap[0] < a_before[0]
     assert ap[1] > a_before[1]
@@ -157,8 +174,9 @@ def test_ejection_removes_the_escaping_body_and_binds_the_survivor():
     rp2 = np.array([planet_radius(m, _RHO) for m in mp2])
     e2 = np.array([0.3, 0.3])
     live2 = np.array([True, True])
-    rec2 = orbit_cross_K25(ap2, mp2, rp2, M_sun, 0.5, e2,
-                           np.ones(2, dtype=bool), live2, 2, np.arange(2), 0)
+    rec2 = orbit_cross_K25(
+        ap2, mp2, rp2, M_sun, 0.5, e2, np.ones(2, dtype=bool), live2, 2, np.arange(2), 0
+    )
     assert rec2 is None
     assert list(live2) == [False, False]
     assert e2[1] == pytest.approx((1.0 / 1.2) * (40.0 / 30.0), rel=1e-3)
@@ -217,8 +235,9 @@ def test_the_capped_fallback_keeps_the_eccentricity_a_body_already_carries():
     rp = np.array([planet_radius(m, _RHO) for m in mp])
     ecc = np.array([0.4, 0.4])
     live = np.array([True, True])
-    rec = orbit_cross_K25(ap, mp, rp, M_sun, 0.5, ecc,
-                          np.ones(2, dtype=bool), live, 2, np.arange(2), 0)
+    rec = orbit_cross_K25(
+        ap, mp, rp, M_sun, 0.5, ecc, np.ones(2, dtype=bool), live, 2, np.arange(2), 0
+    )
 
     assert rec is not None
     # The carried eccentricity survives the fallback rather than being
@@ -230,3 +249,54 @@ def test_the_capped_fallback_keeps_the_eccentricity_a_body_already_carries():
     # The contact speed still floors at the mutual escape speed.
     v_esc = np.sqrt(2.0 * G * mp.sum() / (rec['R_target_before'] + rec['R_impactor']))
     assert rec['v_c'] >= v_esc * (1.0 - 1e-9)
+
+
+@pytest.mark.physics_invariant
+def test_the_recorded_pre_impact_eccentricity_belongs_to_the_target():
+    """`e_before` is the surviving body's eccentricity, not the impactor's.
+
+    Both bodies' eccentricities are excited before the collision and both live
+    in the same array, so the record is one index away from describing the
+    wrong body. On an equal-mass pair the two are identical and the mistake is
+    invisible, which is why this uses a 1.0 and 0.3 Earth-mass pair: the
+    rejection sampling scales each body's excitation by the square root of the
+    other's mass, so the heavier target ends up on a different eccentricity
+    from its impactor and the two can be told apart.
+
+    Seed 9 puts this pair in the collision branch with body 0, the heavier one,
+    as the target.
+    """
+    np.random.seed(9)
+    ap = np.array([1.0, 1.005]) * au2m
+    mp = np.array([1.0, 0.3]) * M_earth
+    rp = np.array([planet_radius(m, _RHO) for m in mp])
+    e = np.array([0.05, 0.05])
+    rec = orbit_cross_K25(
+        ap,
+        mp,
+        rp,
+        M_sun,
+        0.5,
+        e,
+        np.array([True, True]),
+        np.array([True, True]),
+        2,
+        np.arange(2),
+        0,
+    )
+
+    assert rec is not None
+    # The heavier body survives, so it is the one whose eccentricity is reported.
+    assert rec['id_target'] == 0
+    assert rec['M_target_before'] > rec['M_impactor_before']
+
+    # Pinned: the target's own excited eccentricity at the moment of contact.
+    # Reading the impactor's slot instead lands on a different value, which is
+    # what an index mix-up would report.
+    assert rec['e_before'] == pytest.approx(0.125086, rel=1e-4)
+    assert 0.0 <= rec['e_before'] < 1.0
+
+    # It is also not the post-merge value, which is what reading the array one
+    # line later would give.
+    assert rec['e_after'] == pytest.approx(0.043559, rel=1e-4)
+    assert rec['e_before'] != pytest.approx(rec['e_after'], rel=1e-6)
