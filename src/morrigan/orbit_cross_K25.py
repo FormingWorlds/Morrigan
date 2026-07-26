@@ -4,60 +4,11 @@
     Author(s): Anna Grace Ulses
 """
 
-import warnings
-
 import numpy as np
 
 from morrigan.constants import au2m
 from morrigan.helper_functions import esc_ecc, hill_sphere, rayleigh
 from morrigan.merge_embryo import collision_velocity, merge_embryo
-
-# Largest eccentricity a merge record may report. An orbit reaches unity when it
-# stops being closed, and every quantity a consumer derives from the record
-# (periapsis, time-averaged separation, Hill radius) assumes a closed orbit.
-MAX_RECORDED_ECC = 0.999
-
-
-def _bounded_eccentricity(value, when, body_id):
-    """Return an eccentricity a merge record can report, warning if it was capped.
-
-    The excitation applied before a collision is drawn without an upper bound,
-    and the fallback taken when no draw satisfies the overlap condition is not
-    bounded either. A body can therefore reach the collision branch already on a
-    formally unbound orbit, while the ejection branch treats the same condition
-    as grounds for removing it. That inconsistency between the two branches is a
-    property of the prescription rather than of the bookkeeping, so it is not
-    resolved here; what is resolved is that a record describing a merger must
-    describe a closed orbit, since a consumer cannot do anything sensible with
-    one that does not.
-
-    Parameters
-    ----------
-    value : float
-        Eccentricity as the model holds it.
-    when : str
-        Either 'before' or 'after', naming which side of the collision this is,
-        for the warning.
-    body_id : int
-        Identifier of the target, for the warning.
-
-    Returns
-    -------
-    float
-        The eccentricity, capped at ``MAX_RECORDED_ECC``.
-    """
-    if value <= MAX_RECORDED_ECC:
-        return value
-
-    warnings.warn(
-        f'Body {body_id} merged with an eccentricity of {value:.3f} {when} the '
-        f'collision, which is not a closed orbit. The record reports '
-        f'{MAX_RECORDED_ECC} instead, so the impact geometry it describes is not '
-        'the one the model held. Treat this impact as unreliable.',
-        UserWarning,
-        stacklevel=2,
-    )
-    return MAX_RECORDED_ECC
 
 
 def orbit_cross_K25(
@@ -249,8 +200,8 @@ def orbit_cross_K25(
             'R_target_before': R_target_before,
             'R_impactor': R_impactor,
             'a_before': a_target_before,
-            'e_before': _bounded_eccentricity(e_target_before, 'before', id_target),
-            'e_after': _bounded_eccentricity(ecc[target_idx], 'after', id_target),
+            'e_before': e_target_before,
+            'e_after': ecc[target_idx],
         }
 
     else:  # scattering event
