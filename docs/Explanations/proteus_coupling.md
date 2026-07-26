@@ -86,6 +86,14 @@ Impacts that still land at or before that start time are **discarded**, with a w
 
 `validate_timeline` then rejects a schedule that cannot describe one body: times must increase strictly, each impact's target mass must follow from the previous merged mass, and a body may not gain mass between impacts. A drop of up to 10 % between impacts is allowed, since a consumer may strip an atmosphere in between.
 
+## The schedule becomes a property of the run
+
+Once resolved, the schedule is written to `impact_timeline.csv` in the run's output directory, on the PROTEUS time axis with `time_offset` already applied. A resumed run reads that file instead of running the dynamics again, provided the file is still there; without it the run derives a fresh schedule.
+
+This is not an optimisation. Re-deriving the schedule at every restart would reproduce the original history only if the dynamical model is bit-reproducible at a fixed seed, which the framework cannot check for a module it merely calls. Reading the file makes the impact history a property of the run rather than of the model's determinism, so a run that is stopped and resumed applies the same impacts it started with.
+
+The same file is a portable artefact. `accretion.module = "timeline"` replays a timeline from a path, so a Morrigan-derived history can be re-run, shared, or handed to a collaborator who does not have Morrigan installed, and the impact consequences are computed identically either way. That is also the route for reproducing a published history, or for writing one by hand to isolate a single impact.
+
 ## What an impact does
 
 When the loop reaches a scheduled time, `apply_impact` applies seven consequences in a fixed order. The order matters: each step reads state the previous one wrote.
@@ -96,7 +104,8 @@ When the loop reaches a scheduled time, `apply_impact` applies seven consequence
 4. **Apply the volatile changes.** The target loses its stripped fraction, the impactor delivers what survives, and the whole-planet element budget is refreshed.
 5. **Re-melt the mantle.** The interior is reset to its molten initial condition, recomputed for the grown planet, and the next interior solve is told not to clip the resulting temperature jump. On Aragog the heat this injects is measured across the cooled-to-molten entropy jump and recorded as `step_dE_impact_J`, whenever a pre-impact entropy profile exists to measure it against. That column is added to *both* sides of the energy budget, so it quantifies the injection under a defined convention: `E_residual_cons_J` is unchanged across an impact for any booked value, and so cannot validate the magnitude itself. The *relative* residual is not invariant, because the injection enters its denominator; expect `E_residual_cons_frac` to spike on an impact row when the two are comparable, and read the absolute residual there instead. The impact's *kinetic* energy is logged separately; it is a different quantity, not the booked heat.
 
-Still on Aragog, how molten the reset state is depends on `planet.temperature_mode`: only `liquidus_super` solves for a profile guaranteed fully molten, raising if the requested superheat cannot be reached. `adiabatic_from_cmb` reaches one if `tcmb_init` is pinned high enough, but neither it nor `accretion` is checked against the liquidus. The remaining modes are only as molten as the configured initial condition, and an Aragog run warns about those at start-up. The scalar backends ignore `temperature_mode` entirely: they reset a surface temperature taken from `planet.tsurf_init`, and warn at the impact if that leaves the mantle short of fully molten.
+    Still on Aragog, how molten the reset state is depends on `planet.temperature_mode`: only `liquidus_super` solves for a profile guaranteed fully molten, raising if the requested superheat cannot be reached. `adiabatic_from_cmb` reaches one if `tcmb_init` is pinned high enough, but neither it nor `planet.temperature_mode = "accretion"` is checked against the liquidus. The remaining modes are only as molten as the configured initial condition, and an Aragog run warns about those at start-up. The scalar backends ignore `temperature_mode` entirely: they reset a surface temperature taken from `planet.tsurf_init`, and warn at the impact if that leaves the mantle short of fully molten.
+
 6. **Clear the solidification latch.** A mantle that had crystallised is molten again, so the one-way latch is lifted. Without this step outgassing would stay frozen and the volatiles would be treated as locked in a solid mantle for good.
 7. **Move the orbit.** Both orbital elements move by the *change* this impact made, not by the followed body's absolute values.
 
@@ -138,6 +147,7 @@ Any change to the record fields, units, or conventions is a breaking interface c
 - [Coupling to PROTEUS (how-to)](../How-to/proteus_coupling.md) for the TOML recipe, the selector choice, and the pitfalls.
 - [Model overview](model.md) for the dynamics that produce the schedule.
 - [Limitations](limitations.md) for what the model does not represent.
+- On the PROTEUS side: the [configuration listing](https://proteus-framework.org/PROTEUS/How-to/config.html#elemental-delivery-and-accretion) for every parameter of the block, the [model description](https://proteus-framework.org/PROTEUS/Explanations/model.html) for how the framework presents its modules, and the [coupling loop](https://proteus-framework.org/PROTEUS/Explanations/coupling_loop.html#execution-order-per-iteration) for where the impact step sits among the others.
 - The PROTEUS-side code: `src/proteus/accretion/wrapper.py` (dispatch and impact consequences), `src/proteus/accretion/morrigan.py` (this module's adapter), `src/proteus/accretion/common.py` (the `ImpactEvent` schema and timeline validation), `src/proteus/config/_accretion.py` (the config block).
 
 ## References

@@ -1,14 +1,22 @@
 # Coupling to PROTEUS
 
-This page is the **recipe**: the TOML to write, the choices to make, and the mistakes that cost an afternoon. For why the coupling is built this way, see the [explanation page](../Explanations/proteus_coupling.md).
+This page is the **recipe**: the TOML to write, the choices to make, and the mistakes that cost an afternoon. For why the coupling is built this way, see the [explanation page](../Explanations/proteus_coupling.md). For one complete configuration you can run immediately, see the [PROTEUS tutorial](../Tutorials/proteus_minimal.md).
 
-Morrigan is an optional PROTEUS module. Install it with
+Morrigan is one of three modules in the accretion slot. The other two take an impact history rather than deriving one: [`timeline`](timeline_module.md) replays a file, and [`dummy`](dummy_module.md) builds one from scaling laws.
+
+Morrigan is an optional PROTEUS module, so a standard PROTEUS install does not bring it. Add it with
+
+```bash
+pip install "fwl-proteus[morrigan]"
+```
+
+or, for an editable checkout to develop against,
 
 ```bash
 bash tools/get_morrigan.sh
 ```
 
-from a PROTEUS checkout, which clones the pinned commit and installs it editable.
+from a PROTEUS checkout, which clones the release matching PROTEUS's version floor and installs it editable. Every parameter of the block below is also tabulated on the PROTEUS side, under [elemental delivery and accretion](https://proteus-framework.org/PROTEUS/How-to/config.html#elemental-delivery-and-accretion).
 
 ## Minimal `[accretion]` block
 
@@ -142,6 +150,33 @@ Three of the eight embryos survive; `selector = "mass"` follows the heaviest, wh
 Each impact is then announced by a `Giant impact at t = ...` line naming its target, impactor and added mass, and closed by a `planet is now ... M_earth at ... AU, e = ...` line. Between the two, indented lines report the consequences that applied: which volatile and loss modes are in force, what the erosion law returned, what was stripped and what was delivered, the re-melt heat, the mantle reset, the impact's kinetic energy, and the solidification latch if it was cleared. How many appear depends on the configuration, so expect more under `match_planet` and `zephyrus` than under `dry` and `none`. The structure re-solve in the middle is a full interior calculation and prints its own output, so those two anchor lines are not adjacent in the log.
 
 The added mass, the time and the two body ids come straight from the schedule above. The erosion fraction and the resulting planet state depend on the atmosphere the planet happens to have at that moment, so they differ from run to run even for the same schedule.
+
+## Re-running a schedule without re-running the dynamics
+
+At start-up the run writes the schedule it resolved to `impact_timeline.csv` in its output directory, on the PROTEUS time axis. Resuming the same run replays that file if it is still present, so a stopped and restarted run applies the impacts it started with rather than drawing a fresh history. Delete it and the resumed run derives a new schedule.
+
+The file is also portable. To replay it as its own run, or to hand it to someone without Morrigan installed:
+
+```toml
+[accretion]
+    module = "timeline"
+
+    [accretion.timeline]
+        timeline_path = "output/my_run/impact_timeline.csv"
+```
+
+The impact consequences are computed identically either way; only where the schedule came from differs. Because the file already carries the offset that was applied when it was written, leave `time_offset` at its default when replaying, or the history shifts twice.
+
+## What the coupled run records
+
+Two helpfile columns follow the accretion:
+
+| Column | Meaning |
+|---|---|
+| `M_accreted_rock` | cumulative rock mass added by impacts \[kg]. It holds rock only, matching the interior anchor, so it is not the whole-planet mass, which also carries the volatile budgets |
+| `step_dE_impact_J` | heat the re-melt injected on that step \[J], on Aragog and when a pre-impact entropy profile exists to measure it against. Reset per row, so it is non-zero only on an impact row |
+
+`M_accreted_rock` is what lets a resumed run rebuild the interior anchor, since the configuration is read afresh from the TOML on every start and cannot carry state across a resume. Both columns are described where they are written, in `src/proteus/accretion/wrapper.py`; the PROTEUS [output format reference](https://proteus-framework.org/PROTEUS/Reference/output.html) covers the rest of the helpfile.
 
 ## Common pitfalls
 

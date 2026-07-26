@@ -1,5 +1,8 @@
 # Running a model
 
+For a worked example from a settings file to a figure, see
+[run a system standalone](../Tutorials/standalone.md).
+
 ## From the command line
 
 Settings live in a TOML file; `initialise.toml` in the repository root is a worked example. All settings are documented in [Settings and inputs](../Reference/parameters.md).

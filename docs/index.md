@@ -14,12 +14,99 @@ Named after Morrigan, a shapeshifting figure from Irish mythology thought to rep
 
 ## Where to go
 
-- [Getting started](getting_started.md): the shortest path from a clone to a result, and where to go next
-- [Installation](How-to/installation.md), [running a model](How-to/running.md) and [configuration](How-to/configuration.md)
-- [Model overview](Explanations/model.md): the physics, equation by equation, and [code architecture](Explanations/code_architecture.md) for where each piece lives in the source
-- Coupling to PROTEUS in two parts: the [how-to](How-to/proteus_coupling.md) for the TOML recipe and the pitfalls, the [explanation](Explanations/proteus_coupling.md) for why the coupling is built the way it is
-- [Settings and inputs](Reference/parameters.md) and the [API reference](Reference/api.md)
-- [Validation anchors](Validation/index.md): where every physics routine is pinned against a published value, an analytical limit, or a cross-implementation check
+<div class="grid cards" markdown>
+
+-   :material-rocket-launch: **Get started**
+
+    The shortest path from a clone to a result
+
+    [Go to getting started](getting_started.md)
+
+-   :material-school: **Follow a tutorial**
+
+    One system standalone, or one inside PROTEUS
+
+    [Go to the tutorials](Tutorials/standalone.md)
+
+-   :material-download: **Install**
+
+    From PyPI, or as an editable checkout
+
+    [Go to installation guide](How-to/installation.md)
+
+-   :material-play: **Run a model**
+
+    Drive a system from a settings file
+
+    [Go to running a model](How-to/running.md)
+
+-   :material-tune: **Configure**
+
+    Choose the initial conditions and what they do
+
+    [Go to configuration](How-to/configuration.md)
+
+-   :material-book-open-variant: **Understand the model**
+
+    The physics, equation by equation
+
+    [Go to model overview](Explanations/model.md)
+
+-   :material-sitemap: **Find it in the source**
+
+    Where each piece of the model lives
+
+    [Go to code architecture](Explanations/code_architecture.md)
+
+-   :material-link-variant: **Couple to PROTEUS**
+
+    The TOML recipe and the pitfalls
+
+    [Go to the how-to](How-to/proteus_coupling.md)
+
+-   :material-lightbulb-on: **Understand the coupling**
+
+    Why it is built the way it is
+
+    [Go to the explanation](Explanations/proteus_coupling.md)
+
+-   :material-table: **Look up a setting**
+
+    Every field of the settings file
+
+    [Go to settings and inputs](Reference/parameters.md)
+
+-   :material-code-braces: **Browse the API**
+
+    The entry points a caller uses
+
+    [Go to API reference](Reference/api.md)
+
+-   :material-check-decagram: **See what is validated**
+
+    Each routine pinned against a published or analytical value
+
+    [Go to validation anchors](Validation/index.md)
+
+-   :material-alert-circle-outline: **Know the limits**
+
+    What the model does not represent
+
+    [Go to limitations](Explanations/limitations.md)
+
+-   :material-github: **Browse the code**
+
+    The repository and its history
+
+    [Go to source code](https://github.com/FormingWorlds/Morrigan)
+
+-   :material-bug: **Raise an issue**
+
+    Report a problem or ask for a feature
+
+    [Go to issues](https://github.com/FormingWorlds/Morrigan/issues)
+
+</div>
 
 ## The model in one paragraph
 

@@ -16,8 +16,14 @@ nav:
       - Running a model: How-to/running.md
       - Configuration: How-to/configuration.md
       - Coupling to PROTEUS: How-to/proteus_coupling.md
+      - Replay an impact history: How-to/timeline_module.md
+      - Grow a planet without dynamics: How-to/dummy_module.md
       - Testing: How-to/testing.md
       - Releasing: How-to/releasing.md
+
+  - Tutorials:
+      - Run a system standalone: Tutorials/standalone.md
+      - Run PROTEUS with Morrigan: Tutorials/proteus_minimal.md
 
   - Explanations:
       - Model overview: Explanations/model.md
@@ -132,16 +138,17 @@ extra:
       link: https://proteus-framework.org/
       name: PROTEUS website
     - icon: material/email
-      link: mailto:proteus_dev@formingworlds.space
+      link: mailto:dev@proteus-framework.org
       name: Mail PROTEUS developers
     - icon: fontawesome/brands/github
       link: https://github.com/FormingWorlds/Morrigan
       name: Morrigan on GitHub
 
 extra_javascript:
-  - https://unpkg.com/katex@0/dist/katex.min.js
-  - https://unpkg.com/katex@0/dist/contrib/auto-render.min.js
-  - javascripts/katex.js
+  # Typesets the \( \) and \[ \] that pymdownx.arithmatex emits, and is the
+  # renderer the rest of the PROTEUS documentation uses. It brings its own
+  # styling, so nothing has to be added to extra_css to go with it.
+  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
   - javascripts/header-links.js
 
 plugins:
