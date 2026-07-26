@@ -107,6 +107,10 @@ exclude_lines = [
 [tool.ruff]
 line-length = 96
 target-version = "py310"
+# setuptools-scm writes _version.py at build time in its own style, and the file
+# is not tracked, so nobody can bring it into line and a check over src/ would
+# fail on it in any fresh checkout.
+extend-exclude = ["src/morrigan/_version.py"]
 
 [tool.ruff.lint]
 select = [
