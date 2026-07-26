@@ -102,6 +102,8 @@ Still on Aragog, how molten the reset state is depends on `planet.temperature_mo
 
 The orbit step is worth expanding. Morrigan's absolute orbits belong to its own system, which need not sit where the PROTEUS planet sits. So the coupling applies the **ratio** `a_after / a_before` to the semi-major axis and the **difference** `e_after - e_before` to the eccentricity: the planet keeps its configured orbit and inherits the dynamical model's kick. A ratio suits the semi-major axis because it is a scale; a difference suits the eccentricity because it is dimensionless and routinely zero, which a ratio cannot express. The result is clamped to a bound orbit. This is why the record reports both eccentricities and not only the post-impact one.
 
+Both are capped so the record always describes a closed orbit. The excitation applied before a collision is drawn without an upper bound, so a body can reach the merge branch already past `e = 1`, which the ejection branch elsewhere treats as grounds for removing it. A record capped that way raises a warning naming the body and the side of the collision, because the geometry it reports is then not the one the model held and the impact should not be trusted.
+
 ## What PROTEUS adds that Morrigan does not do
 
 Morrigan reports bare bodies. Three pieces of physics live entirely on the PROTEUS side:

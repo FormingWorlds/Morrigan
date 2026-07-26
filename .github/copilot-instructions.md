@@ -272,6 +272,7 @@ Conventions the schema guarantees:
 - Densities are recovered from mass and radius, so mass, radius, and density in one record are exactly self-consistent.
 - Successive records for one body chain: each `M_target_before` equals the previous `M_merged_after` exactly, since nothing removes mass between impacts.
 - Both orbital elements are reported on each side of the collision, so a consumer following a planet on a different orbit can apply the change the impact made rather than transplanting an absolute value that belongs to this body.
+- Both eccentricities describe a closed orbit, capped at `MAX_RECORDED_ECC`. The excitation applied before a collision is unbounded, so a body can reach the merge branch past `e = 1` while the ejection branch treats that as grounds for removal; a record capped that way warns, because it no longer describes the geometry the model held.
 
 Any change to the record fields, units, or conventions is a breaking interface change for PROTEUS and must be flagged in the PR description.
 
