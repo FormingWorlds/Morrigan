@@ -25,7 +25,9 @@ DOCS = Path('docs')
 LEAKED_MARKER = re.compile(r'(?<![\w.>])(\d{1,2})\.\s+(?=[A-Z*_`])')
 
 # Raw TeX that never became maths.
-RAW_TEX = re.compile(r'\\(?:frac|mathrm|sqrt|left|right|alpha|beta|Delta|sum)\b|\$\$?[^$\n]{2,}\$\$?')
+RAW_TEX = re.compile(
+    r'\\(?:frac|mathrm|sqrt|left|right|alpha|beta|Delta|sum)\b|\$\$?[^$\n]{2,}\$\$?'
+)
 
 
 def strip_tags(html: str) -> str:
@@ -59,14 +61,19 @@ def rendered_list_counts(html: str) -> list[int]:
     body = re.sub(r'<(script|style)\b.*?</\1>', '', body, flags=re.S)
     # the footnote definitions are an ordered list of their own, not content
     body = re.sub(r'<div class="footnote">.*?</div>', '', body, flags=re.S)
-    return [len(re.findall(r'<li\b', m.group(1))) for m in re.finditer(r'<ol\b[^>]*>(.*?)</ol>', body, re.S)]
+    return [
+        len(re.findall(r'<li\b', m.group(1)))
+        for m in re.finditer(r'<ol\b[^>]*>(.*?)</ol>', body, re.S)
+    ]
 
 
 # A figure pulled from another repository at a branch ref stops resolving when
 # that branch is deleted. Reported so a pin taken while a pull request is open is
 # not left behind once it merges.
-PINNED_ASSET = re.compile(r'(?:cdn\.jsdelivr\.net/gh|raw\.githubusercontent\.com)/'
-                          r'FormingWorlds/(\w+)[@/](?!main\b)([\w./-]+?)/docs/assets/([\w.-]+)')
+PINNED_ASSET = re.compile(
+    r'(?:cdn\.jsdelivr\.net/gh|raw\.githubusercontent\.com)/'
+    r'FormingWorlds/(\w+)[@/](?!main\b)([\w./-]+?)/docs/assets/([\w.-]+)'
+)
 
 
 def check_math_renderer(html: str) -> str | None:
@@ -79,8 +86,10 @@ def check_math_renderer(html: str) -> str | None:
     if 'class="arithmatex"' not in html:
         return None  # no maths on this page, so no renderer to get wrong
     if 'katex' in html and 'katex.min.css' not in html:
-        return ('KaTeX is loaded without katex.min.css, so its own output is left '
-                'unstyled and renders twice')
+        return (
+            'KaTeX is loaded without katex.min.css, so its own output is left '
+            'unstyled and renders twice'
+        )
     if not re.search(r'mathjax|katex', html, re.I):
         return 'the page has maths but loads no renderer'
     return None
@@ -101,7 +110,9 @@ def main(site='site'):
         for m in LEAKED_MARKER.finditer(text):
             # a numbered marker in running prose is a list that broke
             ctx = text[max(0, m.start() - 60) : m.end() + 50]
-            print(f'{page.relative_to(site)}: list marker "{m.group(1)}." in prose\n    ...{ctx}...')
+            print(
+                f'{page.relative_to(site)}: list marker "{m.group(1)}." in prose\n    ...{ctx}...'
+            )
             problems += 1
 
         for m in RAW_TEX.finditer(text):
@@ -118,8 +129,10 @@ def main(site='site'):
         if md.exists():
             src, out = source_list_counts(md), rendered_list_counts(html)
             if src and sum(src) != sum(out):
-                print(f'{page.relative_to(site)}: ordered-list items {sum(src)} in source, '
-                      f'{sum(out)} on the page (source {src}, page {out})')
+                print(
+                    f'{page.relative_to(site)}: ordered-list items {sum(src)} in source, '
+                    f'{sum(out)} on the page (source {src}, page {out})'
+                )
                 problems += 1
 
     pins = {}
@@ -127,8 +140,10 @@ def main(site='site'):
         for repo, ref, asset in PINNED_ASSET.findall(page.read_text()):
             pins.setdefault((repo, ref), set()).add(asset)
     for (repo, ref), assets in pins.items():
-        print(f'note: {repo} assets pinned to "{ref}" rather than main: '
-              f'{", ".join(sorted(assets))}')
+        print(
+            f'note: {repo} assets pinned to "{ref}" rather than main: '
+            f'{", ".join(sorted(assets))}'
+        )
 
     print(f'\n{problems} problem(s)')
     return 1 if problems else 0

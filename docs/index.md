@@ -22,6 +22,12 @@ Named after Morrigan, a shapeshifting figure from Irish mythology thought to rep
 
     [Go to getting started](getting_started.md)
 
+-   :material-school: **Follow a tutorial**
+
+    One system standalone, or one inside PROTEUS
+
+    [Go to the tutorials](Tutorials/standalone.md)
+
 -   :material-download: **Install**
 
     From PyPI, or as an editable checkout

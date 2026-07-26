@@ -59,7 +59,7 @@ Four files appear under `tutorial_run`:
 
 ## What this system does
 
-Six embryos between 0.28 and 0.52 AU go unstable early. Four collisions occur,
+Six embryos between 0.30 and 0.52 AU go unstable early. Four collisions occur,
 all within the first 190 000 yr, and two bodies survive:
 
 | Time \[yr] | Target | Impactor | Target before \[M⊕] | Merged after \[M⊕] |

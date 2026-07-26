@@ -146,6 +146,10 @@ config_version = "3.0"
 proteus start -c morrigan_tutorial.toml --offline
 ```
 
+The output quoted below is from PROTEUS `fad73eb719` on the branch named above,
+with Morrigan 26.7.26 (`87202be`). A different Morrigan release can schedule a
+different history from the same seed.
+
 ## What happens
 
 Morrigan runs once, before the loop, and hands PROTEUS the impact history of one

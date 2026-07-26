@@ -1,6 +1,8 @@
 # Coupling to PROTEUS
 
-This page is the **recipe**: the TOML to write, the choices to make, and the mistakes that cost an afternoon. For why the coupling is built this way, see the [explanation page](../Explanations/proteus_coupling.md).
+This page is the **recipe**: the TOML to write, the choices to make, and the mistakes that cost an afternoon. For why the coupling is built this way, see the [explanation page](../Explanations/proteus_coupling.md). For one complete configuration you can run immediately, see the [PROTEUS tutorial](../Tutorials/proteus_minimal.md).
+
+Morrigan is one of three modules in the accretion slot. The other two take an impact history rather than deriving one: [`timeline`](timeline_module.md) replays a file, and [`dummy`](dummy_module.md) builds one from scaling laws.
 
 Morrigan is an optional PROTEUS module, so a standard PROTEUS install does not bring it. Add it with
 
