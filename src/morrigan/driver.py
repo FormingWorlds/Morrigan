@@ -440,6 +440,9 @@ def run_system(seed, masses, eccentricity, inner_edge, spacing, density,
             'rho_impactor': M_i / ((4.0 / 3.0) * np.pi * R_i**3),
             'a_before': m['a_before'],                     # [m]
             'a_after': m['a_final_AU'] * au2m,             # [m]
+            #both elements before and after, so a consumer following a planet on a
+            #different orbit can apply the change rather than the absolute value
+            'e_before': m['e_before'],
             'e_after': m['e_after'],
             'id_target': target,
             'id_impactor': int(m['id_impactor']),

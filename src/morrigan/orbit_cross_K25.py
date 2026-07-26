@@ -124,6 +124,7 @@ def orbit_cross_K25(ap, Mp, Rp, Ms, impact_parameter, ecc, interact, live_status
         #pre-merge geometry, captured before merge_embryo overwrites ap below; these
         #let a consumer rebuild the impact kinematics (escape velocity, densities)
         a_target_before = ap[target_idx] #[m]
+        e_target_before = ecc[target_idx] #[1], before merge_embryo overwrites it
         R_target_before, R_impactor = Rp[target_idx], Rp[impactor_idx] #[m]
 
 
@@ -137,13 +138,16 @@ def orbit_cross_K25(ap, Mp, Rp, Ms, impact_parameter, ecc, interact, live_status
         ecc[icross:jcross+1] = ecc_merge
         live_status[icross:jcross+1] = live_status_merge #smaller planet dies
 
-        #record impact velocity (v_c). The pre-merge
-        #radii and target semi-major axis, and the post-merge target eccentricity,
-        #are kept alongside so the full impact geometry can be reconstructed later to calculate atmospheric mass loss
+        #record impact velocity (v_c). The pre-merge radii, target semi-major axis
+        #and target eccentricity, and the post-merge semi-major axis and eccentricity,
+        #are kept alongside so the full impact geometry can be reconstructed later to calculate atmospheric mass loss.
+        #Both orbital elements are reported before and after, so a consumer can apply the
+        #change this collision made rather than the absolute value, which matters when the
+        #consumer follows a planet on a different orbit from this body's.
         merge_record = {'id_target': id_target,'id_impactor': id_impactor,'M_target_before': M_target_before,
             'M_impactor_before': M_impactor_before,'M_merged_after': Mp[target_idx],'v_c': v_c, 'a_final_AU': ap[target_idx] / au2m,
             'R_target_before': R_target_before, 'R_impactor': R_impactor,
-            'a_before': a_target_before, 'e_after': ecc[target_idx],}
+            'a_before': a_target_before, 'e_before': e_target_before, 'e_after': ecc[target_idx],}
 
     else: #scattering event
         rayleigh_ecc = rayleigh(1.0 / np.sqrt(2.0), 0.0) #0 because no truncation at geometric overlap constraint as for merge case

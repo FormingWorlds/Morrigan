@@ -67,8 +67,23 @@ def test_merger_kills_one_body_and_closes_its_record():
     v_esc = np.sqrt(2.0 * G * 2.0 * M_earth / (rec['R_target_before'] + rec['R_impactor']))
     assert rec['v_c'] >= v_esc * (1.0 - 1e-9)
 
-    # The survivor's post-merge eccentricity is recorded and bound.
+    # The survivor's eccentricity is recorded on both sides of the merger and
+    # both are bound. Reporting both is what lets a consumer following a planet
+    # on a different orbit apply the change this collision made rather than
+    # transplanting an absolute value that belongs to this body.
     assert 0.0 <= rec['e_after'] < 1.0
+    assert 0.0 <= rec['e_before'] < 1.0
+
+    # e_before is the target's eccentricity at the moment of the merger, read
+    # from the state before merge_embryo overwrites it. That is not the value
+    # the pair went in with: viscous stirring excites the orbits first, so the
+    # pair entered at 0.05 and collides well above it. Both facts matter, since
+    # recording the input value instead would describe a collision that never
+    # happened at that geometry.
+    assert rec['e_before'] > 0.05
+    # Reading the same array one line too late would report the merged value,
+    # which is the easy mistake because both come from `ecc[target_idx]`.
+    assert rec['e_before'] != pytest.approx(rec['e_after'], rel=1e-6)
 
 
 @pytest.mark.physics_invariant

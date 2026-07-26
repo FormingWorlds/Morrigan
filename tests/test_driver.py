@@ -32,7 +32,8 @@ _DENSITY = 5500.0
 _SCHEMA = (
     'time', 'M_target_before', 'M_impactor', 'M_merged_after', 'v_impact',
     'v_esc', 'impact_parameter', 'R_target_before', 'R_impactor', 'rho_target',
-    'rho_impactor', 'a_before', 'a_after', 'e_after', 'id_target', 'id_impactor',
+    'rho_impactor', 'a_before', 'a_after', 'e_before', 'e_after', 'id_target',
+    'id_impactor',
 )
 
 
