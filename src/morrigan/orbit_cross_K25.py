@@ -11,8 +11,10 @@ from morrigan.helper_functions import esc_ecc, hill_sphere, rayleigh
 from morrigan.merge_embryo import collision_velocity, merge_embryo
 
 
-def orbit_cross_K25(ap, Mp, Rp, Ms, impact_parameter, ecc, interact, live_status, N, planet_id, icross): #determine outcome of crossing event
-    '''
+def orbit_cross_K25(
+    ap, Mp, Rp, Ms, impact_parameter, ecc, interact, live_status, N, planet_id, icross
+):  # determine outcome of crossing event
+    """
     Function to determine what happens once an orbit crossing event has been established
 
     Parameters
@@ -45,160 +47,219 @@ def orbit_cross_K25(ap, Mp, Rp, Ms, impact_parameter, ecc, interact, live_status
     Modified arrays for ap, Mp, Rp, ecc, interact, live_status, N following scattering or merging
     merge_record : dict
         Stores information about targets and impactors for each merging event
-    '''
+    """
 
-    #now working with an interacting pair of planets i,j
-    #modifies the arrays of ap,Mp,Rp,ecc,interact,live_status based on what happens
-    jcross = icross + 1 #sets indices of interacting pair, aj>ai always, +1 to be able to index a pair later
+    # now working with an interacting pair of planets i,j
+    # modifies the arrays of ap,Mp,Rp,ecc,interact,live_status based on what happens
+    jcross = (
+        icross + 1
+    )  # sets indices of interacting pair, aj>ai always, +1 to be able to index a pair later
 
-    #mass-weighted mean semi-major axis of the pair (used for EJbef stability condition and the ejection formula)
-    aM = (Mp[icross]*ap[icross] + Mp[jcross]*ap[jcross]) / (Mp[icross] + Mp[jcross])
-    h = hill_sphere(aM, Mp[icross]+Mp[jcross], Ms) / aM
-    EJbef = 5.0/8.0*(ecc[icross]**2 + ecc[jcross]**2)/h**2 - 3.0/8.0 * ((ap[icross]-ap[jcross])/(h*aM))**2 + 4.5
+    # mass-weighted mean semi-major axis of the pair (used for EJbef stability condition and the ejection formula)
+    aM = (Mp[icross] * ap[icross] + Mp[jcross] * ap[jcross]) / (Mp[icross] + Mp[jcross])
+    h = hill_sphere(aM, Mp[icross] + Mp[jcross], Ms) / aM
+    EJbef = (
+        5.0 / 8.0 * (ecc[icross] ** 2 + ecc[jcross] ** 2) / h**2
+        - 3.0 / 8.0 * ((ap[icross] - ap[jcross]) / (h * aM)) ** 2
+        + 4.5
+    )
 
-    #2-body case: if the pair is Jacobi-stable and not currently overlapping, nothing happens
-    if N == 2 and (EJbef < 0.0 and (1.0+ecc[icross])*ap[icross] < (1.0-ecc[jcross])*ap[jcross]):
+    # 2-body case: if the pair is Jacobi-stable and not currently overlapping, nothing happens
+    if N == 2 and (
+        EJbef < 0.0 and (1.0 + ecc[icross]) * ap[icross] < (1.0 - ecc[jcross]) * ap[jcross]
+    ):
         return
 
-    mean_ap = (ap[icross] + ap[jcross])/2 #simple average semi-major axis, used for e_esc
-    e_esc = esc_ecc(Ms,Mp[icross],Mp[jcross],Rp[icross],Rp[jcross],mean_ap) #escape eccentricity
+    mean_ap = (ap[icross] + ap[jcross]) / 2  # simple average semi-major axis, used for e_esc
+    e_esc = esc_ecc(
+        Ms, Mp[icross], Mp[jcross], Rp[icross], Rp[jcross], mean_ap
+    )  # escape eccentricity
 
-    ecross_i = (ap[jcross] - ap[icross]) * np.sqrt(Mp[jcross]) / (ap[icross] * np.sqrt(Mp[jcross]) + ap[jcross] * np.sqrt(Mp[icross])) #eq 6 again
-    ecross_j = (ap[jcross] - ap[icross]) * np.sqrt(Mp[icross]) / (ap[icross] * np.sqrt(Mp[jcross]) + ap[jcross] * np.sqrt(Mp[icross]))
+    ecross_i = (
+        (ap[jcross] - ap[icross])
+        * np.sqrt(Mp[jcross])
+        / (ap[icross] * np.sqrt(Mp[jcross]) + ap[jcross] * np.sqrt(Mp[icross]))
+    )  # eq 6 again
+    ecross_j = (
+        (ap[jcross] - ap[icross])
+        * np.sqrt(Mp[icross])
+        / (ap[icross] * np.sqrt(Mp[jcross]) + ap[jcross] * np.sqrt(Mp[icross]))
+    )
 
-    ecc_cross = [ecross_i, ecross_j] #store together
-    #minimum eccentricity of interacting planets to cause a collision
+    ecc_cross = [ecross_i, ecross_j]  # store together
+    # minimum eccentricity of interacting planets to cause a collision
 
-    ecc_encounter = [max(ecc_cross[0], ecc[icross]), max(ecc_cross[1], ecc[jcross])] #eq 23
-    #enforces that the planets ACTUALLY interact (actual eccentricites from ecc[] are secular, not at exact crossing time)
-    #crossing_pair is still just a statistical prediction
-    #ensures the eccentricities used during a crossing are geometrically consistent
-    eij = np.sqrt(ecc_encounter[0]**2 + ecc_encounter[1]**2) #relative eccentricity
+    ecc_encounter = [max(ecc_cross[0], ecc[icross]), max(ecc_cross[1], ecc[jcross])]  # eq 23
+    # enforces that the planets ACTUALLY interact (actual eccentricites from ecc[] are secular, not at exact crossing time)
+    # crossing_pair is still just a statistical prediction
+    # ensures the eccentricities used during a crossing are geometrically consistent
+    eij = np.sqrt(ecc_encounter[0] ** 2 + ecc_encounter[1] ** 2)  # relative eccentricity
 
-    #calculates collosion probability, Pcol
+    # calculates collosion probability, Pcol
     ln_lambda = 3
-    lambdaa = (2*eij/e_esc)**2 * (1 + (eij**2/e_esc**2)) * (1/ln_lambda) #eq 12
-    p_col = 1 - np.exp(-lambdaa) # eq 14, caps between [0,1]
+    lambdaa = (2 * eij / e_esc) ** 2 * (1 + (eij**2 / e_esc**2)) * (1 / ln_lambda)  # eq 12
+    p_col = 1 - np.exp(-lambdaa)  # eq 14, caps between [0,1]
 
-    #use Monte Carlo approach to say whether or not a collision actually happens
-    #Bernoulli sampling?
-    merge_record = None #stores when a merge happens, stays None if nothing happens
-    draw = np.random.uniform(0,1) #draws a random number to compare against p_col
-    if draw < p_col: #merge event
-        count = 0 #keeps track of rejection-sampling structure, and ensures while loop doesnt go forever
-        while True: #keeps sampling until the eccentricity is consistent with the orbits actually overlapping
+    # use Monte Carlo approach to say whether or not a collision actually happens
+    # Bernoulli sampling?
+    merge_record = None  # stores when a merge happens, stays None if nothing happens
+    draw = np.random.uniform(0, 1)  # draws a random number to compare against p_col
+    if draw < p_col:  # merge event
+        count = 0  # keeps track of rejection-sampling structure, and ensures while loop doesnt go forever
+        while True:  # keeps sampling until the eccentricity is consistent with the orbits actually overlapping
             rayleigh_ecc = rayleigh(1 / np.sqrt(2), eij / e_esc)
-            #mutate ecc[icross]/ecc[jcross] in place so each retry's max() compares against the
-            #running (already-updated) eccentricity, matching the Fortran goto-loop behaviour
-            ecc[icross] = max(rayleigh_ecc * np.sqrt(Mp[jcross]) / np.sqrt(Mp[icross] + Mp[jcross]) * e_esc, ecc[icross])
-            ecc[jcross] = max(rayleigh_ecc * np.sqrt(Mp[icross]) / np.sqrt(Mp[icross] + Mp[jcross]) * e_esc, ecc[jcross])
+            # mutate ecc[icross]/ecc[jcross] in place so each retry's max() compares against the
+            # running (already-updated) eccentricity, matching the Fortran goto-loop behaviour
+            ecc[icross] = max(
+                rayleigh_ecc * np.sqrt(Mp[jcross]) / np.sqrt(Mp[icross] + Mp[jcross]) * e_esc,
+                ecc[icross],
+            )
+            ecc[jcross] = max(
+                rayleigh_ecc * np.sqrt(Mp[icross]) / np.sqrt(Mp[icross] + Mp[jcross]) * e_esc,
+                ecc[jcross],
+            )
 
-            if np.sqrt(ecc_cross[0]**2 + ecc_cross[1]**2) / e_esc > 2.0 or count > 500:
-                #unable to find a random draw that satisfies the condition, defaul to an orbital overlap of 0.1%
-                #if orbits will never overlap OR took too many interations.
-                #Take the larger of the geometric default and the eccentricity
-                #the body already carries, the same convention as every other
-                #site: overwriting outright discards the secular value, which
-                #can be the larger of the two and then reports a collision
-                #slower than the incoming orbits imply.
+            if np.sqrt(ecc_cross[0] ** 2 + ecc_cross[1] ** 2) / e_esc > 2.0 or count > 500:
+                # unable to find a random draw that satisfies the condition, defaul to an orbital overlap of 0.1%
+                # if orbits will never overlap OR took too many interations.
+                # Take the larger of the geometric default and the eccentricity
+                # the body already carries, the same convention as every other
+                # site: overwriting outright discards the secular value, which
+                # can be the larger of the two and then reports a collision
+                # slower than the incoming orbits imply.
                 ecc[icross] = max(1.001 * ecc_cross[0], ecc[icross])
                 ecc[jcross] = max(1.001 * ecc_cross[1], ecc[jcross])
                 break
-            #check if epicycle amplitudes sum to at least aj-ai (they will overlap)
-            #OVERLAP CONDITION
-            elif ap[icross]*ecc[icross] + ap[jcross]*ecc[jcross] >= abs(ap[jcross] - ap[icross]):
-                #yay it worked, eccentricities are already updated above
+            # check if epicycle amplitudes sum to at least aj-ai (they will overlap)
+            # OVERLAP CONDITION
+            elif ap[icross] * ecc[icross] + ap[jcross] * ecc[jcross] >= abs(
+                ap[jcross] - ap[icross]
+            ):
+                # yay it worked, eccentricities are already updated above
                 break
-            else: #if all else, try again with a new random number
+            else:  # if all else, try again with a new random number
                 count += 1
 
-        #velocity at collision, calculated from energy conservation
-        v_c = collision_velocity(ap[icross:jcross+1], Mp[icross:jcross+1], Rp[icross:jcross+1], Ms, ecc[icross:jcross+1])
+        # velocity at collision, calculated from energy conservation
+        v_c = collision_velocity(
+            ap[icross : jcross + 1],
+            Mp[icross : jcross + 1],
+            Rp[icross : jcross + 1],
+            Ms,
+            ecc[icross : jcross + 1],
+        )
 
-        #capture pre-merge state for the impact log, since merge_embryo overwrites Mp[icross:jcross+1] below
-        #(target = larger/surviving body, impactor = smaller/destroyed body, as per merge_embryo convention)
+        # capture pre-merge state for the impact log, since merge_embryo overwrites Mp[icross:jcross+1] below
+        # (target = larger/surviving body, impactor = smaller/destroyed body, as per merge_embryo convention)
         target_idx = icross if Mp[icross] >= Mp[jcross] else jcross
         impactor_idx = jcross if target_idx == icross else icross
-        id_target, id_impactor = planet_id[target_idx], planet_id[impactor_idx] #carry index through all other parameters
+        id_target, id_impactor = (
+            planet_id[target_idx],
+            planet_id[impactor_idx],
+        )  # carry index through all other parameters
         M_target_before, M_impactor_before = Mp[target_idx], Mp[impactor_idx]
-        #pre-merge geometry, captured before merge_embryo overwrites ap below; these
-        #let a consumer rebuild the impact kinematics (escape velocity, densities)
-        a_target_before = ap[target_idx] #[m]
-        e_target_before = ecc[target_idx] #[1], before merge_embryo overwrites it
-        R_target_before, R_impactor = Rp[target_idx], Rp[impactor_idx] #[m]
+        # pre-merge geometry, captured before merge_embryo overwrites ap below; these
+        # let a consumer rebuild the impact kinematics (escape velocity, densities)
+        a_target_before = ap[target_idx]  # [m]
+        e_target_before = ecc[target_idx]  # [1], before merge_embryo overwrites it
+        R_target_before, R_impactor = Rp[target_idx], Rp[impactor_idx]  # [m]
 
+        # call merge_embryo function to update parameters for interacting pair
+        # jcross+1 to include that planet in the interacting pair
+        # print(f"[COLLISION] Planets {planet_id[icross]} and {planet_id[jcross]} merged")
+        ap_merge, Mp_merge, ecc_merge, live_status_merge = merge_embryo(
+            ap[icross : jcross + 1],
+            Mp[icross : jcross + 1],
+            Rp[icross : jcross + 1],
+            Ms,
+            ecc[icross : jcross + 1],
+            v_c,
+            live_status[icross : jcross + 1],
+            impact_parameter,
+        )
+        # update system
+        ap[icross : jcross + 1] = ap_merge
+        Mp[icross : jcross + 1] = Mp_merge
+        ecc[icross : jcross + 1] = ecc_merge
+        live_status[icross : jcross + 1] = live_status_merge  # smaller planet dies
 
-        #call merge_embryo function to update parameters for interacting pair
-        #jcross+1 to include that planet in the interacting pair
-        #print(f"[COLLISION] Planets {planet_id[icross]} and {planet_id[jcross]} merged")
-        ap_merge, Mp_merge, ecc_merge, live_status_merge = merge_embryo(ap[icross:jcross+1], Mp[icross:jcross+1], Rp[icross:jcross+1], Ms, ecc[icross:jcross+1], v_c, live_status[icross:jcross+1], impact_parameter)
-        #update system
-        ap[icross:jcross+1] = ap_merge
-        Mp[icross:jcross+1] = Mp_merge
-        ecc[icross:jcross+1] = ecc_merge
-        live_status[icross:jcross+1] = live_status_merge #smaller planet dies
+        # record impact velocity (v_c). The pre-merge radii, target semi-major axis
+        # and target eccentricity, and the post-merge semi-major axis and eccentricity,
+        # are kept alongside so the full impact geometry can be reconstructed later to calculate atmospheric mass loss.
+        # Both orbital elements are reported before and after, so a consumer can apply the
+        # change this collision made rather than the absolute value, which matters when the
+        # consumer follows a planet on a different orbit from this body's.
+        merge_record = {
+            'id_target': id_target,
+            'id_impactor': id_impactor,
+            'M_target_before': M_target_before,
+            'M_impactor_before': M_impactor_before,
+            'M_merged_after': Mp[target_idx],
+            'v_c': v_c,
+            'a_final_AU': ap[target_idx] / au2m,
+            'R_target_before': R_target_before,
+            'R_impactor': R_impactor,
+            'a_before': a_target_before,
+            'e_before': e_target_before,
+            'e_after': ecc[target_idx],
+        }
 
-        #record impact velocity (v_c). The pre-merge radii, target semi-major axis
-        #and target eccentricity, and the post-merge semi-major axis and eccentricity,
-        #are kept alongside so the full impact geometry can be reconstructed later to calculate atmospheric mass loss.
-        #Both orbital elements are reported before and after, so a consumer can apply the
-        #change this collision made rather than the absolute value, which matters when the
-        #consumer follows a planet on a different orbit from this body's.
-        merge_record = {'id_target': id_target,'id_impactor': id_impactor,'M_target_before': M_target_before,
-            'M_impactor_before': M_impactor_before,'M_merged_after': Mp[target_idx],'v_c': v_c, 'a_final_AU': ap[target_idx] / au2m,
-            'R_target_before': R_target_before, 'R_impactor': R_impactor,
-            'a_before': a_target_before, 'e_before': e_target_before, 'e_after': ecc[target_idx],}
+    else:  # scattering event
+        rayleigh_ecc = rayleigh(
+            1.0 / np.sqrt(2.0), 0.0
+        )  # 0 because no truncation at geometric overlap constraint as for merge case
+        # assuming energy equipartition
+        # taken from fortran code, why is it not a max() anymore as before with merging?
 
-    else: #scattering event
-        rayleigh_ecc = rayleigh(1.0 / np.sqrt(2.0), 0.0) #0 because no truncation at geometric overlap constraint as for merge case
-        #assuming energy equipartition
-        #taken from fortran code, why is it not a max() anymore as before with merging?
+        ecc[icross] = (
+            rayleigh_ecc * np.sqrt(Mp[jcross]) / np.sqrt(Mp[icross] + Mp[jcross]) * e_esc
+        )
+        ecc[jcross] = (
+            rayleigh_ecc * np.sqrt(Mp[icross]) / np.sqrt(Mp[icross] + Mp[jcross]) * e_esc
+        )
 
-        ecc[icross] = rayleigh_ecc * np.sqrt(Mp[jcross]) / np.sqrt(Mp[icross] + Mp[jcross]) * e_esc
-        ecc[jcross] = rayleigh_ecc * np.sqrt(Mp[icross]) / np.sqrt(Mp[icross] + Mp[jcross]) * e_esc
-
-        #Identify which planet was excited more. Equipartition sets the two
-        #excitations in the fixed ratio sqrt(M_other/M_self), so for an
-        #equal-mass pair they are identical to the last bit and the choice is
-        #a tie that has to be made deliberately: the paper's prescription does
-        #not cover it, and it decides whether such an ejection removes one body
-        #or two. The outer body escapes, which leaves the survivor inside the
-        #escaper, where the apocentre closure below gives a bound orbit.
+        # Identify which planet was excited more. Equipartition sets the two
+        # excitations in the fixed ratio sqrt(M_other/M_self), so for an
+        # equal-mass pair they are identical to the last bit and the choice is
+        # a tie that has to be made deliberately: the paper's prescription does
+        # not cover it, and it decides whether such an ejection removes one body
+        # or two. The outer body escapes, which leaves the survivor inside the
+        # escaper, where the apocentre closure below gives a bound orbit.
         if ecc[icross] == ecc[jcross]:
             ilarge, ismall = jcross, icross
         else:
             ilarge = icross if ecc[icross] > ecc[jcross] else jcross
             ismall = jcross if ecc[icross] > ecc[jcross] else icross
 
-        if max(ecc[icross], ecc[jcross]) >= 1.0: #planet got bumped out
-            #print(f"[EJECTION] Planet {planet_id[ilarge]} was ejected")
-            #planet with smaller excited eccentricity remains in the system, and orbital parameters are recalculated
-            #The survivor absorbs the escaper's binding energy, so its orbit
-            #tightens. It must still pass through the place the encounter
-            #happened, and since that place is now outside its new orbit it
-            #becomes the apocentre: a_new (1 + e_new) = a_old. Capture the old
-            #axis before overwriting it.
+        if max(ecc[icross], ecc[jcross]) >= 1.0:  # planet got bumped out
+            # print(f"[EJECTION] Planet {planet_id[ilarge]} was ejected")
+            # planet with smaller excited eccentricity remains in the system, and orbital parameters are recalculated
+            # The survivor absorbs the escaper's binding energy, so its orbit
+            # tightens. It must still pass through the place the encounter
+            # happened, and since that place is now outside its new orbit it
+            # becomes the apocentre: a_new (1 + e_new) = a_old. Capture the old
+            # axis before overwriting it.
             a_rem_before = ap[ismall]
             ap[ismall] = Mp[ismall] / (Mp[ismall] / ap[ismall] + Mp[ilarge] / ap[ilarge])
             ecc[ismall] = a_rem_before / ap[ismall] - 1.0
-            live_status[ilarge] = False #the body excited past e = 1 is the one that escapes
+            live_status[ilarge] = False  # the body excited past e = 1 is the one that escapes
             if ecc[ismall] >= 1.0:
-                #A comparable-mass pair leaves no bound survivor: the orbit that
-                #closes the energy books is too tight to still reach the
-                #encounter, so the remaining body is unbound too and the
-                #encounter destroys both.
+                # A comparable-mass pair leaves no bound survivor: the orbit that
+                # closes the energy books is too tight to still reach the
+                # encounter, so the remaining body is unbound too and the
+                # encounter destroys both.
                 live_status[ismall] = False
-        else: #'normal' scattering conditions
+        else:  #'normal' scattering conditions
             #'change in orbital separation is assumed to be equal to the sum of the excited epicycle amplitude'
-            #db = delta_a essentially how much the orbit is shifted either in or out
-            #print(f"[SCATTERING] Planets {planet_id[icross]} and {planet_id[jcross]} scattered")
-            db = ecc[icross] * ap[icross] + ecc[jcross] * ap[jcross] #delta b_ij eq 18
-            ap[icross] = ap[icross] - Mp[jcross] / (Mp[icross] + Mp[jcross]) * db #eq 19
-            ap[jcross] = ap[jcross] + Mp[icross] / (Mp[icross] + Mp[jcross]) * db #eq 20
+            # db = delta_a essentially how much the orbit is shifted either in or out
+            # print(f"[SCATTERING] Planets {planet_id[icross]} and {planet_id[jcross]} scattered")
+            db = ecc[icross] * ap[icross] + ecc[jcross] * ap[jcross]  # delta b_ij eq 18
+            ap[icross] = ap[icross] - Mp[jcross] / (Mp[icross] + Mp[jcross]) * db  # eq 19
+            ap[jcross] = ap[jcross] + Mp[icross] / (Mp[icross] + Mp[jcross]) * db  # eq 20
 
-    #a negative semi-major axis is a hyperbolic orbit: the scattering unbound
-    #the inner body, so it leaves the system rather than falling inward
+    # a negative semi-major axis is a hyperbolic orbit: the scattering unbound
+    # the inner body, so it leaves the system rather than falling inward
     if ap[icross] < 0.0:
-        live_status[icross] = False #it's now dead
+        live_status[icross] = False  # it's now dead
 
     return merge_record

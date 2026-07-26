@@ -149,8 +149,7 @@ def test_unequal_masses_resolve_the_crossing_eccentricity_denominator():
     tight; at lower eccentricities the two forms coincide and the pin
     would not discriminate at all.
     """
-    icross, t_event = _call([1.0, 1.06, 1.13], [0.02, 0.02, 0.02], 0.0,
-                            masses=[1.0, 4.0, 0.5])
+    icross, t_event = _call([1.0, 1.06, 1.13], [0.02, 0.02, 0.02], 0.0, masses=[1.0, 4.0, 0.5])
 
     assert icross == 0
     assert t_event == pytest.approx(2.5199888664e11, rel=1e-6)

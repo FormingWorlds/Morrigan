@@ -113,7 +113,9 @@ def test_scattering_conserves_the_mass_weighted_orbit_sum():
     np.testing.assert_array_equal(mp, m_before)  # scattering moves orbits, not mass
 
     # Conservation: the mass-weighted orbit sum is exact.
-    assert float(np.sum(mp * ap)) == pytest.approx(float(np.sum(m_before * a_before)), rel=1e-12)
+    assert float(np.sum(mp * ap)) == pytest.approx(
+        float(np.sum(m_before * a_before)), rel=1e-12
+    )
     # Direction: inner in, outer out, by a nonzero amount.
     assert ap[0] < a_before[0]
     assert ap[1] > a_before[1]
@@ -172,8 +174,9 @@ def test_ejection_removes_the_escaping_body_and_binds_the_survivor():
     rp2 = np.array([planet_radius(m, _RHO) for m in mp2])
     e2 = np.array([0.3, 0.3])
     live2 = np.array([True, True])
-    rec2 = orbit_cross_K25(ap2, mp2, rp2, M_sun, 0.5, e2,
-                           np.ones(2, dtype=bool), live2, 2, np.arange(2), 0)
+    rec2 = orbit_cross_K25(
+        ap2, mp2, rp2, M_sun, 0.5, e2, np.ones(2, dtype=bool), live2, 2, np.arange(2), 0
+    )
     assert rec2 is None
     assert list(live2) == [False, False]
     assert e2[1] == pytest.approx((1.0 / 1.2) * (40.0 / 30.0), rel=1e-3)
@@ -232,8 +235,9 @@ def test_the_capped_fallback_keeps_the_eccentricity_a_body_already_carries():
     rp = np.array([planet_radius(m, _RHO) for m in mp])
     ecc = np.array([0.4, 0.4])
     live = np.array([True, True])
-    rec = orbit_cross_K25(ap, mp, rp, M_sun, 0.5, ecc,
-                          np.ones(2, dtype=bool), live, 2, np.arange(2), 0)
+    rec = orbit_cross_K25(
+        ap, mp, rp, M_sun, 0.5, ecc, np.ones(2, dtype=bool), live, 2, np.arange(2), 0
+    )
 
     assert rec is not None
     # The carried eccentricity survives the fallback rather than being

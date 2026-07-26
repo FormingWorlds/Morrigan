@@ -35,14 +35,24 @@ def _s0_config(seed):
     """The equal-mass S0-like settings dictionary for one seed."""
     return {
         'run_simulation': {
-            't': 0.0, 't_ref': 0.0, 't_event': 0.0, 'flag_event': 1,
-            'a_min': 0.02, 'max_time': 0.03, 'random_seed': seed,
+            't': 0.0,
+            't_ref': 0.0,
+            't_event': 0.0,
+            'flag_event': 1,
+            'a_min': 0.02,
+            'max_time': 0.03,
+            'random_seed': seed,
             'save_directory': '',
         },
         'init_par': {
-            'N': _N_INI, 'e': 0.01, 'impact_angle': 45.0,
+            'N': _N_INI,
+            'e': 0.01,
+            'impact_angle': 45.0,
             'Mp': [_M_EACH / M_earth] * _N_INI,
-            'Ms': 1.0, 'rho_p': _RHO, 'inner_edge': 0.1, 'spacing': 10.0,
+            'Ms': 1.0,
+            'rho_p': _RHO,
+            'inner_edge': 0.1,
+            'spacing': 10.0,
         },
     }
 
@@ -154,10 +164,16 @@ def test_dry_impact_chains_hand_over_masses_across_the_ensemble():
     checked_chains = 0
     for seed in list(_SEEDS)[:5]:
         out = morrigan.run_system(
-            seed=seed, masses=[_M_EACH] * _N_INI, eccentricity=0.01,
-            inner_edge=0.1 * au2m, spacing=10.0, density=_RHO,
-            impact_angle=45.0, evolution_time=0.03,
-            inner_cutoff=0.02 * au2m, stellar_mass=1.0,
+            seed=seed,
+            masses=[_M_EACH] * _N_INI,
+            eccentricity=0.01,
+            inner_edge=0.1 * au2m,
+            spacing=10.0,
+            density=_RHO,
+            impact_angle=45.0,
+            evolution_time=0.03,
+            inner_cutoff=0.02 * au2m,
+            stellar_mass=1.0,
         )
         for chain in out['impacts'].values():
             times = [r['time'] for r in chain]

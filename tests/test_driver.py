@@ -23,16 +23,29 @@ from morrigan.driver import allocate_a, read_config, system_seed, time_step
 
 pytestmark = [pytest.mark.smoke, pytest.mark.timeout(60)]
 
-#a system that produces several mergers, a body hit more than once, and a body
-#left untouched, so the chain and empty-history assertions are all exercised
+# a system that produces several mergers, a body hit more than once, and a body
+# left untouched, so the chain and empty-history assertions are all exercised
 _MASSES = [0.2, 0.9, 0.4, 1.1, 0.3, 0.7, 1.3, 0.5]
 # The bulk density every body is given, and the anchor the recorded radii and
 # densities are checked against.
 _DENSITY = 5500.0
 _SCHEMA = (
-    'time', 'M_target_before', 'M_impactor', 'M_merged_after', 'v_impact',
-    'v_esc', 'impact_parameter', 'R_target_before', 'R_impactor', 'rho_target',
-    'rho_impactor', 'a_before', 'a_after', 'e_before', 'e_after', 'id_target',
+    'time',
+    'M_target_before',
+    'M_impactor',
+    'M_merged_after',
+    'v_impact',
+    'v_esc',
+    'impact_parameter',
+    'R_target_before',
+    'R_impactor',
+    'rho_target',
+    'rho_impactor',
+    'a_before',
+    'a_after',
+    'e_before',
+    'e_after',
+    'id_target',
     'id_impactor',
 )
 
@@ -87,9 +100,19 @@ def test_every_impact_record_is_physically_self_consistent():
         assert abs(r['M_merged_after'] - M_t) > 0.1 * r['M_merged_after']
 
         # Every extensive quantity is strictly positive.
-        for key in ('M_target_before', 'M_impactor', 'M_merged_after', 'v_impact',
-                    'v_esc', 'R_target_before', 'R_impactor', 'rho_target',
-                    'rho_impactor', 'a_before', 'a_after'):
+        for key in (
+            'M_target_before',
+            'M_impactor',
+            'M_merged_after',
+            'v_impact',
+            'v_esc',
+            'R_target_before',
+            'R_impactor',
+            'rho_target',
+            'rho_impactor',
+            'a_before',
+            'a_after',
+        ):
             assert r[key] > 0.0, f'{key} must be positive'
 
         # Collision speed cannot fall below the mutual escape speed.
@@ -101,8 +124,9 @@ def test_every_impact_record_is_physically_self_consistent():
         for mass, radius in ((M_t, r['R_target_before']), (M_i, r['R_impactor'])):
             r_expected = (3.0 * mass / (4.0 * np.pi * _DENSITY)) ** (1.0 / 3.0)
             assert radius == pytest.approx(r_expected, rel=1e-9)
-        v_esc_expected = np.sqrt(2.0 * G * (M_t + M_i)
-                                 / (r['R_target_before'] + r['R_impactor']))
+        v_esc_expected = np.sqrt(
+            2.0 * G * (M_t + M_i) / (r['R_target_before'] + r['R_impactor'])
+        )
         assert r['v_esc'] == pytest.approx(v_esc_expected, rel=1e-9)
 
         # The model carries one bulk density, so both recorded densities must
@@ -388,23 +412,42 @@ def test_the_file_writing_path_produces_the_documented_tables(tmp_path):
 
     config = {
         'run_simulation': {
-            't': 0.0, 't_ref': 0.0, 't_event': 0.0, 'flag_event': 1,
-            'a_min': 0.005, 'max_time': 1.0, 'random_seed': 7,
+            't': 0.0,
+            't_ref': 0.0,
+            't_event': 0.0,
+            'flag_event': 1,
+            'a_min': 0.005,
+            'max_time': 1.0,
+            'random_seed': 7,
             'save_directory': str(tmp_path),
         },
         'init_par': {
-            'N': len(_MASSES), 'e': 0.05, 'impact_angle': 20.0,
+            'N': len(_MASSES),
+            'e': 0.05,
+            'impact_angle': 20.0,
             'Mp': list(_MASSES),
-            'Ms': 1.0, 'rho_p': 5500.0, 'inner_edge': 0.05, 'spacing': 10,
+            'Ms': 1.0,
+            'rho_p': 5500.0,
+            'inner_edge': 0.05,
+            'spacing': 10,
         },
     }
     summary = run_once(0, config, collect=False)
     assert summary['n_survivors'] >= 1
 
-    mergers = astropy_ascii.read(tmp_path / 'data' / 'mergers' / 'mergers_00.csv',
-                                 format='fixed_width')
-    expected_cols = ['t', 'id_target', 'id_impactor', 'M_target_before',
-                     'M_impactor_before', 'M_merged_after', 'v_c', 'a_final_AU']
+    mergers = astropy_ascii.read(
+        tmp_path / 'data' / 'mergers' / 'mergers_00.csv', format='fixed_width'
+    )
+    expected_cols = [
+        't',
+        'id_target',
+        'id_impactor',
+        'M_target_before',
+        'M_impactor_before',
+        'M_merged_after',
+        'v_c',
+        'a_final_AU',
+    ]
     assert list(mergers.colnames) == expected_cols
     assert len(mergers) >= 1
     for row in mergers:
@@ -414,14 +457,16 @@ def test_the_file_writing_path_produces_the_documented_tables(tmp_path):
         )
         assert row['v_c'] > 0.0 and row['t'] > 0.0
 
-    survivors = astropy_ascii.read(tmp_path / 'data' / 'survivors' / 'survivors_00.csv',
-                                   format='fixed_width')
+    survivors = astropy_ascii.read(
+        tmp_path / 'data' / 'survivors' / 'survivors_00.csv', format='fixed_width'
+    )
     assert list(survivors.colnames) == ['id', 'Mp', 'a_AU', 'ecc']
     assert len(survivors) == summary['n_survivors']
     assert all(survivors['Mp'] > 0.0) and all(survivors['a_AU'] > 0.0)
 
-    full = astropy_ascii.read(tmp_path / 'data' / 'full_systems' / 'full_system_00.csv',
-                              format='fixed_width')
+    full = astropy_ascii.read(
+        tmp_path / 'data' / 'full_systems' / 'full_system_00.csv', format='fixed_width'
+    )
     # Every surviving body appears in the history, and the clock runs forward.
     assert set(survivors['id']) <= set(full['id'])
     assert min(full['t']) == pytest.approx(0.0, abs=0.0)
