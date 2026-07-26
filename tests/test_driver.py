@@ -149,6 +149,16 @@ def test_every_impact_record_is_physically_self_consistent():
         # Geometry and eccentricity stay in their physical ranges.
         assert 0.0 <= r['impact_parameter'] <= 1.0
         assert 0.0 <= r['e_after'] < 1.0
+        # The pre-impact eccentricity carries the same bound. The consumer
+        # applies the difference of the two and refuses a whole timeline whose
+        # elements describe an unbound orbit, so an out-of-range value here
+        # aborts a coupled run rather than degrading it.
+        assert 0.0 <= r['e_before'] < 1.0
+
+        # The two eccentricities describe different instants, so reporting the
+        # post-merge value for both would make every impact's applied change
+        # exactly zero and freeze the coupled planet's eccentricity.
+        assert r['e_before'] != r['e_after']
 
     # A merger leaves the survivor on an eccentric orbit, and the value is
     # carried per impact rather than being a constant. The consumer writes
@@ -158,6 +168,12 @@ def test_every_impact_record_is_physically_self_consistent():
     eccentricities = [r['e_after'] for r in records]
     assert any(e > 0.0 for e in eccentricities)
     assert len(set(eccentricities)) > 1
+
+    # The change each impact makes is what the consumer applies, so it has to
+    # vary per impact and not be a constant offset or an identical zero.
+    changes = [r['e_after'] - r['e_before'] for r in records]
+    assert any(abs(d) > 0.0 for d in changes)
+    assert len(set(changes)) > 1
 
 
 @pytest.mark.physics_invariant
