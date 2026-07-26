@@ -16,8 +16,14 @@ nav:
       - Running a model: How-to/running.md
       - Configuration: How-to/configuration.md
       - Coupling to PROTEUS: How-to/proteus_coupling.md
+      - Replay an impact history: How-to/timeline_module.md
+      - Grow a planet without dynamics: How-to/dummy_module.md
       - Testing: How-to/testing.md
       - Releasing: How-to/releasing.md
+
+  - Tutorials:
+      - Run a system standalone: Tutorials/standalone.md
+      - Run PROTEUS with Morrigan: Tutorials/proteus_minimal.md
 
   - Explanations:
       - Model overview: Explanations/model.md
