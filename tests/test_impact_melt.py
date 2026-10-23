@@ -83,17 +83,13 @@ def test_above_v_cr_flips_at_the_reference_critical_speed(row):
     so every term of the Genda et al. (2012) fit is pinned at every golden row."""
     v_esc = math.sqrt(2.0 * G * (row['Mt'] + row['Mi']) / (row['Rt'] + row['Ri']))
     b = math.sin(math.radians(row['theta']))
-    for factor, expected in ((1.0 + 1e-6, True), (1.0 - 1e-6, False)):
-        res = melt_fraction(
-            row['Mt'],
-            row['Mi'],
-            row['Rt'],
-            row['Ri'],
-            row['vcr'] * factor * v_esc,
-            b,
-            R_merged=row['Rti'],
-        )
-        assert res.above_v_cr is expected, (factor, row['vcr'])
+
+    def flag(factor):
+        args = (row['Mt'], row['Mi'], row['Rt'], row['Ri'], row['vcr'] * factor * v_esc, b)
+        return melt_fraction(*args, R_merged=row['Rti']).above_v_cr
+
+    assert flag(1.0 + 1e-6) is True, row['vcr']
+    assert flag(1.0 - 1e-6) is False, row['vcr']
 
 
 @pytest.mark.reference_pinned
@@ -112,6 +108,11 @@ def test_issue_table_at_one_earth_mass():
         cell = f'{res.f_melt:.2f} ± {res.f_melt_sigma:.2f}'
         assert cell == text[row['theta']][(0.03, 0.1, 0.3).index(row['gamma'])]
     assert len(GOLDEN['issue_morrigan_G']) == 9
+    # the reference code with its own G gives the same cells
+    for row in GOLDEN['issue_reference_G']:
+        cell = f'{min(row["f_raw"], 1.0):.2f} ± {row["sigma"]:.2f}'
+        assert cell == text[row['theta']][(0.03, 0.1, 0.3).index(row['gamma'])]
+    assert len(GOLDEN['issue_reference_G']) == 9
 
 
 @pytest.mark.physics_invariant
@@ -165,7 +166,7 @@ def test_sigma_at_a_tie_uses_the_lower_simulated_angle(tie):
     ids=lambda v: str(v),
 )
 def test_in_range_flag_at_each_boundary(kwargs, expected):
-    """The fit range (1 to 53 M_Mars, gamma 0.03 to 0.5, v_esc to 2 v_esc) flags a merger
+    """The campaign range (1 to 53 M_Mars, gamma 0.03 to 0.5, v_esc to 2 v_esc) flags a merger
     just outside each bound and accepts it just inside; the lower speed bound carries a
     1e-9 relative margin, so a contact speed that equals the recomputed v_esc stays in."""
     res = melt_fraction(*_case(45.0, **({'gamma': 0.1} | kwargs)))
