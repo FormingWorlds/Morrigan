@@ -1,6 +1,6 @@
 # Code architecture
 
-Eleven source files under `src/morrigan/`, laid out so that each stage of the physics has one home. This page maps them onto what the [model overview](model.md) describes.
+Twelve source files under `src/morrigan/`, laid out so that each stage of the physics has one home. This page maps them onto what the [model overview](model.md) describes.
 
 ## The call graph
 
@@ -50,6 +50,7 @@ Eleven source files under `src/morrigan/`, laid out so that each stage of the ph
 | `orbit_cross_K25.py` | Resolving a crossing into a merger, a scattering or an ejection | physics |
 | `merge_embryo.py` | Merger bookkeeping: masses, orbits, eccentricities | physics |
 | `helper_functions.py` | Kepler period, Hill radius, escape eccentricity, Rayleigh draws | physics |
+| `impact_melt.py` | Bulk mantle melt fraction of a merger (Nakajima et al. 2021) | physics |
 | `sort_planet.py` | Dead-planet removal and re-sorting | plumbing |
 | `constants.py` | Physical constants and unit conversions | plumbing |
 | `__init__.py` | Public API: `run_system` | plumbing |

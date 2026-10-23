@@ -80,6 +80,7 @@ PHYSICS_SOURCES = {
     'crossing_pair.py',
     'driver.py',
     'helper_functions.py',
+    'impact_melt.py',
     'interaction_timescales.py',
     'merge_embryo.py',
     'orbit_cross_K25.py',

@@ -34,6 +34,10 @@ The public entry point is `morrigan.run_system`, documented first below. The mod
 
 ::: morrigan.helper_functions
 
+## Impact melt
+
+::: morrigan.impact_melt
+
 ## Cleanup sort
 
 ::: morrigan.sort_planet

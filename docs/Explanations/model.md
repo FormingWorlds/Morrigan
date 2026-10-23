@@ -53,6 +53,20 @@ the orbital-energy-weighted orbit, and composes the eccentricity as a mass-weigh
 
 Merging is perfect: the surviving body's mass is the plain sum of the two, with no fragmentation, no debris, and nothing shed. A giant impact does erode a real atmosphere, and in a coupled run that erosion is applied downstream by PROTEUS through ZEPHYRUS, from the impact geometry each record carries, following the scaling law of Kegerreis et al. (2020)[^cite-kegerreis2020]. Keeping it out of the dynamical model means one body of physics owns the atmosphere rather than two, and it is what lets the reported merged mass be an exact sum that a consumer can start its own accounting from.
 
+## Mantle melt of a merger
+
+Every merger also reports the bulk melt fraction of the post-impact mantle from the scaling law of Nakajima et al. (2021)[^cite-nakajima2021], a fit to 108 SPH giant impacts between bodies with a 70 % dunite mantle and an iron core. The energy the collision releases is the kinetic energy at contact plus the potential energy of the two bodies minus that of the merged body (their eqs. 2 and 3),
+
+$$ \mathrm{KE}_0 = \tfrac12 \frac{M_t M_i}{M_t + M_i} v_\mathrm{imp}^2, \qquad \Delta \mathrm{PE} = -\tfrac35 \frac{G M_t^2}{R_t} - \tfrac35 \frac{G M_i^2}{R_i} - \frac{G M_t M_i}{R_t + R_i} + \tfrac35 \frac{G (M_t + M_i)^2}{R'}, $$
+
+with Morrigan's own masses, radii and contact speed, and $R'$ the merged radius at the target's density. Legendre fits in $\cos\theta$, with $\sin\theta$ the impact parameter, give the share of that energy that becomes internal energy, $\Delta\mathrm{IE}$ (eq. 4), the mantle's share $h$ of it (eq. 6) and the post-impact mantle mass (eq. 7). The melt fraction (eq. 14) is the mantle's energy gain per unit mantle mass over $E_M = 5.2 \times 10^6$ J/kg, clipped at 1:
+
+$$ f_\mathrm{melt} = \frac{h\, \Delta \mathrm{IE}}{M_\mathrm{mantle} E_M}. $$
+
+The coefficients are those of the authors' reference code, MeltScalingLaw at commit 2eca30f2, which adds 45° impacts and differs from the paper's Tables S.5 and S.6; its sixth-order Legendre term is twice the standard $P_6$, and the port keeps that basis because the coefficients are fitted to it. The 1-sigma comes from the fit errors at the simulated angle nearest to $\theta$ (0, 30, 45, 60 or 90°, ties to the lower one); the reference code accepts only those five angles, so this rule is the port's. Morrigan uses one impact angle for every merger of a run (`impact_angle` in the settings), so a run shows the melt's dependence on mass ratio and speed, not on the angle.
+
+Every merger uses the merging coefficients, since Morrigan merges every collision. `above_v_cr` marks a merger faster than the critical speed of Genda et al. (2012)[^cite-genda2012], where the reference code would switch to its hit-and-run fit. `melt_in_range` is false outside the fitted range, 1 to 53 Mars masses in total, an impactor-to-total mass ratio of 0.03 to 0.5, and 1 to 2 times the mutual escape speed; the value there is the fit extrapolated, and a run with any such merger warns once. Mergers between Earth-mass embryos at 1.5 to 2 times the escape speed can release enough energy to melt the whole mantle, and $f_\mathrm{melt}$ is then 1.
+
 ## Randomness and reproducibility
 
 All Monte Carlo draws go through numpy's global random state, seeded once per system from the settings-file seed plus the system index, so a given settings file reproduces its systems exactly. `run_system` additionally saves and restores the caller's random state, so an embedding program's own draws are unaffected.
@@ -68,3 +82,7 @@ All Monte Carlo draws go through numpy's global random state, seeded once per sy
 [^cite-kegerreis2020]: Kegerreis, J.A., Eke, V.R., Catling, D.C., Massey, R.J., Teodoro, L.F.A. & Zahnle, K.J., *[Atmospheric Erosion by Giant Impacts onto Terrestrial Planets: A Scaling Law for any Speed, Angle, Mass, and Density](https://doi.org/10.3847/2041-8213/abb5fb)*, The Astrophysical Journal Letters, 901, L31, 2020.
 
 [^cite-murray1999]: Murray, C.D. & Dermott, S.F., *Solar System Dynamics*, Cambridge University Press, 1999.
+
+[^cite-nakajima2021]: Nakajima, M., Golabek, G.J., Wünnemann, K., Rubie, D.C., Burger, C., Melosh, H.J., Jacobson, S.A., Manske, L. & Hull, S.D., *[Scaling laws for the geometry of an impact-induced magma ocean](https://doi.org/10.1016/j.epsl.2021.116983)*, Earth and Planetary Science Letters, 568, 116983, 2021.
+
+[^cite-genda2012]: Genda, H., Kokubo, E. & Ida, S., *Merging criteria for giant impacts of protoplanets*, The Astrophysical Journal, 744, 137, 2012.

@@ -76,6 +76,7 @@ src/morrigan/crossing_pair.py
 src/morrigan/merge_embryo.py
 src/morrigan/secular_solution.py
 src/morrigan/helper_functions.py
+src/morrigan/impact_melt.py
 ```
 
 Utility sources are exempt from the physics-invariant requirement but still subject to all anti-happy-path rules:
@@ -107,7 +108,7 @@ src/morrigan/sort_planet.py    (dead-planet removal and sorting, pure bookkeepin
 
 - **`@pytest.mark.physics_invariant`**: the test asserts at least one of the four families. Tag every qualifying test in a physics-source test file.
 - **`@pytest.mark.reference_pinned`**: the test pins behavior against a **published benchmark** (Kimura et al. 2025 statistics and closed forms), an **analytical limit** (Kepler's third law, the mutual-Hill-radius closed form, Laplace-Lagrange two-planet eigenfrequencies), or a **cross-implementation cross-check**.
-  - **Per-source-file**: each of the seven physics files needs at least one `reference_pinned` test in `tests/test_<file>.py`, recorded in `docs/Validation/<file>.md`.
+  - **Per-source-file**: each of the eight physics files needs at least one `reference_pinned` test in `tests/test_<file>.py`, recorded in `docs/Validation/<file>.md`.
   - **Status report**: `python tools/check_test_quality.py --reference-pinned-status` prints the punch list.
 
 ---
