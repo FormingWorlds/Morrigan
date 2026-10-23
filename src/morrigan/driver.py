@@ -382,6 +382,19 @@ def _run_once(run_idx, config, collect=False):
 
     survivor_mask = live_status.astype(bool)
 
+    # The melt law is a fit: name the mergers it extrapolates, once per run.
+    n_out = sum(not m['melt_in_range'] for m in mergers)
+    n_fast = sum(m['above_v_cr'] for m in mergers)
+    if n_out or n_fast:
+        warnings.warn(
+            f'{n_out} of {len(mergers)} mergers lie outside the fit range of the Nakajima '
+            'et al. (2021) melt law (1-53 M_Mars, impactor mass ratio 0.03-0.5, 1-2 v_esc) '
+            f'and {n_fast} exceed the Genda et al. (2012) critical speed; their f_melt is '
+            'the fit extrapolated (melt_in_range, above_v_cr).',
+            UserWarning,
+            stacklevel=2,
+        )
+
     if collect:
         # hand the raw system back to the in-process caller instead of writing files
         return {
@@ -409,6 +422,11 @@ def _run_once(run_idx, config, collect=False):
         'M_merged_after',
         'v_c',
         'a_final_AU',
+        'f_melt',
+        'f_melt_sigma',
+        'dIE',
+        'melt_in_range',
+        'above_v_cr',
     ]
     if mergers:  # at least one merger happened this run (unlikely that there are no mergers)
         # a merge record carries extra geometry for in-memory consumers; the file keeps
@@ -557,6 +575,12 @@ def run_system(
             'e_after': m['e_after'],
             'id_target': target,
             'id_impactor': int(m['id_impactor']),
+            # bulk mantle melt of this collision (Nakajima et al. 2021); dIE [J]
+            'f_melt': m['f_melt'],
+            'f_melt_sigma': m['f_melt_sigma'],
+            'dIE': m['dIE'],
+            'melt_in_range': m['melt_in_range'],
+            'above_v_cr': m['above_v_cr'],
         }
         impacts.setdefault(target, []).append(record)
     for chain in impacts.values():
