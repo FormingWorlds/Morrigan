@@ -3,11 +3,13 @@
     Bulk mantle melt fraction of a merger from the Nakajima et al. (2021) scaling law.
     Author(s): Tim Lichtenberg
 
-The law is a fit to 108 SPH giant impacts (Nakajima et al. 2021, EPSL 568, 116983,
-doi:10.1016/j.epsl.2021.116983). This module ports its bulk part, Eqs. 2-4, 6, 7 and 14,
-with the coefficients of the reference code MeltScalingLaw at commit 2eca30f2
-(https://github.com/mikinakajima/MeltScalingLaw, MIT), which add 45 degree impacts and
-differ from the paper's Tables S.5 and S.6; ``data/nakajima2021/`` holds them unchanged.
+The law fits SPH giant impacts (Nakajima et al. 2021, EPSL 568, 116983,
+doi:10.1016/j.epsl.2021.116983); its merging coefficients come from the runs at
+v_imp = v_esc, the campaign reaches 2 v_esc. This module ports the bulk part, Eqs. 2-4,
+6, 7 and 14, with the coefficients of the reference code MeltScalingLaw at commit
+2eca30f2 (https://github.com/mikinakajima/MeltScalingLaw, MIT), which add 45 degree
+impacts and differ from the paper's Tables S.5 and S.6; ``data/nakajima2021/`` holds them
+unchanged.
 """
 
 from __future__ import annotations
@@ -40,9 +42,12 @@ class MeltResult(NamedTuple):
     Attributes
     ----------
     f_melt : float
-        Melt mass fraction of the post-impact mantle, Eq. 14, clipped at 1.
+        Melt mass fraction of the fitted post-impact mantle, 0.70 m(theta) M with m the
+        Eq. 7 fit (0.924 to 1.0015), Eq. 14, clipped at 1.
     f_melt_sigma : float
-        1-sigma of the unclipped fraction, from the fit errors at the nearest simulated angle.
+        1-sigma of the unclipped fraction, from the fit errors at the nearest simulated
+        angle; where ``f_melt`` is clipped at 1 it belongs to the unclipped value and can
+        exceed 1.
     dIE : float
         Internal energy gain of the merged body, Eq. 4 [J].
     h : float
@@ -85,8 +90,10 @@ def _check(name: str, value, low: float = 0.0, high: float | None = None) -> flo
     A value must be a finite real number (not a bool) above ``low``, or in
     ``[low, high]`` when ``high`` is given.
     """
-    ok = isinstance(value, Real) and not isinstance(value, (bool, np.bool_))
-    ok = ok and math.isfinite(value)
+    try:
+        ok = isinstance(value, Real) and not isinstance(value, bool) and math.isfinite(value)
+    except OverflowError:  # an integer beyond the float range
+        ok = False
     ok = ok and (low <= value <= high if high is not None else value > low)
     if not ok:
         bound = f'in [{low}, {high}]' if high is not None else f'finite and above {low}'
@@ -139,11 +146,12 @@ def melt_fraction(
     Raises
     ------
     ValueError
-        If an argument is not a finite real number in its domain, or the impactor is the
-        heavier body.
+        If an argument is not a finite real number in its domain, the impactor is the
+        heavier body, or the inputs release no finite positive energy (a merged radius
+        too large, or a speed whose energy overflows).
     RuntimeError
-        If a fitted factor or the released energy is not positive, or the result leaves
-        [0, 1]; the fits are positive over all angles, so this signals broken input data.
+        If a fitted factor is not positive or the result leaves [0, 1]; the shipped fits
+        are positive over all angles, so this signals broken coefficient files.
     """
     m_t = _check('M_target', M_target)
     m_i = _check('M_impactor', M_impactor)
@@ -166,23 +174,31 @@ def melt_fraction(
         - q / (1.0 + r_i / r_t)
         + 0.6 * (1.0 + q) ** 2 / (r_m / r_t)
     ) * scale
-    ke = 0.5 * m_t * m_i / m * v**2
+    try:
+        ke = 0.5 * m_t * m_i / m * v**2
+    except OverflowError:
+        raise ValueError(f'v_impact {v!r} overflows the kinetic energy') from None
+    energy = d_pe + ke
+    if not (math.isfinite(energy) and energy > 0.0):
+        raise ValueError(
+            f'the merged radius R_merged {r_m!r} and v_impact {v!r} release no finite '
+            f'positive energy ({energy} J)'
+        )
     para, sigma = _coefficients()
     x = math.sqrt(1.0 - b * b)  # cos(theta)
     h = float(legendre.legval(x, para[0:3]))
-    # The reference code's sixth-order term is twice the standard P6 (1/8, not 1/16), and
-    # its coefficients are fitted to that, so the last IE coefficient is doubled here.
+    # The reference code's sixth-order term is twice the standard P6 (1/8, not 1/16); its
+    # coefficients come with that basis, so the last IE coefficient is doubled here.
     ie = float(legendre.legval(x, para[3:10] * _P6_AS_FITTED))
     mantle = float(legendre.legval(x, para[10:12]))
-    if not (h > 0.0 and ie > 0.0 and mantle > 0.0 and d_pe + ke > 0.0):
-        raise RuntimeError(
-            f'non-positive fit factor or energy: h {h}, IE {ie}, mantle {mantle}, energy {d_pe + ke}'
-        )
-    d_ie = ie * (d_pe + ke)
-    f_raw = h * ie * (d_pe + ke) / (F_MANTLE * mantle * m) / E_M
+    if not (h > 0.0 and ie > 0.0 and mantle > 0.0):
+        raise RuntimeError(f'non-positive fit factor: h {h}, IE {ie}, mantle {mantle}')
+    d_ie = ie * energy
+    f_raw = h * ie * energy / (F_MANTLE * mantle * m) / E_M
 
-    theta = math.degrees(math.asin(b))
-    k = min(range(len(FIT_ANGLES)), key=lambda j: (abs(theta - FIT_ANGLES[j]), j))
+    # nearest simulated angle; a tie, within the round-off of asin(sin), goes to the lower
+    dist = [abs(math.degrees(math.asin(b)) - a) for a in FIT_ANGLES]
+    k = next(j for j, d in enumerate(dist) if d <= min(dist) + 1e-9)
     dz = math.sqrt(
         (sigma[0, k] / ie) ** 2 + (sigma[1, k] / h) ** 2 + (sigma[2, k] / mantle) ** 2
     )
@@ -199,4 +215,4 @@ def melt_fraction(
         and GAMMA_RANGE[0] <= m_i / m <= GAMMA_RANGE[1]
         and SPEED_RANGE[0] * (1.0 - SPEED_MARGIN) <= ratio <= SPEED_RANGE[1]
     )
-    return MeltResult(f, f_sigma, d_ie, h, bool(in_range), bool(ratio > v_cr))
+    return MeltResult(f, f_sigma, d_ie, h, in_range, ratio > v_cr)

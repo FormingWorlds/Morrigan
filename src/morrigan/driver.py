@@ -10,6 +10,7 @@ import time
 import warnings
 from functools import partial
 from multiprocessing import Pool, cpu_count, current_process
+from numbers import Real
 
 import numpy as np
 import toml
@@ -192,6 +193,15 @@ def _run_once(run_idx, config, collect=False):
     # collect=True runs a single system for an in-process caller: it writes no
     # files and returns the system's arrays and merger records in memory, rather
     # than the run-summary dict the file-writing path returns
+
+    # sin of the impact angle is the impact parameter, which lives in [0, 1]
+    impact_angle = config['init_par']['impact_angle']
+    if (
+        isinstance(impact_angle, bool)
+        or not isinstance(impact_angle, Real)
+        or not 0 <= impact_angle <= 90
+    ):
+        raise ValueError(f'impact_angle must be a number in [0, 90] deg, got {impact_angle!r}')
 
     # import settings from .toml file
     base_seed = config['run_simulation'].get('random_seed', 0)
@@ -387,12 +397,13 @@ def _run_once(run_idx, config, collect=False):
     n_fast = sum(m['above_v_cr'] for m in mergers)
     if n_out or n_fast:
         warnings.warn(
-            f'{n_out} of {len(mergers)} mergers lie outside the fit range of the Nakajima '
+            f'seed {base_seed}, system {run_idx}: {n_out} of {len(mergers)} mergers lie '
+            'outside the fit range of the Nakajima '
             'et al. (2021) melt law (1-53 M_Mars, impactor mass ratio 0.03-0.5, 1-2 v_esc) '
             f'and {n_fast} exceed the Genda et al. (2012) critical speed; their f_melt is '
             'the fit extrapolated (melt_in_range, above_v_cr).',
             UserWarning,
-            stacklevel=2,
+            stacklevel=4,  # the caller of run_system or main
         )
 
     if collect:
@@ -430,7 +441,7 @@ def _run_once(run_idx, config, collect=False):
     ]
     if mergers:  # at least one merger happened this run (unlikely that there are no mergers)
         # a merge record carries extra geometry for in-memory consumers; the file keeps
-        # the original columns, so project each row down to them before writing
+        # the merger_cols columns, so project each row down to them before writing
         merger_table = Table(
             rows=[{c: m[c] for c in merger_cols} for m in mergers], names=merger_cols
         )
