@@ -14,12 +14,15 @@ timestep, and the Hill-radius embryo spacing.
 
 from __future__ import annotations
 
+import warnings
+
 import numpy as np
 import pytest
 
 import morrigan
 from morrigan.constants import G, M_earth, M_sun, au2m
 from morrigan.driver import allocate_a, read_config, system_seed, time_step
+from morrigan.impact_melt import melt_fraction
 
 pytestmark = [pytest.mark.smoke, pytest.mark.timeout(60)]
 
@@ -463,6 +466,11 @@ def test_the_file_writing_path_produces_the_documented_tables(tmp_path):
         'M_merged_after',
         'v_c',
         'a_final_AU',
+        'f_melt',
+        'f_melt_sigma',
+        'dIE',
+        'melt_in_range',
+        'above_v_cr',
     ]
     assert list(mergers.colnames) == expected_cols
     assert len(mergers) >= 1
@@ -472,6 +480,7 @@ def test_the_file_writing_path_produces_the_documented_tables(tmp_path):
             row['M_target_before'] + row['M_impactor_before'], rel=1e-12
         )
         assert row['v_c'] > 0.0 and row['t'] > 0.0
+        assert 0.0 < row['f_melt'] <= 1.0 and row['dIE'] > 0.0
 
     survivors = astropy_ascii.read(
         tmp_path / 'data' / 'survivors' / 'survivors_00.csv', format='fixed_width'
@@ -516,3 +525,68 @@ def test_neighbouring_ensembles_draw_independent_systems():
     assert len(seeds) == 8
     # Valid for np.random.seed, which rejects anything outside 32 bits.
     assert all(0 <= s < 2**32 for s in seeds)
+
+
+_MELT_FIELDS = ('f_melt', 'f_melt_sigma', 'dIE', 'melt_in_range', 'above_v_cr')
+
+
+@pytest.mark.physics_invariant
+def test_every_impact_record_carries_the_melt_of_its_collision():
+    """Each returned impact reports the Nakajima et al. (2021) bulk melt of its own
+    collision: the five fields equal melt_fraction of the record's masses, radii, contact
+    speed and impact parameter, the fraction lies in (0, 1], and the energy is positive.
+    Seed 7, the reference system."""
+    records = [r for chain in _run()['impacts'].values() for r in chain]
+    assert len(records) >= 4
+    for r in records:
+        assert set(_MELT_FIELDS) <= set(r), f'record lacks {set(_MELT_FIELDS) - set(r)}'
+        expected = melt_fraction(
+            r['M_target_before'],
+            r['M_impactor'],
+            r['R_target_before'],
+            r['R_impactor'],
+            r['v_impact'],
+            r['impact_parameter'],
+        )
+        assert tuple(r[k] for k in _MELT_FIELDS) == (
+            expected.f_melt,
+            expected.f_melt_sigma,
+            expected.dIE,
+            expected.in_range,
+            expected.above_v_cr,
+        )
+        assert 0.0 < r['f_melt'] <= 1.0 and r['dIE'] > 0.0
+        assert isinstance(r['melt_in_range'], bool) and isinstance(r['above_v_cr'], bool)
+    # The melt is a property of each collision, not a constant.
+    assert len({r['f_melt'] for r in records}) > 1
+
+
+def _melt_warnings(**kwargs):
+    """Return the melt-range warnings one run emits."""
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter('always')
+        morrigan.run_system(
+            **{
+                'seed': 7,
+                'masses': [m * M_earth for m in _MASSES],
+                'eccentricity': 0.05,
+                'inner_edge': 0.05 * au2m,
+                'spacing': 10,
+                'density': _DENSITY,
+                'impact_angle': 20.0,
+                'evolution_time': 1.0,
+                'inner_cutoff': 0.005 * au2m,
+                'stellar_mass': 1.0,
+            }
+            | kwargs
+        )
+    return [w for w in caught if 'Nakajima' in str(w.message)]
+
+
+def test_one_melt_warning_per_run_and_none_when_all_mergers_fit():
+    """A run with a merger outside the fit range or above the critical speed warns once,
+    naming the counts; a run whose mergers all fit stays silent (seeds 7 and 5)."""
+    caught = _melt_warnings()
+    assert len(caught) == 1
+    assert 'critical speed' in str(caught[0].message)
+    assert _melt_warnings(seed=5, masses=[m * M_earth for m in (0.4, 0.5, 0.6, 0.5)]) == []
