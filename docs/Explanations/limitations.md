@@ -17,7 +17,7 @@ Morrigan is a statistical model of the giant-impact phase, not an N-body integra
 
 ## Impact melt
 
-- **A bulk melt fraction only.** The melt fraction is the mantle-averaged energy criterion of Nakajima et al. (2021)[^cite-nakajima2021]; the shape of the melt pool and the pressure at its base (their eqs. 10 to 13) are not computed. The criterion has no partial melting and the SPH equation of state has no melting, so the authors note it overestimates the melt volume; at 90° and at a mass ratio of 0.5 their fit underestimates the heating.
+- **A bulk melt fraction only.** The melt fraction is the mantle-averaged energy criterion of Nakajima et al. (2021)[^cite-nakajima2021], a mean energy gain over $E_M$, a value the authors call not well constrained; the shape of the melt pool and the pressure at its base (their eqs. 10 to 13) are not computed. The authors note that their internal energy fit underestimates the heating at 90°. Their merging coefficients come from impacts at the escape speed only, so a merger faster than that is outside their data even when it is below the critical speed and inside the flagged range.
 - **Merging coefficients for every merger.** A collision faster than the Genda et al. (2012)[^cite-genda2012] critical speed would be a hit-and-run in the SPH runs; Morrigan merges it and evaluates the merging fit, flagged by `above_v_cr`. Outside the fitted mass, mass-ratio and speed range the fit is extrapolated and `melt_in_range` is false.
 
 ## Numerical conventions

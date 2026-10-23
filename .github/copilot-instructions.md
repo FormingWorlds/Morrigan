@@ -136,7 +136,7 @@ The test job carries `timeout-minutes: 10`; a PR tier that cannot finish inside 
   - `helper_functions.py` - Kepler period, Hill radius, escape eccentricity, Rayleigh draws (physics)
   - `impact_melt.py` - Bulk mantle melt fraction of a merger, Nakajima et al. (2021) (physics)
 
-- `tests/` - Test suite. Each physics source has a 1:1 test file at `tests/test_<file>.py`. One documented exception: cross-cutting ensemble statistics (`test_ensemble_statistics.py`).
+- `tests/` - Test suite. Each physics source has a 1:1 test file at `tests/test_<file>.py`. Two documented exceptions: cross-cutting ensemble statistics (`test_ensemble_statistics.py`), and the property tests of `impact_melt.py` (`test_impact_melt_properties.py`), kept apart so a missing `hypothesis` skips only them.
 
 - `tools/` - Build / utility scripts
   - `check_test_quality.py` - AST linter (blocking on PRs)
@@ -168,7 +168,7 @@ Morrigan is scientific simulation code, so the test suite is held to physics-gra
 
 ### Structure
 
-- Tests mirror source 1:1: `src/morrigan/<file>.py` -> `tests/test_<file>.py`. One documented exception: the cross-cutting ensemble-statistics file (`tests/test_ensemble_statistics.py`).
+- Tests mirror source 1:1: `src/morrigan/<file>.py` -> `tests/test_<file>.py`. Two documented exceptions: the cross-cutting ensemble-statistics file (`tests/test_ensemble_statistics.py`), and `tests/test_impact_melt_properties.py`, the Hypothesis tests of `impact_melt.py`, kept apart so a missing `hypothesis` skips only them.
 - Framework: `pytest` exclusively in the `tests/` directory.
 
 ### Markers and the module-level marker rule
@@ -263,7 +263,7 @@ Both gates ratchet toward 90, capped at 90 (`tools/update_coverage_threshold.py`
 
 PROTEUS consumes `run_system` through `proteus.accretion.morrigan`. The per-impact record schema is the interface:
 
-`time [yr], M_target_before [kg], M_impactor [kg], M_merged_after [kg], v_impact [m/s], v_esc [m/s], impact_parameter, R_target_before [m], R_impactor [m], rho_target [kg/m3], rho_impactor [kg/m3], a_before [m], a_after [m], e_before, e_after, id_target, id_impactor, f_melt, f_melt_sigma, dIE [J], melt_in_range, above_v_cr`
+`time [yr], M_target_before [kg], M_impactor [kg], M_merged_after [kg], v_impact [m/s], v_esc [m/s], impact_parameter, R_target_before [m], R_impactor [m], rho_target [kg/m3], rho_impactor [kg/m3], a_before [m], a_after [m], e_before, e_after, id_target, id_impactor, f_melt, f_melt_sigma, dIE [J], melt_in_range, above_v_cr` (`f_melt_sigma` is the 1-sigma of the melt fraction before its clip at 1)
 
 Conventions the schema guarantees:
 

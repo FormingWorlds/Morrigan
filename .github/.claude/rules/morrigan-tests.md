@@ -146,10 +146,10 @@ hypothesis = pytest.importorskip('hypothesis')
 pytest.importorskip('zephyrus.collision')
 ```
 
-No test currently imports an optional dependency, and neither `hypothesis` nor
-`zephyrus` is installed by any extra. The linter still recognises both in its
-`OPTIONAL_DEPS` list, so the rule fires the moment one is reintroduced; add the
-package to the `develop` extra in the same change.
+`hypothesis` is in the `develop` extra and is imported by `tests/test_impact_melt_properties.py`
+alone, through `pytest.importorskip`, so an environment without it skips only those
+property tests. `zephyrus` is installed by no extra. The linter recognises both in its
+`OPTIONAL_DEPS` list.
 
 `pylaplace` is a hard dependency and is imported unguarded.
 
@@ -207,7 +207,7 @@ Banned inside in-scope artifacts: "audit", "review pass", "adversarial review", 
 ## 12. Naming
 
 - Test names describe behavior: `test_kepler_period_scales_as_a_to_three_halves`, NOT `test_kepler_period`.
-- Test file names mirror source 1:1. Documented exception: `tests/test_ensemble_statistics.py`, the cross-cutting seed-ensemble statistics exercising the whole model through `run_system` (integration tier).
+- Test file names mirror source 1:1. Documented exceptions: `tests/test_ensemble_statistics.py`, the cross-cutting seed-ensemble statistics exercising the whole model through `run_system` (integration tier), and `tests/test_impact_melt_properties.py`, the Hypothesis tests of `impact_melt.py`, kept apart so a missing `hypothesis` skips only them.
 
 ---
 

@@ -21,7 +21,7 @@ The command line reads one TOML file (`morrigan -c <file>`). Units at this bound
 | --- | --- | --- |
 | `N` | Number of embryos | - |
 | `e` | Initial eccentricity shared by all embryos | - |
-| `impact_angle` | Impact angle for every collision; its sine is the impact parameter | deg |
+| `impact_angle` | Impact angle for every collision, in [0, 90] (0 head-on, 90 grazing); its sine is the impact parameter | deg |
 | `Mp` | Embryo masses, one per embryo | Earth masses |
 | `Ms` | Stellar mass | solar masses |
 | `rho_p` | Bulk density shared by all embryos | kg m-3 |
