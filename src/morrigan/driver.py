@@ -442,14 +442,19 @@ def _run_once(run_idx, config, collect=False):
         'melt_in_range',
         'above_v_cr',
     ]
+    flags = ('melt_in_range', 'above_v_cr')
     if mergers:  # at least one merger happened this run (unlikely that there are no mergers)
         # a merge record carries extra geometry for in-memory consumers; the file keeps
         # the merger_cols columns, so project each row down to them before writing
+        # flags as 0 or 1, as live_status: a bool reads back as the text 'True' or 'False'
         merger_table = Table(
-            rows=[{c: m[c] for c in merger_cols} for m in mergers], names=merger_cols
+            rows=[{c: int(m[c]) if c in flags else m[c] for c in merger_cols} for m in mergers],
+            names=merger_cols,
         )
     else:  # keep the file schema consistent even for runs with zero mergers
-        merger_table = Table(names=merger_cols, dtype=[float] * len(merger_cols))
+        merger_table = Table(
+            names=merger_cols, dtype=[int if c in flags else float for c in merger_cols]
+        )
     _write_table(
         merger_table,
         os.path.join(save_directory + '/data/mergers', f'mergers_{run_idx:02d}.csv'),
