@@ -59,6 +59,8 @@ def test_port_equals_the_reference_code(row):
     2eca30f2 (merging coefficients; rows the reference sends to the hit-and-run branch are
     compared with its merging branch forced, and the port flags them above v_cr)."""
     res = _call(row)
+    assert 'f_melt_raw' in res._fields, 'MeltResult carries no value before the clip'
+    assert res.f_melt_raw == pytest.approx(row['f_raw'], rel=1e-12, abs=0.0)
     assert res.f_melt == pytest.approx(min(row['f_raw'], 1.0), rel=1e-12, abs=0.0)
     assert res.f_melt_sigma == pytest.approx(row['sigma'], rel=1e-12, abs=0.0)
     assert res.dIE == pytest.approx(row['dIE'], rel=1e-12, abs=0.0)

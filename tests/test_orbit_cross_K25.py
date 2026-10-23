@@ -315,7 +315,7 @@ def test_merger_record_carries_the_melt_of_its_own_collision():
     np.random.seed(9)
     ap, mp, rp, e, interact, live, pid = _pair(0.005, 0.05)
     rec = orbit_cross_K25(ap, mp, rp, M_sun, 0.5, e, interact, live, 2, pid, 0)
-    melt_keys = {'f_melt', 'f_melt_sigma', 'dIE', 'melt_in_range', 'above_v_cr'}
+    melt_keys = {'f_melt', 'f_melt_raw', 'f_melt_sigma', 'dIE', 'melt_in_range', 'above_v_cr'}
     assert melt_keys <= set(rec), f'record lacks {melt_keys - set(rec)}'
     expected = melt_fraction(
         rec['M_target_before'],
@@ -326,6 +326,7 @@ def test_merger_record_carries_the_melt_of_its_own_collision():
         0.5,
     )
     assert rec['f_melt'] == expected.f_melt
+    assert rec['f_melt_raw'] == expected.f_melt_raw
     assert rec['f_melt_sigma'] == expected.f_melt_sigma
     assert rec['dIE'] == expected.dIE
     assert rec['melt_in_range'] is expected.in_range

@@ -468,6 +468,7 @@ def test_the_file_writing_path_produces_the_documented_tables(tmp_path):
         'v_c',
         'a_final_AU',
         'f_melt',
+        'f_melt_raw',
         'f_melt_sigma',
         'dIE',
         'melt_in_range',
@@ -530,7 +531,7 @@ def test_neighbouring_ensembles_draw_independent_systems():
     assert all(0 <= s < 2**32 for s in seeds)
 
 
-_MELT_FIELDS = ('f_melt', 'f_melt_sigma', 'dIE', 'melt_in_range', 'above_v_cr')
+_MELT_FIELDS = ('f_melt', 'f_melt_raw', 'f_melt_sigma', 'dIE', 'melt_in_range', 'above_v_cr')
 
 
 @pytest.mark.physics_invariant
@@ -553,6 +554,7 @@ def test_every_impact_record_carries_the_melt_of_its_collision():
         )
         assert tuple(r[k] for k in _MELT_FIELDS) == (
             expected.f_melt,
+            expected.f_melt_raw,
             expected.f_melt_sigma,
             expected.dIE,
             expected.in_range,
@@ -565,6 +567,9 @@ def test_every_impact_record_carries_the_melt_of_its_collision():
     # exceeds 1 and is clipped there.
     assert len({r['dIE'] for r in records}) == len(records)
     assert all(r['f_melt'] == pytest.approx(1.0, abs=0.0) for r in records)
+    # the value before the clip carries the melt information the clip hides
+    assert all(r['f_melt_raw'] > 1.0 for r in records)
+    assert len({r['f_melt_raw'] for r in records}) == len(records)
 
 
 def _melt_warnings(action='always', **kwargs):
