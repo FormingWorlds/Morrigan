@@ -217,7 +217,7 @@ def test_merged_radius_that_releases_no_energy_is_refused():
     """A merged radius so large that the merger would absorb energy is a caller error:
     ValueError names R_merged, and the default merged radius releases energy."""
     m_t, m_i, r_t, r_i, v, b = _case(45.0, 0.2)
-    with pytest.raises(ValueError, match='release no finite positive energy'):
+    with pytest.raises(ValueError, match='R_merged .* release no finite positive energy'):
         melt_fraction(m_t, m_i, r_t, r_i, v, b, R_merged=100.0 * r_t)
     assert melt_fraction(m_t, m_i, r_t, r_i, v, b).dIE > 0.0
 
@@ -225,11 +225,17 @@ def test_merged_radius_that_releases_no_energy_is_refused():
 @pytest.mark.parametrize(
     ('override', 'phrase'),
     [
-        ({'v_impact': 1e160}, 'overflow or underflow'),
+        ({'v_impact': 1e160}, 'overflow or underflow the energy or the escape speed'),
         ({'M_target': 10**400}, 'M_target must be'),
-        ({'M_target': 1e160, 'M_impactor': 1e159}, 'overflow or underflow'),
-        ({'R_merged': 1e-320}, 'overflow or underflow'),
-        ({'R_target': 1e308, 'R_impactor': 1e308}, 'overflow or underflow'),
+        (
+            {'M_target': 1e160, 'M_impactor': 1e159},
+            'overflow or underflow the energy or the escape speed',
+        ),
+        ({'R_merged': 1e-320}, 'overflow or underflow the energy or the escape speed'),
+        (
+            {'R_target': 1e308, 'R_impactor': 1e308},
+            'overflow or underflow the energy or the escape speed',
+        ),
         (
             {
                 'M_target': 1e-4,
@@ -240,8 +246,26 @@ def test_merged_radius_that_releases_no_energy_is_refused():
             },
             'overflow or underflow the melt fraction',
         ),
+        (
+            {
+                'M_target': 1.0,
+                'M_impactor': 1.0,
+                'R_target': 1e307,
+                'R_impactor': 1e307,
+                'v_impact': 1e-160,
+            },
+            'overflow or underflow the melt fraction',
+        ),
     ],
-    ids=['speed', 'int-mass', 'float-mass', 'tiny-merged-radius', 'huge-radii', 'f-raw'],
+    ids=[
+        'speed',
+        'int-mass',
+        'float-mass',
+        'tiny-merged-radius',
+        'huge-radii',
+        'f-raw',
+        'f-raw-underflow',
+    ],
 )
 def test_inputs_that_overflow_are_refused_by_name(override, phrase):
     """Finite inputs whose energy, escape speed or melt fraction overflows, underflows or

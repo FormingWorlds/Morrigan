@@ -656,8 +656,9 @@ def test_impact_angle_outside_0_to_90_is_refused_before_the_run(angle, tmp_path)
 @pytest.mark.parametrize('tie', [37.5, 52.5])
 def test_low_precision_angle_ties_match_the_float64_run(tie):
     """A float32 or float16 impact angle at a tie gives the float64 run: the same 1-sigma
-    (the lower angle's), and records whose impact parameter is the float64
-    sin(radians(angle)), the b the melt law used. Seed 7, the reference system."""
+    (the lower angle's), and records whose impact parameter is a float64 sin(radians),
+    so the angle is converted to a Python float before use. Seed 7, the reference
+    system."""
     import math
 
     def records(angle):
@@ -685,3 +686,23 @@ def test_negative_zero_angle_gives_a_positive_zero_impact_parameter():
     recs = [r for chain in _run(impact_angle=-0.0)['impacts'].values() for r in chain]
     assert recs and all(math.copysign(1.0, r['impact_parameter']) > 0.0 for r in recs)
     assert all(r['impact_parameter'] == pytest.approx(0.0, abs=0.0) for r in recs)
+
+
+def test_run_with_overflowing_masses_raises_the_melt_law_error():
+    """Settings whose energies overflow in floating point (embryos of about 1e154 kg
+    around a 1e135 solar-mass star) stop the run with the melt law's ValueError, as the
+    run_system Raises section states."""
+    with pytest.raises(ValueError, match='overflow or underflow'):
+        morrigan.run_system(
+            seed=7,
+            masses=[m * M_earth * 1e130 for m in (0.4, 0.5, 0.6)],
+            eccentricity=0.05,
+            inner_edge=0.05 * au2m,
+            spacing=3,
+            density=_DENSITY,
+            impact_angle=20.0,
+            evolution_time=1.0,
+            inner_cutoff=0.005 * au2m,
+            stellar_mass=1e135,
+        )
+    assert _run()['impacts']
