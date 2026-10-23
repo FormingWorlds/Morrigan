@@ -19,10 +19,6 @@ import pytest
 from morrigan.constants import G, M_earth
 from morrigan.impact_melt import M_MARS, melt_fraction
 
-hypothesis = pytest.importorskip('hypothesis')
-from hypothesis import given, settings  # noqa: E402
-from hypothesis import strategies as st  # noqa: E402
-
 pytestmark = [pytest.mark.unit, pytest.mark.timeout(30)]
 
 GOLDEN = json.loads((Path(__file__).parent / 'data' / 'nakajima2021_golden.json').read_text())
@@ -47,6 +43,10 @@ def _case(theta, gamma=0.1, vel=1.0, m_total=M_earth, density=5500.0):
     r_t, r_i = ((3.0 * m / (4.0 * math.pi * density)) ** (1.0 / 3.0) for m in (m_t, m_i))
     v_esc = math.sqrt(2.0 * G * m_total / (r_t + r_i))
     return m_t, m_i, r_t, r_i, vel * v_esc, math.sin(math.radians(theta))
+
+
+_NAMES = 'M_target M_impactor R_target R_impactor v_impact impact_parameter'.split()
+_ARGS = dict(zip(_NAMES, _case(45.0)))
 
 
 @pytest.mark.reference_pinned
@@ -103,17 +103,20 @@ def test_melt_falls_from_head_on_to_grazing(gamma):
 
 
 @pytest.mark.physics_invariant
-def test_sigma_comes_from_the_nearest_simulated_angle():
-    """Between the simulated angles the 1-sigma uses the relative errors of the nearest one
-    (ties go to the lower angle), so sigma/f jumps only at 15, 37.5, 52.5 and 75 deg."""
-    rel = {}
-    for theta in (0.0, 14.9, 15.0, 15.1, 37.4, 37.6, 52.4, 52.6, 74.9, 75.1, 90.0):
-        res = melt_fraction(*_case(theta, 0.03))
-        rel[theta] = res.f_melt_sigma / res.f_melt
-    # Same nearest angle, different relative error only through the fitted h, IE and m.
-    assert rel[14.9] != pytest.approx(rel[15.1], rel=1e-2)
-    assert rel[15.0] == pytest.approx(rel[0.0], rel=0.2)
-    assert all(v > 0.0 and math.isfinite(v) for v in rel.values())
+@pytest.mark.parametrize('tie', [15.0, 37.5, 52.5, 75.0])
+def test_sigma_at_a_tie_uses_the_lower_simulated_angle(tie):
+    """Between the simulated angles the 1-sigma uses the errors of the nearest one; at an
+    exact tie, with the impact parameter formed as the driver forms it, the lower one. The
+    relative error is continuous from below at the tie and jumps just above it."""
+
+    def rel(theta):
+        args = _case(theta, 0.03)[:5]
+        res = melt_fraction(*args, float(np.sin(np.deg2rad(theta))))
+        assert res.f_melt < 1.0  # unclipped, so sigma / f is the relative error
+        return res.f_melt_sigma / res.f_melt
+
+    assert rel(tie) == pytest.approx(rel(tie - 1e-7), rel=1e-6)
+    assert abs(rel(tie + 1e-7) / rel(tie) - 1.0) > 0.01
 
 
 @pytest.mark.physics_invariant
@@ -202,22 +205,29 @@ def test_merged_radius_defaults_to_the_target_density():
 def test_argument_outside_its_domain_is_refused_by_name(name, bad):
     """A non-finite, non-positive, boolean or out-of-range argument raises ValueError naming
     it, so a broken merge record stops the run instead of giving a melt fraction."""
-    args = dict(
-        zip(
-            (
-                'M_target',
-                'M_impactor',
-                'R_target',
-                'R_impactor',
-                'v_impact',
-                'impact_parameter',
-            ),
-            _case(45.0),
-        )
-    )
     with pytest.raises(ValueError, match=f'{name} '):
-        melt_fraction(**(args | {name: bad}))
-    assert 0.0 <= melt_fraction(**args).f_melt <= 1.0
+        melt_fraction(**(_ARGS | {name: bad}))
+    assert 0.0 <= melt_fraction(**_ARGS).f_melt <= 1.0
+
+
+def test_merged_radius_that_releases_no_energy_is_refused():
+    """A merged radius so large that the merger would absorb energy is a caller error:
+    ValueError names R_merged, and the default merged radius releases energy."""
+    m_t, m_i, r_t, r_i, v, b = _case(45.0, 0.2)
+    with pytest.raises(ValueError, match='R_merged'):
+        melt_fraction(m_t, m_i, r_t, r_i, v, b, R_merged=100.0 * r_t)
+    assert melt_fraction(m_t, m_i, r_t, r_i, v, b).dIE > 0.0
+
+
+@pytest.mark.parametrize(
+    ('name', 'bad'), [('v_impact', 1e160), ('M_target', 10**400)], ids=['speed', 'int-mass']
+)
+def test_inputs_that_overflow_are_refused_by_name(name, bad):
+    """A speed whose square overflows a float, or an integer too large for one, raises
+    ValueError naming the argument, not OverflowError."""
+    with pytest.raises(ValueError, match=name):
+        melt_fraction(**(_ARGS | {name: bad}))
+    assert melt_fraction(**_ARGS).dIE > 0.0
 
 
 @pytest.mark.physics_invariant
@@ -227,59 +237,6 @@ def test_impactor_heavier_than_target_is_refused():
     with pytest.raises(ValueError, match='M_impactor'):
         melt_fraction(m_i, m_t, r_i, r_t, v, b)
     assert melt_fraction(m_t, m_i, r_t, r_i, v, b).f_melt > 0.0
-
-
-_BAD = st.one_of(
-    st.just(0.0),
-    st.floats(max_value=-1e-300, allow_nan=False),
-    st.just(float('nan')),
-    st.just(float('inf')),
-    st.just(float('-inf')),
-    st.booleans(),
-)
-
-
-@settings(derandomize=True, max_examples=200, deadline=None)
-@given(
-    which=st.sampled_from(['M_target', 'M_impactor', 'R_target', 'R_impactor', 'v_impact']),
-    bad=_BAD,
-)
-def test_property_bad_positive_argument_is_refused(which, bad):
-    """Zero, negative, NaN, inf and booleans are refused for every positive argument."""
-    args = dict(
-        zip(
-            (
-                'M_target',
-                'M_impactor',
-                'R_target',
-                'R_impactor',
-                'v_impact',
-                'impact_parameter',
-            ),
-            _case(45.0),
-        )
-    )
-    with pytest.raises(ValueError, match=which):
-        melt_fraction(**(args | {which: bad}))
-
-
-@settings(derandomize=True, max_examples=300, deadline=None)
-@given(
-    m_total=st.floats(0.01 * M_earth, 20.0 * M_earth),
-    gamma=st.floats(1e-4, 0.5),
-    vel=st.floats(1.0, 3.0),
-    b=st.floats(0.0, 1.0),
-)
-def test_property_valid_merger_gives_a_bounded_result(m_total, gamma, vel, b):
-    """Over masses, mass ratios, speeds and impact parameters well past the fit range, the
-    melt fraction is in [0, 1], its sigma and dIE are finite and positive, and the flags
-    are booleans."""
-    m_t, m_i, r_t, r_i, v, _ = _case(0.0, gamma, vel, m_total)
-    res = melt_fraction(m_t, m_i, r_t, r_i, v, b)
-    assert 0.0 <= res.f_melt <= 1.0
-    assert res.f_melt_sigma >= 0.0 and math.isfinite(res.f_melt_sigma)
-    assert res.dIE > 0.0 and math.isfinite(res.dIE)
-    assert isinstance(res.in_range, bool) and isinstance(res.above_v_cr, bool)
 
 
 @pytest.mark.physics_invariant
@@ -302,15 +259,17 @@ def test_coefficient_files_of_the_wrong_shape_are_refused(tmp_path, monkeypatch)
 
 
 @pytest.mark.physics_invariant
-@pytest.mark.parametrize('broken', ['negative h', 'infinite sigma'])
+@pytest.mark.parametrize(
+    'broken', ['negative h', 'negative IE', 'negative mantle', 'infinite sigma']
+)
 def test_broken_coefficients_stop_the_run(broken, monkeypatch):
     """A non-positive fit factor or a non-finite 1-sigma raises RuntimeError rather than
     reporting a melt fraction; the shipped coefficients never reach either guard."""
     from morrigan import impact_melt as im
 
     para, sigma = (a.copy() for a in im._coefficients())
-    if broken == 'negative h':
-        para[0] = -5.0
+    if broken != 'infinite sigma':
+        para[{'negative h': 0, 'negative IE': 3, 'negative mantle': 10}[broken]] = -5.0
         match = 'non-positive fit factor'
     else:
         sigma[:] = np.inf

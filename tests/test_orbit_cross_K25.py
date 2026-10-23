@@ -331,7 +331,7 @@ def test_merger_record_carries_the_melt_of_its_own_collision():
     assert rec['melt_in_range'] is expected.in_range
     assert rec['above_v_cr'] is expected.above_v_cr
     assert 0.0 < rec['f_melt'] <= 1.0 and rec['dIE'] > 0.0
-    # Discrimination: the melt of the impactor's radius in the target's place differs.
+    # Discrimination: another target radius gives another energy, so the radii are read.
     swapped = melt_fraction(
         rec['M_target_before'],
         rec['M_impactor_before'],

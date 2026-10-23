@@ -14,6 +14,7 @@ timestep, and the Hill-radius embryo spacing.
 
 from __future__ import annotations
 
+import re
 import warnings
 
 import numpy as np
@@ -53,11 +54,11 @@ _SCHEMA = (
 )
 
 
-def _run(seed=7, impact_angle=20.0):
+def _run(seed=7, impact_angle=20.0, masses=_MASSES):
     """Evolve one reference system."""
     return morrigan.run_system(
         seed=seed,
-        masses=[m * M_earth for m in _MASSES],
+        masses=[m * M_earth for m in masses],
         eccentricity=0.05,
         inner_edge=0.05 * au2m,
         spacing=10,
@@ -480,7 +481,9 @@ def test_the_file_writing_path_produces_the_documented_tables(tmp_path):
             row['M_target_before'] + row['M_impactor_before'], rel=1e-12
         )
         assert row['v_c'] > 0.0 and row['t'] > 0.0
-        assert 0.0 < row['f_melt'] <= 1.0 and row['dIE'] > 0.0
+        assert 0.0 < row['f_melt'] <= 1.0 and row['dIE'] > 0.0 and row['f_melt_sigma'] > 0.0
+        assert str(row['melt_in_range']) in ('True', 'False')
+        assert str(row['above_v_cr']) in ('True', 'False')
 
     survivors = astropy_ascii.read(
         tmp_path / 'data' / 'survivors' / 'survivors_00.csv', format='fixed_width'
@@ -564,32 +567,73 @@ def test_every_impact_record_carries_the_melt_of_its_collision():
     assert all(r['f_melt'] == pytest.approx(1.0, abs=0.0) for r in records)
 
 
-def _melt_warnings(**kwargs):
-    """Return the melt-range warnings one run emits."""
+def _melt_warnings(action='always', **kwargs):
+    """Return the melt-range warnings the runs of ``kwargs`` emit under one filter."""
     with warnings.catch_warnings(record=True) as caught:
-        warnings.simplefilter('always')
-        morrigan.run_system(
-            **{
-                'seed': 7,
-                'masses': [m * M_earth for m in _MASSES],
-                'eccentricity': 0.05,
-                'inner_edge': 0.05 * au2m,
-                'spacing': 10,
-                'density': _DENSITY,
-                'impact_angle': 20.0,
-                'evolution_time': 1.0,
-                'inner_cutoff': 0.005 * au2m,
-                'stellar_mass': 1.0,
-            }
-            | kwargs
-        )
+        warnings.simplefilter(action)
+        _run(**kwargs)
     return [w for w in caught if 'Nakajima' in str(w.message)]
 
 
 def test_one_melt_warning_per_run_and_none_when_all_mergers_fit():
     """A run with a merger outside the fit range or above the critical speed warns once,
-    naming the counts; a run whose mergers all fit stays silent (seeds 7 and 5)."""
+    naming its seed and the counts; a run whose mergers all fit stays silent (seeds 7, 8
+    and 5). Two runs with different seeds in one process both warn under the default
+    filter."""
     caught = _melt_warnings()
     assert len(caught) == 1
-    assert 'critical speed' in str(caught[0].message)
-    assert _melt_warnings(seed=5, masses=[m * M_earth for m in (0.4, 0.5, 0.6, 0.5)]) == []
+    text = str(caught[0].message)
+    m = re.search(r'seed 7, system 0: (\d+) of (\d+) mergers .* and (\d+) exceed', text)
+    assert m, text
+    n_out, n_all, n_fast = map(int, m.groups())
+    # every survivor merger is among the run's mergers, so the counts bound theirs
+    survivor = [r for chain in _run()['impacts'].values() for r in chain]
+    assert n_all >= len(survivor) and n_fast >= sum(r['above_v_cr'] for r in survivor) >= 1
+    assert n_out >= sum(not r['melt_in_range'] for r in survivor)
+    assert _melt_warnings(seed=5, masses=(0.4, 0.5, 0.6, 0.5)) == []
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter('default')
+        _run(seed=7)
+        _run(seed=8)
+    seeds = sorted(
+        re.search(r'seed (\d+)', str(w.message))[1]
+        for w in caught
+        if 'Nakajima' in str(w.message)
+    )
+    assert seeds == ['7', '8']
+
+
+@pytest.mark.parametrize('angle', [-10.0, 90.5, 270.0])
+def test_impact_angle_outside_0_to_90_is_refused_before_the_run(angle, tmp_path):
+    """An impact angle outside [0, 90] deg has no impact parameter in [0, 1]; the run
+    refuses it by name before any dynamics, on the in-memory and the file path."""
+    with pytest.raises(ValueError, match='impact_angle'):
+        _run(impact_angle=angle)
+    from morrigan.driver import run_once
+
+    config = {
+        'run_simulation': {
+            't': 0.0,
+            't_ref': 0.0,
+            't_event': 0.0,
+            'flag_event': 1,
+            'a_min': 0.005,
+            'max_time': 1.0,
+            'random_seed': 7,
+            'save_directory': str(tmp_path),
+        },
+        'init_par': {
+            'N': 2,
+            'e': 0.05,
+            'impact_angle': angle,
+            'Mp': [0.5, 0.5],
+            'Ms': 1.0,
+            'rho_p': 5500.0,
+            'inner_edge': 0.05,
+            'spacing': 10,
+        },
+    }
+    with pytest.raises(ValueError, match='impact_angle'):
+        run_once(0, config, collect=True)
+    # The bounds themselves are valid angles.
+    assert set(_run(impact_angle=90.0)) == {'survivors', 'impacts'}
