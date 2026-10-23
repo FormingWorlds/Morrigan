@@ -8,6 +8,7 @@ import numpy as np
 
 from morrigan.constants import au2m
 from morrigan.helper_functions import esc_ecc, hill_sphere, rayleigh
+from morrigan.impact_melt import melt_fraction
 from morrigan.merge_embryo import collision_velocity, merge_embryo
 
 
@@ -203,6 +204,23 @@ def orbit_cross_K25(
             'e_before': e_target_before,
             'e_after': ecc[target_idx],
         }
+        # bulk mantle melt of this collision (Nakajima et al. 2021), from the pre-merge pair
+        melt = melt_fraction(
+            M_target_before,
+            M_impactor_before,
+            R_target_before,
+            R_impactor,
+            v_c,
+            impact_parameter,
+        )
+        merge_record.update(
+            f_melt=melt.f_melt,
+            f_melt_raw=melt.f_melt_raw,
+            f_melt_sigma=melt.f_melt_sigma,
+            dIE=melt.dIE,
+            melt_in_range=melt.in_range,
+            above_v_cr=melt.above_v_cr,
+        )
 
     else:  # scattering event
         rayleigh_ecc = rayleigh(

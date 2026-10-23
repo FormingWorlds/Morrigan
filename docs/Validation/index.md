@@ -10,6 +10,7 @@ Every physics source file in Morrigan carries at least one test pinned against a
 | [secular_solution.py](secular_solution.md) | Epoch recovery of the eigen-decomposition | Laplace-Lagrange theory (Murray & Dermott 1999) |
 | [merge_embryo.py](merge_embryo.md) | The contact-speed floor; the merged orbit | Analytical limit; Kimura et al. (2025) eq. 16 |
 | [orbit_cross_K25.py](orbit_cross_K25.md) | Scattering conservation of the mass-weighted orbit sum | Kimura et al. (2025) eqs. 18-20 |
+| [impact_melt.py](impact_melt.md) | The bulk melt fraction, its 1-sigma, dIE and h on 120 cases | Cross-implementation check against MeltScalingLaw (Nakajima et al. 2021) |
 | [driver.py](driver.md) | Record self-consistency against the mutual escape speed | Analytical limit |
 | [Ensemble statistics](ensemble_statistics.md) | The eq. 37 coefficient; Hill-scaled endstates of the S0-like ensemble | Kimura et al. (2025) eqs. 33-37, Table 1 |
 

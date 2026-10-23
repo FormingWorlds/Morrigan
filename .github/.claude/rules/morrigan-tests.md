@@ -76,6 +76,7 @@ src/morrigan/crossing_pair.py
 src/morrigan/merge_embryo.py
 src/morrigan/secular_solution.py
 src/morrigan/helper_functions.py
+src/morrigan/impact_melt.py
 ```
 
 Utility sources are exempt from the physics-invariant requirement but still subject to all anti-happy-path rules:
@@ -107,7 +108,7 @@ src/morrigan/sort_planet.py    (dead-planet removal and sorting, pure bookkeepin
 
 - **`@pytest.mark.physics_invariant`**: the test asserts at least one of the four families. Tag every qualifying test in a physics-source test file.
 - **`@pytest.mark.reference_pinned`**: the test pins behavior against a **published benchmark** (Kimura et al. 2025 statistics and closed forms), an **analytical limit** (Kepler's third law, the mutual-Hill-radius closed form, Laplace-Lagrange two-planet eigenfrequencies), or a **cross-implementation cross-check**.
-  - **Per-source-file**: each of the seven physics files needs at least one `reference_pinned` test in `tests/test_<file>.py`, recorded in `docs/Validation/<file>.md`.
+  - **Per-source-file**: each of the eight physics files needs at least one `reference_pinned` test in `tests/test_<file>.py`, recorded in `docs/Validation/<file>.md`.
   - **Status report**: `python tools/check_test_quality.py --reference-pinned-status` prints the punch list.
 
 ---
@@ -145,10 +146,10 @@ hypothesis = pytest.importorskip('hypothesis')
 pytest.importorskip('zephyrus.collision')
 ```
 
-No test currently imports an optional dependency, and neither `hypothesis` nor
-`zephyrus` is installed by any extra. The linter still recognises both in its
-`OPTIONAL_DEPS` list, so the rule fires the moment one is reintroduced; add the
-package to the `develop` extra in the same change.
+`hypothesis` is in the `develop` extra and is imported by `tests/test_impact_melt_properties.py`
+alone, through `pytest.importorskip`, so an environment without it skips only those
+property tests. `zephyrus` is installed by no extra. The linter recognises both in its
+`OPTIONAL_DEPS` list.
 
 `pylaplace` is a hard dependency and is imported unguarded.
 
@@ -206,7 +207,7 @@ Banned inside in-scope artifacts: "audit", "review pass", "adversarial review", 
 ## 12. Naming
 
 - Test names describe behavior: `test_kepler_period_scales_as_a_to_three_halves`, NOT `test_kepler_period`.
-- Test file names mirror source 1:1. Documented exception: `tests/test_ensemble_statistics.py`, the cross-cutting seed-ensemble statistics exercising the whole model through `run_system` (integration tier).
+- Test file names mirror source 1:1. Documented exceptions: `tests/test_ensemble_statistics.py`, the cross-cutting seed-ensemble statistics exercising the whole model through `run_system` (integration tier), and `tests/test_impact_melt_properties.py`, the Hypothesis tests of `impact_melt.py`, kept apart so a missing `hypothesis` skips only them.
 
 ---
 

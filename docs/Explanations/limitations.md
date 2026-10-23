@@ -15,6 +15,11 @@ Morrigan is a statistical model of the giant-impact phase, not an N-body integra
 - **The model carries no atmosphere.** Bodies are bare: a mass is a bulk mass, a radius follows from it at the configured bulk density, and no envelope is tracked or shed. A giant impact erodes a real atmosphere, and that erosion is applied downstream by the consumer rather than here; in a coupled PROTEUS run it comes from `zephyrus.collision.mass_loss`, evaluated from the impact geometry each record carries. The scaling law itself is Kegerreis et al. (2020)[^cite-kegerreis2020].
 - Bodies are bulk objects in the dynamics too: radii do not distinguish a rocky core from an envelope, so a body with a heavy envelope is represented by its bulk mass and radius alone.
 
+## Impact melt
+
+- **A bulk melt fraction only.** The melt fraction is the mantle-averaged energy criterion of Nakajima et al. (2021)[^cite-nakajima2021], a mean energy gain over $E_M$, a value the authors call not well constrained; the shape of the melt pool and the pressure at its base (their eqs. 9 to 11 and 13 in arXiv:2004.04269v2) are not computed. The fit is least certain for grazing impacts: the relative 1-sigma of the internal energy fit grows from 0.06 head-on to 0.63 at 90°. The merging coefficients of Nakajima et al. come from impacts at the escape speed only, so a merger faster than that is outside their data even when it is below the critical speed and inside the flagged range.
+- **Merging coefficients for every merger.** A collision faster than the Genda et al. (2012)[^cite-genda2012] critical speed would be a hit-and-run in the SPH runs; Morrigan merges it and evaluates the merging fit, flagged by `above_v_cr`. Outside the campaign's mass, mass-ratio and speed range the fit is extrapolated and `melt_in_range` is false; the merging fit itself comes from the runs at $v_\mathrm{imp} = v_\mathrm{esc}$.
+
 ## Numerical conventions
 
 - The gravitational constant is carried at three significant figures (6.67e-11), the au as 1.5e11 m (0.27 % from the defined value), and the year as 365 days; results agree with CODATA-constant implementations only to the corresponding relative level, which matters when cross-checking against other codes.
@@ -31,3 +36,7 @@ Morrigan is a statistical model of the giant-impact phase, not an N-body integra
 [^cite-petit2020]: Petit, A.C., Pichierri, G., Davies, M.B. & Johansen, A., *[The path to instability in compact multi-planetary systems](https://doi.org/10.1051/0004-6361/202038764)*, Astronomy & Astrophysics, 641, A176, 2020.
 
 [^cite-kegerreis2020]: Kegerreis, J.A., Eke, V.R., Catling, D.C., Massey, R.J., Teodoro, L.F.A. & Zahnle, K.J., *[Atmospheric Erosion by Giant Impacts onto Terrestrial Planets: A Scaling Law for any Speed, Angle, Mass, and Density](https://doi.org/10.3847/2041-8213/abb5fb)*, The Astrophysical Journal Letters, 901, L31, 2020.
+
+[^cite-nakajima2021]: Nakajima, M., Golabek, G.J., Wünnemann, K., Rubie, D.C., Burger, C., Melosh, H.J., Jacobson, S.A., Manske, L. & Hull, S.D., *[Scaling laws for the geometry of an impact-induced magma ocean](https://doi.org/10.1016/j.epsl.2021.116983)*, Earth and Planetary Science Letters, 568, 116983, 2021.
+
+[^cite-genda2012]: Genda, H., Kokubo, E. & Ida, S., *Merging criteria for giant impacts of protoplanets*, The Astrophysical Journal, 744, 137, 2012.

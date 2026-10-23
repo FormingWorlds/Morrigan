@@ -14,12 +14,17 @@ timestep, and the Hill-radius embryo spacing.
 
 from __future__ import annotations
 
+import re
+import warnings
+
 import numpy as np
 import pytest
+import toml
 
 import morrigan
 from morrigan.constants import G, M_earth, M_sun, au2m
 from morrigan.driver import allocate_a, read_config, system_seed, time_step
+from morrigan.impact_melt import melt_fraction
 
 pytestmark = [pytest.mark.smoke, pytest.mark.timeout(60)]
 
@@ -50,12 +55,12 @@ _SCHEMA = (
 )
 
 
-def _run(seed=7, impact_angle=20.0):
+def _run(seed=7, impact_angle=20.0, masses=_MASSES, eccentricity=0.05):
     """Evolve one reference system."""
     return morrigan.run_system(
         seed=seed,
-        masses=[m * M_earth for m in _MASSES],
-        eccentricity=0.05,
+        masses=[m * M_earth for m in masses],
+        eccentricity=eccentricity,
         inner_edge=0.05 * au2m,
         spacing=10,
         density=_DENSITY,
@@ -409,6 +414,32 @@ def test_allocate_a_spaces_embryos_by_mutual_hill_radii():
         assert (hi - lo) == pytest.approx(10 * r_hill, rel=1e-12)
 
 
+def _file_config(save_directory, impact_angle=20.0):
+    """Settings of the reference system for the file-writing path."""
+    return {
+        'run_simulation': {
+            't': 0.0,
+            't_ref': 0.0,
+            't_event': 0.0,
+            'flag_event': 1,
+            'a_min': 0.005,
+            'max_time': 1.0,
+            'random_seed': 7,
+            'save_directory': str(save_directory),
+        },
+        'init_par': {
+            'N': len(_MASSES),
+            'e': 0.05,
+            'impact_angle': impact_angle,
+            'Mp': list(_MASSES),
+            'Ms': 1.0,
+            'rho_p': _DENSITY,
+            'inner_edge': 0.05,
+            'spacing': 10,
+        },
+    }
+
+
 def test_the_file_writing_path_produces_the_documented_tables(tmp_path):
     """A command-line style run writes the three result tables with the
     documented columns and self-consistent contents.
@@ -426,28 +457,7 @@ def test_the_file_writing_path_produces_the_documented_tables(tmp_path):
 
     from morrigan.driver import run_once
 
-    config = {
-        'run_simulation': {
-            't': 0.0,
-            't_ref': 0.0,
-            't_event': 0.0,
-            'flag_event': 1,
-            'a_min': 0.005,
-            'max_time': 1.0,
-            'random_seed': 7,
-            'save_directory': str(tmp_path),
-        },
-        'init_par': {
-            'N': len(_MASSES),
-            'e': 0.05,
-            'impact_angle': 20.0,
-            'Mp': list(_MASSES),
-            'Ms': 1.0,
-            'rho_p': 5500.0,
-            'inner_edge': 0.05,
-            'spacing': 10,
-        },
-    }
+    config = _file_config(tmp_path)
     summary = run_once(0, config, collect=False)
     assert summary['n_survivors'] >= 1
 
@@ -463,6 +473,12 @@ def test_the_file_writing_path_produces_the_documented_tables(tmp_path):
         'M_merged_after',
         'v_c',
         'a_final_AU',
+        'f_melt',
+        'f_melt_raw',
+        'f_melt_sigma',
+        'dIE',
+        'melt_in_range',
+        'above_v_cr',
     ]
     assert list(mergers.colnames) == expected_cols
     assert len(mergers) >= 1
@@ -472,6 +488,21 @@ def test_the_file_writing_path_produces_the_documented_tables(tmp_path):
             row['M_target_before'] + row['M_impactor_before'], rel=1e-12
         )
         assert row['v_c'] > 0.0 and row['t'] > 0.0
+        assert 0.0 < row['f_melt'] <= 1.0 and row['dIE'] > 0.0 and row['f_melt_sigma'] > 0.0
+        # the clip: f_melt is f_melt_raw capped at 1; every merger here melts the mantle
+        assert row['f_melt'] == pytest.approx(min(row['f_melt_raw'], 1.0), rel=1e-15)
+        assert row['f_melt_raw'] > 1.0
+    # The written melt columns are the in-memory merger values of the same system.
+    in_memory = run_once(0, _file_config(tmp_path), collect=True)['mergers']
+    assert len(in_memory) == len(mergers)
+    for row, m in zip(mergers, in_memory):
+        for key in ('f_melt', 'f_melt_raw', 'f_melt_sigma', 'dIE'):
+            assert row[key] == pytest.approx(m[key], rel=1e-15), key
+        for key in ('melt_in_range', 'above_v_cr'):
+            assert row[key] == int(m[key]), key
+    # the flags read back as integers, so a False row is falsy
+    for key in ('melt_in_range', 'above_v_cr'):
+        assert np.issubdtype(mergers[key].dtype, np.integer), mergers[key].dtype
 
     survivors = astropy_ascii.read(
         tmp_path / 'data' / 'survivors' / 'survivors_00.csv', format='fixed_width'
@@ -516,3 +547,201 @@ def test_neighbouring_ensembles_draw_independent_systems():
     assert len(seeds) == 8
     # Valid for np.random.seed, which rejects anything outside 32 bits.
     assert all(0 <= s < 2**32 for s in seeds)
+
+
+_MELT_FIELDS = ('f_melt', 'f_melt_raw', 'f_melt_sigma', 'dIE', 'melt_in_range', 'above_v_cr')
+
+
+@pytest.mark.physics_invariant
+def test_every_impact_record_carries_the_melt_of_its_collision():
+    """Each returned impact reports the Nakajima et al. (2021) bulk melt of its own
+    collision: the five fields equal melt_fraction of the record's masses, radii, contact
+    speed and impact parameter, the fraction lies in (0, 1], and the energy is positive.
+    Seed 7, the reference system."""
+    records = [r for chain in _run()['impacts'].values() for r in chain]
+    assert len(records) >= 4
+    for r in records:
+        assert set(_MELT_FIELDS) <= set(r), f'record lacks {set(_MELT_FIELDS) - set(r)}'
+        expected = melt_fraction(
+            r['M_target_before'],
+            r['M_impactor'],
+            r['R_target_before'],
+            r['R_impactor'],
+            r['v_impact'],
+            r['impact_parameter'],
+        )
+        assert tuple(r[k] for k in _MELT_FIELDS) == (
+            expected.f_melt,
+            expected.f_melt_raw,
+            expected.f_melt_sigma,
+            expected.dIE,
+            expected.in_range,
+            expected.above_v_cr,
+        )
+        assert 0.0 < r['f_melt'] <= 1.0 and r['dIE'] > 0.0
+        assert isinstance(r['melt_in_range'], bool) and isinstance(r['above_v_cr'], bool)
+    # The melt is a property of each collision, not a constant: the energy differs per
+    # impact. These Earth-mass mergers at 1.4-2 v_esc melt the whole mantle, so the fit
+    # exceeds 1 and is clipped there.
+    assert len({r['dIE'] for r in records}) == len(records)
+    assert all(r['f_melt'] == pytest.approx(1.0, abs=0.0) for r in records)
+    # the value before the clip carries the melt information the clip hides
+    assert all(r['f_melt_raw'] > 1.0 for r in records)
+    assert len({r['f_melt_raw'] for r in records}) == len(records)
+
+
+def _melt_warnings(**kwargs):
+    """Return the melt-range warnings one run of ``kwargs`` emits."""
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter('always')
+        _run(**kwargs)
+    return [w for w in caught if 'Nakajima' in str(w.message)]
+
+
+def test_one_melt_warning_per_run_and_none_when_all_mergers_fit(tmp_path):
+    """A run with a merger outside the campaign range or above the critical speed warns once,
+    naming its seed, system, embryos and angle and the exact counts of the run's mergers;
+    a run whose mergers all fit stays silent (seeds 7 and 5). Runs that differ in seed or
+    in masses each warn under the default filter."""
+    from morrigan.driver import run_once
+
+    caught = _melt_warnings()
+    assert len(caught) == 1
+    text = str(caught[0].message)
+    m = re.search(
+        r'seed 7, system 0 \(.*20 deg\): (\d+) of (\d+) mergers .* and (\d+) exceed', text
+    )
+    assert m, text
+    mergers = run_once(0, _file_config(tmp_path), collect=True)['mergers']
+    assert tuple(map(int, m.groups())) == (
+        sum(not x['melt_in_range'] for x in mergers),
+        len(mergers),
+        sum(x['above_v_cr'] for x in mergers),
+    )
+    n_fast = int(m.group(3))
+    assert f' and {n_fast} {"exceeds" if n_fast == 1 else "exceed"} the Genda' in text
+    assert _melt_warnings(seed=5, masses=(0.4, 0.5, 0.6, 0.5)) == []
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter('default')
+        _run(seed=7)
+        _run(seed=8)
+        _run(seed=7, masses=[1.2 * x for x in _MASSES])
+    assert sum('Nakajima' in str(w.message) for w in caught) == 3
+
+
+def test_mergers_outside_the_campaign_range_alone_warn():
+    """A run whose mergers all lie below 1 M_Mars and below the critical speed (small
+    bodies, eccentricity 1e-3, head-on) warns for the range alone, with 0 fast mergers."""
+    caught = _melt_warnings(
+        impact_angle=0.0, masses=[0.01 * m for m in _MASSES], eccentricity=1e-3
+    )
+    assert len(caught) == 1
+    text = str(caught[0].message)
+    m = re.search(r'(\d+) of (\d+) mergers lie outside .* and (\d+) exceed', text)
+    assert m, text
+    n_out, n, n_fast = map(int, m.groups())
+    assert (n_out, n_fast) == (n, 0) and n >= 1
+    assert ' and 0 exceed the Genda' in text
+
+
+def test_out_of_range_flags_are_written_as_zero(tmp_path):
+    """The mergers file of a run whose mergers all lie outside the campaign range holds
+    melt_in_range 0 in every row, read back as an integer that is falsy."""
+    from astropy.io import ascii as astropy_ascii
+
+    from morrigan.driver import run_once
+
+    config = _file_config(tmp_path, impact_angle=0.0)
+    config['init_par'].update(Mp=[0.01 * m for m in _MASSES], e=1e-3)
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore')
+        run_once(0, config)
+    mergers = astropy_ascii.read(
+        tmp_path / 'data' / 'mergers' / 'mergers_00.csv', format='fixed_width'
+    )
+    assert len(mergers) >= 1
+    assert np.issubdtype(mergers['melt_in_range'].dtype, np.integer)
+    assert list(mergers['melt_in_range']) == [0] * len(mergers)
+    assert not any(bool(x) for x in mergers['melt_in_range'])
+
+
+@pytest.mark.parametrize(
+    'angle',
+    [-10.0, 90.5, 270.0, float('nan'), float('inf'), True, '20'],
+    ids=['negative', 'above-90', 'full-turn', 'nan', 'inf', 'bool', 'string'],
+)
+def test_impact_angle_outside_0_to_90_is_refused_before_the_run(angle, tmp_path):
+    """An impact angle that is not a number in [0, 90] deg has no impact parameter in
+    [0, 1]; the run refuses it by name before any dynamics and before writing anything,
+    on the in-memory path, the file path and the settings-file entry point."""
+    from morrigan.driver import main, run_once
+
+    with pytest.raises(ValueError, match='impact_angle'):
+        _run(impact_angle=angle)
+    with pytest.raises(ValueError, match='impact_angle'):
+        run_once(0, _file_config(tmp_path / 'out', angle), collect=False)
+    assert not (tmp_path / 'out').exists()
+    if isinstance(angle, float) and angle < 0:  # the settings-file path, once
+        settings = tmp_path / 'settings.toml'
+        settings.write_text(toml.dumps(_file_config(tmp_path / 'main', angle)))
+        with pytest.raises(ValueError, match='impact_angle'):
+            main(str(settings))
+        assert not (tmp_path / 'main').exists()
+    # The bounds themselves are valid angles.
+    assert set(_run(impact_angle=90.0)) == {'survivors', 'impacts'}
+
+
+@pytest.mark.physics_invariant
+@pytest.mark.parametrize('tie', [37.5, 52.5])
+def test_low_precision_angle_ties_match_the_float64_run(tie):
+    """A float32 or float16 impact angle at a tie gives the float64 run: the same 1-sigma
+    (the lower angle's), and records whose impact parameter is a float64 sin(radians),
+    so the angle is converted to a Python float before use. Seed 7, the reference
+    system."""
+    import math
+
+    def records(angle):
+        recs = [r for chain in _run(impact_angle=angle)['impacts'].values() for r in chain]
+        assert recs, 'the system must merge at least once'
+        return recs
+
+    ref = [r['f_melt_sigma'] / r['f_melt_raw'] for r in records(tie)]
+    for angle in (np.float32(tie), np.float16(tie)):
+        recs = records(angle)
+        assert [r['f_melt_sigma'] / r['f_melt_raw'] for r in recs] == pytest.approx(
+            ref, rel=1e-12
+        )
+        for r in recs:
+            assert np.asarray(r['impact_parameter']).dtype == np.float64
+            assert r['impact_parameter'] == pytest.approx(
+                math.sin(math.radians(tie)), rel=1e-15
+            )
+
+
+def test_negative_zero_angle_gives_a_positive_zero_impact_parameter():
+    """An impact angle of -0.0 is head-on; the records carry +0.0, not -0.0."""
+    import math
+
+    recs = [r for chain in _run(impact_angle=-0.0)['impacts'].values() for r in chain]
+    assert recs and all(math.copysign(1.0, r['impact_parameter']) > 0.0 for r in recs)
+    assert all(r['impact_parameter'] == pytest.approx(0.0, abs=0.0) for r in recs)
+
+
+def test_run_with_overflowing_masses_raises_the_melt_law_error():
+    """Settings whose energies overflow in floating point (embryos of about 1e154 kg
+    around a 1e135 solar-mass star) stop the run with the melt law's ValueError, as the
+    run_system Raises section states."""
+    with pytest.raises(ValueError, match='overflow or underflow'):
+        morrigan.run_system(
+            seed=7,
+            masses=[m * M_earth * 1e130 for m in (0.4, 0.5, 0.6)],
+            eccentricity=0.05,
+            inner_edge=0.05 * au2m,
+            spacing=3,
+            density=_DENSITY,
+            impact_angle=20.0,
+            evolution_time=1.0,
+            inner_cutoff=0.005 * au2m,
+            stellar_mass=1e135,
+        )
+    assert _run()['impacts']

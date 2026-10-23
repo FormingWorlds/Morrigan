@@ -125,13 +125,14 @@ Morrigan reports bare bodies. Three pieces of physics live entirely on the PROTE
 
 `out['impacts']` is a dictionary keyed by surviving-body id; each value is that body's impacts in time order, and every surviving body is present, with an empty list if it never merged. Each record carries:
 
-`time [yr]`, `M_target_before [kg]`, `M_impactor [kg]`, `M_merged_after [kg]`, `v_impact [m/s]`, `v_esc [m/s]`, `impact_parameter`, `R_target_before [m]`, `R_impactor [m]`, `rho_target [kg/m3]`, `rho_impactor [kg/m3]`, `a_before [m]`, `a_after [m]`, `e_before`, `e_after`, `id_target`, `id_impactor`.
+`time [yr]`, `M_target_before [kg]`, `M_impactor [kg]`, `M_merged_after [kg]`, `v_impact [m/s]`, `v_esc [m/s]`, `impact_parameter`, `R_target_before [m]`, `R_impactor [m]`, `rho_target [kg/m3]`, `rho_impactor [kg/m3]`, `a_before [m]`, `a_after [m]`, `e_before`, `e_after`, `id_target`, `id_impactor`, `f_melt`, `f_melt_raw`, `f_melt_sigma`, `dIE [J]`, `melt_in_range`, `above_v_cr`.
 
 Conventions the schema guarantees:
 
 - `v_impact` is the speed at first contact, $\sqrt{v_\infty^2 + v_\mathrm{esc}^2}$, the convention the Kegerreis et al. (2020)[^cite-kegerreis2020] erosion law expects, and `v_esc` is the mutual escape speed recomputed from the recorded masses and radii, so the two are exactly consistent.
 - `M_merged_after` is the perfect-merger sum of the two masses. The model sheds nothing, so a consumer applying its own erosion law starts from the unstripped mass.
 - Bodies carry no atmosphere at all, in the record or in the model; masses and radii are bulk values, and the densities are recovered from mass and radius, so each record is exactly self-consistent.
+- `f_melt` is the bulk melt fraction of the post-impact mantle from Nakajima et al. (2021), clipped at 1; `f_melt_raw` is the fit value before the clip, above 1 where the released energy exceeds what melts the whole mantle, and the only melt information left when `f_melt` saturates; `f_melt_sigma` is the 1-sigma of `f_melt_raw`; `dIE` is the internal energy gain; `melt_in_range` and `above_v_cr` flag a merger outside the campaign range or faster than the critical speed (see the [model overview](model.md#mantle-melt-of-a-merger)).
 - Successive records for one body chain: each `M_target_before` equals the previous record's `M_merged_after` to machine precision, since nothing removes mass between impacts.
 
 `out['survivors']` lists each surviving body's id together with its initial and final mass and semi-major axis, so the consumer can select a planet and replay its growth.

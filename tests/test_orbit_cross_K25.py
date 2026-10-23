@@ -17,6 +17,7 @@ import pytest
 
 from morrigan.constants import G, M_earth, M_sun, au2m
 from morrigan.helper_functions import planet_radius
+from morrigan.impact_melt import melt_fraction
 from morrigan.orbit_cross_K25 import orbit_cross_K25
 
 pytestmark = [pytest.mark.unit, pytest.mark.timeout(30)]
@@ -300,3 +301,44 @@ def test_the_recorded_pre_impact_eccentricity_belongs_to_the_target():
     # line later would give.
     assert rec['e_after'] == pytest.approx(0.043559, rel=1e-4)
     assert rec['e_before'] != pytest.approx(rec['e_after'], rel=1e-6)
+
+
+@pytest.mark.physics_invariant
+def test_merger_record_carries_the_melt_of_its_own_collision():
+    """The merge record reports the Nakajima et al. (2021) melt of the collision it
+    describes: the five melt fields equal melt_fraction of the record's own masses, radii,
+    contact speed and impact parameter, and the melt fraction is a fraction.
+
+    Seed 9 on the nearly touching equal-mass pair, as in the merger test above: gamma 0.5
+    and 2 M_E (18.6 M_Mars) lie in the campaign range, so the flags are pinned too.
+    """
+    np.random.seed(9)
+    ap, mp, rp, e, interact, live, pid = _pair(0.005, 0.05)
+    rec = orbit_cross_K25(ap, mp, rp, M_sun, 0.5, e, interact, live, 2, pid, 0)
+    melt_keys = {'f_melt', 'f_melt_raw', 'f_melt_sigma', 'dIE', 'melt_in_range', 'above_v_cr'}
+    assert melt_keys <= set(rec), f'record lacks {melt_keys - set(rec)}'
+    expected = melt_fraction(
+        rec['M_target_before'],
+        rec['M_impactor_before'],
+        rec['R_target_before'],
+        rec['R_impactor'],
+        rec['v_c'],
+        0.5,
+    )
+    assert rec['f_melt'] == expected.f_melt
+    assert rec['f_melt_raw'] == expected.f_melt_raw
+    assert rec['f_melt_sigma'] == expected.f_melt_sigma
+    assert rec['dIE'] == expected.dIE
+    assert rec['melt_in_range'] is expected.in_range
+    assert rec['above_v_cr'] is expected.above_v_cr
+    assert 0.0 < rec['f_melt'] <= 1.0 and rec['dIE'] > 0.0
+    # Discrimination: another target radius gives another energy, so the radii are read.
+    swapped = melt_fraction(
+        rec['M_target_before'],
+        rec['M_impactor_before'],
+        rec['R_impactor'] * 1.5,
+        rec['R_impactor'],
+        rec['v_c'],
+        0.5,
+    )
+    assert swapped.dIE != pytest.approx(rec['dIE'], rel=1e-3)

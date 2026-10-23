@@ -42,6 +42,7 @@ nav:
           - Secular solution: Validation/secular_solution.md
           - Merger bookkeeping: Validation/merge_embryo.md
           - Crossing outcomes: Validation/orbit_cross_K25.md
+          - Impact melt: Validation/impact_melt.md
           - Driver: Validation/driver.md
           - Ensemble statistics: Validation/ensemble_statistics.md
 
