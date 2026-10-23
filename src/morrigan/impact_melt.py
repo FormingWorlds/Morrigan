@@ -6,10 +6,10 @@
 The law fits SPH giant impacts (Nakajima et al. 2021, EPSL 568, 116983,
 doi:10.1016/j.epsl.2021.116983); its merging coefficients come from the runs at
 v_imp = v_esc, the campaign reaches 2 v_esc. This module ports the bulk part, Eqs. 2-4,
-6, 7 and 14 (numbered as in arXiv:2004.04269v2), with the coefficients of the reference code MeltScalingLaw at commit
-2eca30f2 (https://github.com/mikinakajima/MeltScalingLaw, MIT), which add 45 degree
-impacts and differ from the paper's Tables S.5 and S.6; ``data/nakajima2021/`` holds them
-unchanged.
+6, 7 and 14 (numbered as in arXiv:2004.04269v2), with the coefficients of the reference
+code MeltScalingLaw at commit 2eca30f2 (https://github.com/mikinakajima/MeltScalingLaw,
+MIT), which add 45 degree impacts and differ from the paper's Tables S.5 and S.6;
+``data/nakajima2021/`` holds them unchanged.
 """
 
 from __future__ import annotations

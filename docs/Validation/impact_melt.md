@@ -5,7 +5,8 @@ Source: `src/morrigan/impact_melt.py`. Tests: `tests/test_impact_melt.py`, with 
 | Test | Pin | Authority |
 | --- | --- | --- |
 | `test_port_equals_the_reference_code` | f_melt, f_melt_raw, its 1-sigma, dIE and h equal the reference to 1e-12 relative on 120 cases: angles 0, 30, 45, 60 and 90°, mass ratios 0.03, 0.1, 0.3 and 0.5, speeds 1 and 1.5 v_esc, total masses 2, 9.31 and 40 Mars masses; the 42 cases the reference fits as hit-and-run are compared with its merging branch forced and flagged above v_cr | Cross-implementation check against MeltScalingLaw at commit 2eca30f2 (Nakajima et al. 2021), fed its own radii and Morrigan's G |
-| `test_issue_table_at_one_earth_mass` | The 9 cells of the melt table at 1 M_E and v_esc to two decimals; the 90°, 0.3 cell's 1-sigma is 0.38 in the reference code | The same reference |
+| `test_issue_table_at_one_earth_mass` | The 9 cells of the melt table at 1 M_E and v_esc to two decimals; the 90°, 0.3 cell's 1-sigma is 0.38 in the reference code; the reference code's values with its own G give the same 9 cells | The same reference |
+| `test_above_v_cr_flips_at_the_reference_critical_speed` | `above_v_cr` is true at 1 + 1e-6 times the reference code's critical speed and false at 1 - 1e-6 times it, on the 120 cases above, with the mutual escape speed from Morrigan's G | The same reference; the critical speed of Genda et al. (2012) in the form of Nakajima et al. (2021), eq. 15 |
 
 `tools/generate_nakajima_golden.py` writes `tests/data/nakajima2021_golden.json` from a checkout of the reference, patched in memory only (`np.float`, colour maps, G, an optional forced merging branch, and a return of the bulk values before the clip). The reference code's sixth-order Legendre term is twice the standard P6 (1/8 in place of 1/16), and the port evaluates that basis, the one its coefficients come with; with the standard P6 the internal-energy fit differs by up to 2.7 % on these cases.
 

@@ -3,7 +3,7 @@
 Invariants exercised: the port equals the Nakajima et al. (2021) reference code to 1e-12
 on a grid of angles, mass ratios, speeds and masses (golden table from
 ``tools/generate_nakajima_golden.py``); the melt fraction stays in [0, 1] and falls from
-head-on to grazing; the fit-range and critical-velocity flags switch at each boundary;
+head-on to grazing; the campaign-range and critical-velocity flags switch at each boundary;
 every argument outside its domain is refused by name.
 """
 
@@ -95,8 +95,10 @@ def test_above_v_cr_flips_at_the_reference_critical_speed(row):
 @pytest.mark.reference_pinned
 def test_issue_table_at_one_earth_mass():
     """The table of Morrigan issue 17 (1 M_E, v_imp = v_esc, reference radii) to its two
-    decimals; the 90 deg, gamma 0.3 sigma is 0.3844 in the reference code itself, so that
-    cell is pinned to the code (0.38), not to the issue text (0.39)."""
+    decimals; the 90 deg, gamma 0.3 sigma is 0.3844 with Morrigan's G and 0.3847 with the
+    reference code's G, so that cell is pinned to the code (0.38), not to the issue text
+    (0.39). The reference-G rows check the golden data against the issue text; they do
+    not call the port."""
     text = {
         0: ('0.36 ± 0.02', '1.00 ± 0.07', '1.00 ± 0.16'),
         45: ('0.29 ± 0.04', '0.87 ± 0.12', '1.00 ± 0.27'),

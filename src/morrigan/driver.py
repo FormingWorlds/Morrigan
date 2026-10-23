@@ -403,8 +403,8 @@ def _run_once(run_idx, config, collect=False):
             'outside the campaign range of the Nakajima '
             'et al. (2021) melt law (1-53 M_Mars, impactor mass ratio 0.03-0.5, 1-2 v_esc; '
             'the merging fit is from v_imp = v_esc runs) '
-            f'and {n_fast} exceed{"s" if n_fast == 1 else ""} the Genda et al. (2012) critical speed; their f_melt is '
-            'the fit extrapolated (melt_in_range, above_v_cr).',
+            f'and {n_fast} exceed{"s" if n_fast == 1 else ""} the Genda et al. (2012) '
+            'critical speed; their f_melt is the fit extrapolated (melt_in_range, above_v_cr).',
             UserWarning,
             stacklevel=4,  # the caller of run_system or main
         )

@@ -62,7 +62,7 @@ def test_property_bad_positive_argument_is_refused(which, bad):
     b=st.floats(0.0, 1.0),
 )
 def test_property_valid_merger_gives_a_bounded_result(m_total, gamma, vel, b):
-    """Over masses, mass ratios, speeds and impact parameters well past the fit range, the
+    """Over masses, mass ratios, speeds and impact parameters well past the campaign range, the
     melt fraction is in [0, 1], its sigma and dIE are finite and positive, and the flags
     are booleans."""
     m_t, m_i, r_t, r_i, v, _ = _case(0.0, gamma, vel, m_total)
