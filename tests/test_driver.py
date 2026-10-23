@@ -618,6 +618,8 @@ def test_one_melt_warning_per_run_and_none_when_all_mergers_fit(tmp_path):
         len(mergers),
         sum(x['above_v_cr'] for x in mergers),
     )
+    n_fast = int(m.group(3))
+    assert f' and {n_fast} {"exceeds" if n_fast == 1 else "exceed"} the Genda' in text
     assert _melt_warnings(seed=5, masses=(0.4, 0.5, 0.6, 0.5)) == []
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter('default')
@@ -627,19 +629,40 @@ def test_one_melt_warning_per_run_and_none_when_all_mergers_fit(tmp_path):
     assert sum('Nakajima' in str(w.message) for w in caught) == 3
 
 
-def test_mergers_outside_the_fit_range_alone_warn():
-    """A run whose mergers all lie below 1 M_Mars but below the critical speed (small
+def test_mergers_outside_the_campaign_range_alone_warn():
+    """A run whose mergers all lie below 1 M_Mars and below the critical speed (small
     bodies, eccentricity 1e-3, head-on) warns for the range alone, with 0 fast mergers."""
     caught = _melt_warnings(
         impact_angle=0.0, masses=[0.01 * m for m in _MASSES], eccentricity=1e-3
     )
     assert len(caught) == 1
-    m = re.search(
-        r'(\d+) of (\d+) mergers lie outside .* and (\d+) exceed', str(caught[0].message)
-    )
-    assert m, str(caught[0].message)
+    text = str(caught[0].message)
+    m = re.search(r'(\d+) of (\d+) mergers lie outside .* and (\d+) exceed', text)
+    assert m, text
     n_out, n, n_fast = map(int, m.groups())
     assert (n_out, n_fast) == (n, 0) and n >= 1
+    assert ' and 0 exceed the Genda' in text
+
+
+def test_out_of_range_flags_are_written_as_zero(tmp_path):
+    """The mergers file of a run whose mergers all lie outside the campaign range holds
+    melt_in_range 0 in every row, read back as an integer that is falsy."""
+    from astropy.io import ascii as astropy_ascii
+
+    from morrigan.driver import run_once
+
+    config = _file_config(tmp_path, impact_angle=0.0)
+    config['init_par'].update(Mp=[0.01 * m for m in _MASSES], e=1e-3)
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore')
+        run_once(0, config)
+    mergers = astropy_ascii.read(
+        tmp_path / 'data' / 'mergers' / 'mergers_00.csv', format='fixed_width'
+    )
+    assert len(mergers) >= 1
+    assert np.issubdtype(mergers['melt_in_range'].dtype, np.integer)
+    assert list(mergers['melt_in_range']) == [0] * len(mergers)
+    assert not any(bool(x) for x in mergers['melt_in_range'])
 
 
 @pytest.mark.parametrize(
