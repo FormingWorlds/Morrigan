@@ -192,7 +192,9 @@ def run_once(run_idx, config, collect=False):
 def _impact_angle(config):
     """Return the configured impact angle [deg] as a float, refusing one outside [0, 90]."""
     # sin of the impact angle is the impact parameter, which lives in [0, 1]
-    return _check('impact_angle', config['init_par']['impact_angle'], 0.0, 90.0)
+    return (
+        _check('impact_angle', config['init_par']['impact_angle'], 0.0, 90.0) + 0.0
+    )  # no -0.0
 
 
 def _run_once(run_idx, config, collect=False):
@@ -396,7 +398,7 @@ def _run_once(run_idx, config, collect=False):
     if n_out or n_fast:
         warnings.warn(
             f'seed {base_seed}, system {run_idx} ({len(initial_state)} embryos, '
-            f'{sum(m for m, _ in initial_state.values()) / M_earth:.4g} M_E, '
+            f'{sum(config["init_par"]["Mp"]):.4g} M_E, '
             f'{impact_angle:g} deg): {n_out} of {len(mergers)} mergers lie '
             'outside the fit range of the Nakajima '
             'et al. (2021) melt law (1-53 M_Mars, impactor mass ratio 0.03-0.5, 1-2 v_esc) '
@@ -531,7 +533,8 @@ def run_system(
     ------
     ValueError
         If ``impact_angle`` is not a number in [0, 90] deg; this is checked before
-        the run starts.
+        the run starts. During the run, the melt law raises it for masses, radii or
+        speeds that overflow in floating point, which valid settings do not produce.
     """
     n = len(masses)
     config = {
@@ -560,7 +563,7 @@ def run_system(
     raw = run_once(0, config, collect=True)
 
     year_sec = gyr2sec / 1.0e9  # match the model's own 365-day year
-    b = np.sin(np.deg2rad(float(impact_angle)))  # constant impact parameter of the run
+    b = np.sin(np.deg2rad(_impact_angle(config)))  # the run's impact parameter, as used
 
     impacts = {}
     for m in raw['mergers']:

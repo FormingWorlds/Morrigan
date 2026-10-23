@@ -149,8 +149,8 @@ def melt_fraction(
     ------
     ValueError
         If an argument is not a finite real number in its domain, the impactor is the
-        heavier body, or the inputs release no finite positive energy (a merged radius
-        too large, or a speed whose energy overflows).
+        heavier body, or the inputs overflow or underflow in floating point or release no
+        finite positive energy (for example a merged radius too large).
     RuntimeError
         If a fitted factor is not positive or the result leaves [0, 1]; the shipped fits
         are positive over all angles, so this signals broken coefficient files.
@@ -168,6 +168,8 @@ def melt_fraction(
     m = m_t + m_i
     r_m = r_t * (m / m_t) ** (1.0 / 3.0) if R_merged is None else _check('R_merged', R_merged)
 
+    given = f', R_merged {r_m!r}' if R_merged is not None else ''
+    inputs = f'the masses {m_t!r}, {m_i!r}, radii {r_t!r}, {r_i!r}{given} and v_impact {v!r}'
     try:
         q = m_i / m_t
         d_pe = (
@@ -180,15 +182,11 @@ def melt_fraction(
         ratio = v / math.sqrt(2.0 * G * m / (r_t + r_i))
     except (OverflowError, ZeroDivisionError):
         raise ValueError(
-            f'the masses {m_t!r}, {m_i!r}, radii {r_t!r}, {r_i!r}, R_merged {r_m!r} and '
-            f'v_impact {v!r} overflow the energy or the escape speed'
+            f'{inputs} overflow or underflow the energy or the escape speed'
         ) from None
     energy = d_pe + ke
     if not (math.isfinite(energy) and energy > 0.0):
-        raise ValueError(
-            f'the masses, radii, R_merged {r_m!r} and v_impact {v!r} release no finite '
-            f'positive energy ({energy} J)'
-        )
+        raise ValueError(f'{inputs} release no finite positive energy ({energy} J)')
     para, sigma = _coefficients()
     x = math.sqrt(1.0 - b * b)  # cos(theta)
     h = float(legendre.legval(x, para[0:3]))
@@ -200,10 +198,12 @@ def melt_fraction(
         raise RuntimeError(f'non-positive fit factor: h {h}, IE {ie}, mantle {mantle}')
     d_ie = ie * energy
     f_raw = h * ie * energy / (F_MANTLE * mantle * m) / E_M
+    if not math.isfinite(f_raw):
+        raise ValueError(f'{inputs} overflow or underflow the melt fraction')
 
     # nearest simulated angle; a tie, within the round-off of asin(sin), goes to the lower
     dist = [abs(math.degrees(math.asin(b)) - a) for a in FIT_ANGLES]
-    k = next(j for j, d in enumerate(dist) if d <= min(dist) + 1e-9)
+    k = next(j for j, d in enumerate(dist) if d <= min(dist) + 1e-12)
     dz = math.sqrt(
         (sigma[0, k] / ie) ** 2 + (sigma[1, k] / h) ** 2 + (sigma[2, k] / mantle) ** 2
     )
