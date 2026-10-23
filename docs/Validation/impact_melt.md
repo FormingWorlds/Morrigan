@@ -1,6 +1,6 @@
 # Validation: impact melt
 
-Source: `src/morrigan/impact_melt.py`. Tests: `tests/test_impact_melt.py`.
+Source: `src/morrigan/impact_melt.py`. Tests: `tests/test_impact_melt.py`, with the Hypothesis property tests in `tests/test_impact_melt_properties.py`.
 
 | Test | Pin | Authority |
 | --- | --- | --- |
