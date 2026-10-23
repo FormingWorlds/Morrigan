@@ -414,7 +414,7 @@ def test_allocate_a_spaces_embryos_by_mutual_hill_radii():
         assert (hi - lo) == pytest.approx(10 * r_hill, rel=1e-12)
 
 
-def _file_config(save_directory, impact_angle=20.0, masses=_MASSES, seed=7):
+def _file_config(save_directory, impact_angle=20.0):
     """Settings of the reference system for the file-writing path."""
     return {
         'run_simulation': {
@@ -424,14 +424,14 @@ def _file_config(save_directory, impact_angle=20.0, masses=_MASSES, seed=7):
             'flag_event': 1,
             'a_min': 0.005,
             'max_time': 1.0,
-            'random_seed': seed,
+            'random_seed': 7,
             'save_directory': str(save_directory),
         },
         'init_par': {
-            'N': len(masses),
+            'N': len(_MASSES),
             'e': 0.05,
             'impact_angle': impact_angle,
-            'Mp': list(masses),
+            'Mp': list(_MASSES),
             'Ms': 1.0,
             'rho_p': _DENSITY,
             'inner_edge': 0.05,
@@ -650,3 +650,38 @@ def test_impact_angle_outside_0_to_90_is_refused_before_the_run(angle, tmp_path)
         assert not (tmp_path / 'main').exists()
     # The bounds themselves are valid angles.
     assert set(_run(impact_angle=90.0)) == {'survivors', 'impacts'}
+
+
+@pytest.mark.physics_invariant
+@pytest.mark.parametrize('tie', [37.5, 52.5])
+def test_low_precision_angle_ties_match_the_float64_run(tie):
+    """A float32 or float16 impact angle at a tie gives the float64 run: the same 1-sigma
+    (the lower angle's), and records whose impact parameter is the float64
+    sin(radians(angle)), the b the melt law used. Seed 7, the reference system."""
+    import math
+
+    def records(angle):
+        recs = [r for chain in _run(impact_angle=angle)['impacts'].values() for r in chain]
+        assert recs, 'the system must merge at least once'
+        return recs
+
+    ref = [r['f_melt_sigma'] / r['f_melt_raw'] for r in records(tie)]
+    for angle in (np.float32(tie), np.float16(tie)):
+        recs = records(angle)
+        assert [r['f_melt_sigma'] / r['f_melt_raw'] for r in recs] == pytest.approx(
+            ref, rel=1e-12
+        )
+        for r in recs:
+            assert np.asarray(r['impact_parameter']).dtype == np.float64
+            assert r['impact_parameter'] == pytest.approx(
+                math.sin(math.radians(tie)), rel=1e-15
+            )
+
+
+def test_negative_zero_angle_gives_a_positive_zero_impact_parameter():
+    """An impact angle of -0.0 is head-on; the records carry +0.0, not -0.0."""
+    import math
+
+    recs = [r for chain in _run(impact_angle=-0.0)['impacts'].values() for r in chain]
+    assert recs and all(math.copysign(1.0, r['impact_parameter']) > 0.0 for r in recs)
+    assert all(r['impact_parameter'] == pytest.approx(0.0, abs=0.0) for r in recs)

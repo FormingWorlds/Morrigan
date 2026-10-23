@@ -118,6 +118,8 @@ def test_sigma_at_a_tie_uses_the_lower_simulated_angle(tie):
 
     assert rel(tie) == pytest.approx(rel(tie - 1e-7), rel=1e-6)
     assert abs(rel(tie + 1e-7) / rel(tie) - 1.0) > 0.01
+    # 1e-11 deg above the tie is past the round-off of asin(sin), so the upper angle
+    assert abs(rel(tie + 1e-11) / rel(tie) - 1.0) > 0.01
 
 
 @pytest.mark.physics_invariant
@@ -215,56 +217,48 @@ def test_merged_radius_that_releases_no_energy_is_refused():
     """A merged radius so large that the merger would absorb energy is a caller error:
     ValueError names R_merged, and the default merged radius releases energy."""
     m_t, m_i, r_t, r_i, v, b = _case(45.0, 0.2)
-    with pytest.raises(ValueError, match='R_merged'):
+    with pytest.raises(ValueError, match='release no finite positive energy'):
         melt_fraction(m_t, m_i, r_t, r_i, v, b, R_merged=100.0 * r_t)
     assert melt_fraction(m_t, m_i, r_t, r_i, v, b).dIE > 0.0
 
 
 @pytest.mark.parametrize(
-    ('override', 'name'),
+    ('override', 'phrase'),
     [
-        ({'v_impact': 1e160}, 'v_impact'),
-        ({'M_target': 10**400}, 'M_target'),
-        ({'M_target': 1e160, 'M_impactor': 1e159}, 'masses'),
-        ({'R_merged': 1e-320}, 'R_merged'),
-        ({'R_target': 1e308, 'R_impactor': 1e308}, 'radii'),
+        ({'v_impact': 1e160}, 'overflow or underflow'),
+        ({'M_target': 10**400}, 'M_target must be'),
+        ({'M_target': 1e160, 'M_impactor': 1e159}, 'overflow or underflow'),
+        ({'R_merged': 1e-320}, 'overflow or underflow'),
+        ({'R_target': 1e308, 'R_impactor': 1e308}, 'overflow or underflow'),
+        (
+            {
+                'M_target': 1e-4,
+                'M_impactor': 1e-4,
+                'R_target': 5e-324,
+                'R_impactor': 5e-324,
+                'v_impact': 1.0,
+            },
+            'overflow or underflow the melt fraction',
+        ),
     ],
-    ids=['speed', 'int-mass', 'float-mass', 'tiny-merged-radius', 'huge-radii'],
+    ids=['speed', 'int-mass', 'float-mass', 'tiny-merged-radius', 'huge-radii', 'f-raw'],
 )
-def test_inputs_that_overflow_are_refused_by_name(override, name):
-    """Finite inputs whose energy or escape speed overflows, underflows or divides by zero
-    in floating point raise ValueError naming the arguments, not an arithmetic error."""
-    with pytest.raises(ValueError, match=name):
+def test_inputs_that_overflow_are_refused_by_name(override, phrase):
+    """Finite inputs whose energy, escape speed or melt fraction overflows, underflows or
+    divides by zero in floating point raise ValueError with the phrase of their branch,
+    not an arithmetic error or the RuntimeError kept for broken coefficient files."""
+    with pytest.raises(ValueError, match=phrase):
         melt_fraction(**(_ARGS | override))
     assert melt_fraction(**_ARGS).dIE > 0.0
 
 
-@pytest.mark.physics_invariant
-@pytest.mark.parametrize('tie', [37.5, 52.5])
-def test_low_precision_angle_ties_use_the_lower_angle(tie):
-    """A float32 impact angle at a tie gives the same 1-sigma as the float64 one: the
-    driver forms the impact parameter from the angle as a Python float."""
-    import morrigan
-
-    def rel(angle):
-        out = morrigan.run_system(
-            seed=7,
-            masses=[0.4 * M_earth, 0.5 * M_earth, 0.6 * M_earth],
-            eccentricity=0.05,
-            inner_edge=7.5e9,
-            spacing=10,
-            density=5500.0,
-            impact_angle=angle,
-            evolution_time=1.0,
-            inner_cutoff=7.5e8,
-            stellar_mass=1.0,
-        )
-        recs = [r for chain in out['impacts'].values() for r in chain]
-        assert recs, 'the system must merge at least once'
-        return [r['f_melt_sigma'] / r['f_melt_raw'] for r in recs]
-
-    assert rel(np.float32(tie)) == pytest.approx(rel(tie), rel=1e-12)
-    assert rel(np.float16(tie)) == pytest.approx(rel(tie), rel=1e-12)
+def test_merged_radius_is_named_only_when_given():
+    """The overflow message names R_merged only when the caller passed one."""
+    with pytest.raises(ValueError) as given:
+        melt_fraction(**(_ARGS | {'R_merged': 1e-320}))
+    with pytest.raises(ValueError) as default:
+        melt_fraction(**(_ARGS | {'v_impact': 1e160}))
+    assert 'R_merged' in str(given.value) and 'R_merged' not in str(default.value)
 
 
 @pytest.mark.physics_invariant
