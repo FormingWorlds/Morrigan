@@ -220,6 +220,7 @@ def test_argument_outside_its_domain_is_refused_by_name(name, bad):
     assert 0.0 <= melt_fraction(**args).f_melt <= 1.0
 
 
+@pytest.mark.physics_invariant
 def test_impactor_heavier_than_target_is_refused():
     """Morrigan's target is the larger body; swapped masses are refused, not silently used."""
     m_t, m_i, r_t, r_i, v, b = _case(45.0, 0.3)
