@@ -42,15 +42,13 @@ class MeltResult(NamedTuple):
     Attributes
     ----------
     f_melt : float
-        Melt mass fraction of the fitted post-impact mantle, 0.70 m(theta) M with m the
+        Melt mass fraction of the fitted post-impact mantle, 0.70 k(theta) M with k the
         Eq. 7 fit (0.924 to 1.0015), Eq. 14, clipped at 1.
     f_melt_raw : float
         The Eq. 14 fit before the clip, the value ``f_melt_sigma`` refers to; above 1 the
         released energy exceeds what melts the whole mantle.
     f_melt_sigma : float
-        1-sigma of the unclipped fraction, from the fit errors at the nearest simulated
-        angle; where ``f_melt`` is clipped at 1 it belongs to the unclipped value and can
-        exceed 1.
+        1-sigma of ``f_melt_raw``, from the fit errors at the nearest simulated angle.
     dIE : float
         Internal energy gain of the merged body, Eq. 4 [J].
     h : float
@@ -144,8 +142,8 @@ def melt_fraction(
     Returns
     -------
     MeltResult
-        The melt fraction, its 1-sigma, the internal energy gain, the mantle share and the
-        two flags.
+        The clipped melt fraction, its value before the clip and that value's 1-sigma,
+        the internal energy gain, the mantle share and the two flags.
 
     Raises
     ------
@@ -170,22 +168,25 @@ def melt_fraction(
     m = m_t + m_i
     r_m = r_t * (m / m_t) ** (1.0 / 3.0) if R_merged is None else _check('R_merged', R_merged)
 
-    q = m_i / m_t
-    scale = G * m_t**2 / r_t
-    d_pe = (
-        -0.6
-        - 0.6 * q**2 / (r_i / r_t)
-        - q / (1.0 + r_i / r_t)
-        + 0.6 * (1.0 + q) ** 2 / (r_m / r_t)
-    ) * scale
     try:
+        q = m_i / m_t
+        d_pe = (
+            -0.6
+            - 0.6 * q**2 / (r_i / r_t)
+            - q / (1.0 + r_i / r_t)
+            + 0.6 * (1.0 + q) ** 2 / (r_m / r_t)
+        ) * (G * m_t**2 / r_t)
         ke = 0.5 * m_t * m_i / m * v**2
-    except OverflowError:
-        raise ValueError(f'v_impact {v!r} overflows the kinetic energy') from None
+        ratio = v / math.sqrt(2.0 * G * m / (r_t + r_i))
+    except (OverflowError, ZeroDivisionError):
+        raise ValueError(
+            f'the masses {m_t!r}, {m_i!r}, radii {r_t!r}, {r_i!r}, R_merged {r_m!r} and '
+            f'v_impact {v!r} overflow the energy or the escape speed'
+        ) from None
     energy = d_pe + ke
     if not (math.isfinite(energy) and energy > 0.0):
         raise ValueError(
-            f'the merged radius R_merged {r_m!r} and v_impact {v!r} release no finite '
+            f'the masses, radii, R_merged {r_m!r} and v_impact {v!r} release no finite '
             f'positive energy ({energy} J)'
         )
     para, sigma = _coefficients()
@@ -211,7 +212,6 @@ def melt_fraction(
     if not (0.0 <= f <= 1.0 and f_sigma >= 0.0 and math.isfinite(f_sigma)):
         raise RuntimeError(f'melt fraction {f} with sigma {f_sigma} leaves its bounds')
 
-    ratio = v / math.sqrt(2.0 * G * m / (r_t + r_i))
     big_gamma, grazing = (m_t - m_i) / m, 1.0 - b
     v_cr = 2.43 * big_gamma**2 * grazing**2.5 - 0.0408 * big_gamma + 1.86 * grazing**2.5 + 1.08
     in_range = (

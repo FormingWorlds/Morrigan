@@ -10,7 +10,6 @@ import time
 import warnings
 from functools import partial
 from multiprocessing import Pool, cpu_count, current_process
-from numbers import Real
 
 import numpy as np
 import toml
@@ -21,6 +20,7 @@ from astropy.table import Table
 from morrigan.constants import G, M_earth, M_sun, au2m, gyr2sec
 from morrigan.crossing_pair import crossing_pair
 from morrigan.helper_functions import planet_radius
+from morrigan.impact_melt import _check
 from morrigan.orbit_cross_K25 import orbit_cross_K25
 from morrigan.secular_solution import secular_solution
 from morrigan.sort_planet import sort_planet
@@ -189,19 +189,18 @@ def run_once(run_idx, config, collect=False):
         np.random.set_state(entry_random_state)
 
 
+def _impact_angle(config):
+    """Return the configured impact angle [deg] as a float, refusing one outside [0, 90]."""
+    # sin of the impact angle is the impact parameter, which lives in [0, 1]
+    return _check('impact_angle', config['init_par']['impact_angle'], 0.0, 90.0)
+
+
 def _run_once(run_idx, config, collect=False):
     # collect=True runs a single system for an in-process caller: it writes no
     # files and returns the system's arrays and merger records in memory, rather
     # than the run-summary dict the file-writing path returns
 
-    # sin of the impact angle is the impact parameter, which lives in [0, 1]
-    impact_angle = config['init_par']['impact_angle']
-    if (
-        isinstance(impact_angle, bool)
-        or not isinstance(impact_angle, Real)
-        or not 0 <= impact_angle <= 90
-    ):
-        raise ValueError(f'impact_angle must be a number in [0, 90] deg, got {impact_angle!r}')
+    impact_angle = _impact_angle(config)
 
     # import settings from .toml file
     base_seed = config['run_simulation'].get('random_seed', 0)
@@ -242,7 +241,6 @@ def _run_once(run_idx, config, collect=False):
 
     N = config['init_par']['N']  # number of planets
     e = config['init_par']['e']  # initial eccentricity
-    impact_angle = config['init_par']['impact_angle']
     impact_parameter = np.sin(np.deg2rad(impact_angle))  # impact parameter =  sin(impact_angle)
     masses = np.array(config['init_par']['Mp']) * M_earth
 
@@ -397,7 +395,9 @@ def _run_once(run_idx, config, collect=False):
     n_fast = sum(m['above_v_cr'] for m in mergers)
     if n_out or n_fast:
         warnings.warn(
-            f'seed {base_seed}, system {run_idx}: {n_out} of {len(mergers)} mergers lie '
+            f'seed {base_seed}, system {run_idx} ({len(initial_state)} embryos, '
+            f'{sum(m for m, _ in initial_state.values()) / M_earth:.4g} M_E, '
+            f'{impact_angle:g} deg): {n_out} of {len(mergers)} mergers lie '
             'outside the fit range of the Nakajima '
             'et al. (2021) melt law (1-53 M_Mars, impactor mass ratio 0.03-0.5, 1-2 v_esc) '
             f'and {n_fast} exceed the Genda et al. (2012) critical speed; their f_melt is '
@@ -507,7 +507,8 @@ def run_system(
     density : float
         Bulk density shared by the embryos [kg m-3].
     impact_angle : float
-        Impact angle [deg]; its sine is the impact parameter.
+        Impact angle [deg] in [0, 90], 0 head-on and 90 grazing; its sine is the impact
+        parameter.
     evolution_time : float
         Length of the dynamical evolution [Gyr].
     inner_cutoff : float
@@ -525,6 +526,12 @@ def run_system(
         order, every impact a dict in the shared impact schema (SI, time
         in years, the merged mass reported as the plain sum of the two
         bodies).
+
+    Raises
+    ------
+    ValueError
+        If ``impact_angle`` is not a number in [0, 90] deg; this is checked before
+        the run starts.
     """
     n = len(masses)
     config = {
@@ -553,7 +560,7 @@ def run_system(
     raw = run_once(0, config, collect=True)
 
     year_sec = gyr2sec / 1.0e9  # match the model's own 365-day year
-    b = np.sin(np.deg2rad(impact_angle))  # constant impact parameter of the run
+    b = np.sin(np.deg2rad(float(impact_angle)))  # constant impact parameter of the run
 
     impacts = {}
     for m in raw['mergers']:
@@ -656,6 +663,7 @@ def main(config_path):
     # a relative save_directory is taken from the working directory, which is
     # not necessarily where the settings file lives, so say where results land
     save_directory = config['run_simulation']['save_directory']
+    _impact_angle(config)  # refuse a bad angle before anything is written
     os.makedirs(save_directory, exist_ok=True)
     print(f'Writing results to {os.path.abspath(save_directory)}')
 
