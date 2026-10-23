@@ -280,3 +280,43 @@ def test_property_valid_merger_gives_a_bounded_result(m_total, gamma, vel, b):
     assert res.f_melt_sigma >= 0.0 and math.isfinite(res.f_melt_sigma)
     assert res.dIE > 0.0 and math.isfinite(res.dIE)
     assert isinstance(res.in_range, bool) and isinstance(res.above_v_cr, bool)
+
+
+@pytest.mark.physics_invariant
+def test_coefficient_files_of_the_wrong_shape_are_refused(tmp_path, monkeypatch):
+    """A parameter.txt or Model_sigma.txt of the wrong shape stops the run with both
+    shapes named, instead of fitting with misplaced coefficients."""
+    from morrigan import impact_melt as im
+
+    data = tmp_path / 'data' / 'nakajima2021'
+    data.mkdir(parents=True)
+    (data / 'parameter.txt').write_text('1.0 2.0 3.0\n')
+    (data / 'Model_sigma.txt').write_text('#0 30 45 60 90\n1 2 3 4 5\n1 2 3 4 5\n1 2 3 4 5\n')
+    monkeypatch.setattr(im.resources, 'files', lambda package: tmp_path)
+    with pytest.raises(RuntimeError, match=r'shapes \(3,\), \(3, 5\)'):
+        im._coefficients.__wrapped__()
+    # The shipped files have the shapes the fit needs.
+    monkeypatch.undo()
+    para, sigma = im._coefficients.__wrapped__()
+    assert para.shape == (12,) and sigma.shape == (3, 5)
+
+
+@pytest.mark.physics_invariant
+@pytest.mark.parametrize('broken', ['negative h', 'infinite sigma'])
+def test_broken_coefficients_stop_the_run(broken, monkeypatch):
+    """A non-positive fit factor or a non-finite 1-sigma raises RuntimeError rather than
+    reporting a melt fraction; the shipped coefficients never reach either guard."""
+    from morrigan import impact_melt as im
+
+    para, sigma = (a.copy() for a in im._coefficients())
+    if broken == 'negative h':
+        para[0] = -5.0
+        match = 'non-positive fit factor'
+    else:
+        sigma[:] = np.inf
+        match = 'leaves its bounds'
+    monkeypatch.setattr(im, '_coefficients', lambda: (para, sigma))
+    with pytest.raises(RuntimeError, match=match):
+        melt_fraction(*_case(45.0))
+    monkeypatch.undo()
+    assert 0.0 < melt_fraction(*_case(45.0)).f_melt <= 1.0
