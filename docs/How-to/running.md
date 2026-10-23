@@ -18,7 +18,7 @@ Results are written under the `save_directory` named in the settings file. A rel
 | Path | Contents |
 | --- | --- |
 | `data/full_systems/` | State of every planet through time |
-| `data/mergers/` | One row per collision: the bodies involved, the collision velocity, and the bulk mantle melt fraction with its 1-sigma, the internal energy gain [J] and the two fit flags |
+| `data/mergers/` | One row per collision: the bodies involved, the collision velocity, and the bulk mantle melt fraction, its value before the clip at 1 with its 1-sigma, the internal energy gain [J] and the two fit flags |
 | `data/survivors/` | Final mass, orbit, and eccentricity of each surviving planet |
 | `batch_summary.csv` | Runtime and surviving-planet count for each system |
 

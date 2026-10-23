@@ -263,7 +263,7 @@ Both gates ratchet toward 90, capped at 90 (`tools/update_coverage_threshold.py`
 
 PROTEUS consumes `run_system` through `proteus.accretion.morrigan`. The per-impact record schema is the interface:
 
-`time [yr], M_target_before [kg], M_impactor [kg], M_merged_after [kg], v_impact [m/s], v_esc [m/s], impact_parameter, R_target_before [m], R_impactor [m], rho_target [kg/m3], rho_impactor [kg/m3], a_before [m], a_after [m], e_before, e_after, id_target, id_impactor, f_melt, f_melt_sigma, dIE [J], melt_in_range, above_v_cr` (`f_melt_sigma` is the 1-sigma of the melt fraction before its clip at 1)
+`time [yr], M_target_before [kg], M_impactor [kg], M_merged_after [kg], v_impact [m/s], v_esc [m/s], impact_parameter, R_target_before [m], R_impactor [m], rho_target [kg/m3], rho_impactor [kg/m3], a_before [m], a_after [m], e_before, e_after, id_target, id_impactor, f_melt, f_melt_raw, f_melt_sigma, dIE [J], melt_in_range, above_v_cr` (`f_melt_raw` is the melt fraction before its clip at 1, the value `f_melt_sigma` refers to)
 
 Conventions the schema guarantees:
 

@@ -44,6 +44,9 @@ class MeltResult(NamedTuple):
     f_melt : float
         Melt mass fraction of the fitted post-impact mantle, 0.70 m(theta) M with m the
         Eq. 7 fit (0.924 to 1.0015), Eq. 14, clipped at 1.
+    f_melt_raw : float
+        The Eq. 14 fit before the clip, the value ``f_melt_sigma`` refers to; above 1 the
+        released energy exceeds what melts the whole mantle.
     f_melt_sigma : float
         1-sigma of the unclipped fraction, from the fit errors at the nearest simulated
         angle; where ``f_melt`` is clipped at 1 it belongs to the unclipped value and can
@@ -60,6 +63,7 @@ class MeltResult(NamedTuple):
     """
 
     f_melt: float
+    f_melt_raw: float
     f_melt_sigma: float
     dIE: float
     h: float
@@ -215,4 +219,4 @@ def melt_fraction(
         and GAMMA_RANGE[0] <= m_i / m <= GAMMA_RANGE[1]
         and SPEED_RANGE[0] * (1.0 - SPEED_MARGIN) <= ratio <= SPEED_RANGE[1]
     )
-    return MeltResult(f, f_sigma, d_ie, h, in_range, ratio > v_cr)
+    return MeltResult(f, f_raw, f_sigma, d_ie, h, in_range, ratio > v_cr)

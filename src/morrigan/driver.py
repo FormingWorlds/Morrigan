@@ -434,6 +434,7 @@ def _run_once(run_idx, config, collect=False):
         'v_c',
         'a_final_AU',
         'f_melt',
+        'f_melt_raw',
         'f_melt_sigma',
         'dIE',
         'melt_in_range',
@@ -588,6 +589,7 @@ def run_system(
             'id_impactor': int(m['id_impactor']),
             # bulk mantle melt of this collision (Nakajima et al. 2021); dIE [J]
             'f_melt': m['f_melt'],
+            'f_melt_raw': m['f_melt_raw'],
             'f_melt_sigma': m['f_melt_sigma'],
             'dIE': m['dIE'],
             'melt_in_range': m['melt_in_range'],

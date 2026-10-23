@@ -215,6 +215,7 @@ def orbit_cross_K25(
         )
         merge_record.update(
             f_melt=melt.f_melt,
+            f_melt_raw=melt.f_melt_raw,
             f_melt_sigma=melt.f_melt_sigma,
             dIE=melt.dIE,
             melt_in_range=melt.in_range,
