@@ -53,6 +53,7 @@ def test_property_bad_positive_argument_is_refused(which, bad):
         melt_fraction(**(_ARGS | {which: bad}))
 
 
+@pytest.mark.physics_invariant
 @settings(derandomize=True, max_examples=300, deadline=None)
 @given(
     m_total=st.floats(0.01 * M_earth, 20.0 * M_earth),

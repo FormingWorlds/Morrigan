@@ -59,7 +59,6 @@ def test_port_equals_the_reference_code(row):
     2eca30f2 (merging coefficients; rows the reference sends to the hit-and-run branch are
     compared with its merging branch forced, and the port flags them above v_cr)."""
     res = _call(row)
-    assert 'f_melt_raw' in res._fields, 'MeltResult carries no value before the clip'
     assert res.f_melt_raw == pytest.approx(row['f_raw'], rel=1e-12, abs=0.0)
     assert res.f_melt == pytest.approx(min(row['f_raw'], 1.0), rel=1e-12, abs=0.0)
     assert res.f_melt_sigma == pytest.approx(row['sigma'], rel=1e-12, abs=0.0)
@@ -222,14 +221,50 @@ def test_merged_radius_that_releases_no_energy_is_refused():
 
 
 @pytest.mark.parametrize(
-    ('name', 'bad'), [('v_impact', 1e160), ('M_target', 10**400)], ids=['speed', 'int-mass']
+    ('override', 'name'),
+    [
+        ({'v_impact': 1e160}, 'v_impact'),
+        ({'M_target': 10**400}, 'M_target'),
+        ({'M_target': 1e160, 'M_impactor': 1e159}, 'masses'),
+        ({'R_merged': 1e-320}, 'R_merged'),
+        ({'R_target': 1e308, 'R_impactor': 1e308}, 'radii'),
+    ],
+    ids=['speed', 'int-mass', 'float-mass', 'tiny-merged-radius', 'huge-radii'],
 )
-def test_inputs_that_overflow_are_refused_by_name(name, bad):
-    """A speed whose square overflows a float, or an integer too large for one, raises
-    ValueError naming the argument, not OverflowError."""
+def test_inputs_that_overflow_are_refused_by_name(override, name):
+    """Finite inputs whose energy or escape speed overflows, underflows or divides by zero
+    in floating point raise ValueError naming the arguments, not an arithmetic error."""
     with pytest.raises(ValueError, match=name):
-        melt_fraction(**(_ARGS | {name: bad}))
+        melt_fraction(**(_ARGS | override))
     assert melt_fraction(**_ARGS).dIE > 0.0
+
+
+@pytest.mark.physics_invariant
+@pytest.mark.parametrize('tie', [37.5, 52.5])
+def test_low_precision_angle_ties_use_the_lower_angle(tie):
+    """A float32 impact angle at a tie gives the same 1-sigma as the float64 one: the
+    driver forms the impact parameter from the angle as a Python float."""
+    import morrigan
+
+    def rel(angle):
+        out = morrigan.run_system(
+            seed=7,
+            masses=[0.4 * M_earth, 0.5 * M_earth, 0.6 * M_earth],
+            eccentricity=0.05,
+            inner_edge=7.5e9,
+            spacing=10,
+            density=5500.0,
+            impact_angle=angle,
+            evolution_time=1.0,
+            inner_cutoff=7.5e8,
+            stellar_mass=1.0,
+        )
+        recs = [r for chain in out['impacts'].values() for r in chain]
+        assert recs, 'the system must merge at least once'
+        return [r['f_melt_sigma'] / r['f_melt_raw'] for r in recs]
+
+    assert rel(np.float32(tie)) == pytest.approx(rel(tie), rel=1e-12)
+    assert rel(np.float16(tie)) == pytest.approx(rel(tie), rel=1e-12)
 
 
 @pytest.mark.physics_invariant

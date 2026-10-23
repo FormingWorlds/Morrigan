@@ -19,6 +19,7 @@ import warnings
 
 import numpy as np
 import pytest
+import toml
 
 import morrigan
 from morrigan.constants import G, M_earth, M_sun, au2m
@@ -413,6 +414,32 @@ def test_allocate_a_spaces_embryos_by_mutual_hill_radii():
         assert (hi - lo) == pytest.approx(10 * r_hill, rel=1e-12)
 
 
+def _file_config(save_directory, impact_angle=20.0, masses=_MASSES, seed=7):
+    """Settings of the reference system for the file-writing path."""
+    return {
+        'run_simulation': {
+            't': 0.0,
+            't_ref': 0.0,
+            't_event': 0.0,
+            'flag_event': 1,
+            'a_min': 0.005,
+            'max_time': 1.0,
+            'random_seed': seed,
+            'save_directory': str(save_directory),
+        },
+        'init_par': {
+            'N': len(masses),
+            'e': 0.05,
+            'impact_angle': impact_angle,
+            'Mp': list(masses),
+            'Ms': 1.0,
+            'rho_p': _DENSITY,
+            'inner_edge': 0.05,
+            'spacing': 10,
+        },
+    }
+
+
 def test_the_file_writing_path_produces_the_documented_tables(tmp_path):
     """A command-line style run writes the three result tables with the
     documented columns and self-consistent contents.
@@ -430,28 +457,7 @@ def test_the_file_writing_path_produces_the_documented_tables(tmp_path):
 
     from morrigan.driver import run_once
 
-    config = {
-        'run_simulation': {
-            't': 0.0,
-            't_ref': 0.0,
-            't_event': 0.0,
-            'flag_event': 1,
-            'a_min': 0.005,
-            'max_time': 1.0,
-            'random_seed': 7,
-            'save_directory': str(tmp_path),
-        },
-        'init_par': {
-            'N': len(_MASSES),
-            'e': 0.05,
-            'impact_angle': 20.0,
-            'Mp': list(_MASSES),
-            'Ms': 1.0,
-            'rho_p': 5500.0,
-            'inner_edge': 0.05,
-            'spacing': 10,
-        },
-    }
+    config = _file_config(tmp_path)
     summary = run_once(0, config, collect=False)
     assert summary['n_survivors'] >= 1
 
@@ -483,8 +489,19 @@ def test_the_file_writing_path_produces_the_documented_tables(tmp_path):
         )
         assert row['v_c'] > 0.0 and row['t'] > 0.0
         assert 0.0 < row['f_melt'] <= 1.0 and row['dIE'] > 0.0 and row['f_melt_sigma'] > 0.0
-        assert str(row['melt_in_range']) in ('True', 'False')
-        assert str(row['above_v_cr']) in ('True', 'False')
+        # the clip: f_melt is f_melt_raw capped at 1; every merger here melts the mantle
+        assert row['f_melt'] == pytest.approx(min(row['f_melt_raw'], 1.0), rel=1e-15)
+        assert row['f_melt_raw'] > 1.0
+    # The written melt columns are the in-memory merger values of the same system.
+    in_memory = run_once(0, _file_config(tmp_path), collect=True)['mergers']
+    assert len(in_memory) == len(mergers)
+    for row, m in zip(mergers, in_memory):
+        for key in ('f_melt', 'f_melt_raw', 'f_melt_sigma', 'dIE'):
+            assert row[key] == pytest.approx(m[key], rel=1e-15), key
+        assert (str(row['melt_in_range']), str(row['above_v_cr'])) == (
+            str(m['melt_in_range']),
+            str(m['above_v_cr']),
+        )
 
     survivors = astropy_ascii.read(
         tmp_path / 'data' / 'survivors' / 'survivors_00.csv', format='fixed_width'
@@ -572,73 +589,64 @@ def test_every_impact_record_carries_the_melt_of_its_collision():
     assert len({r['f_melt_raw'] for r in records}) == len(records)
 
 
-def _melt_warnings(action='always', **kwargs):
-    """Return the melt-range warnings the runs of ``kwargs`` emit under one filter."""
+def _melt_warnings(**kwargs):
+    """Return the melt-range warnings one run of ``kwargs`` emits."""
     with warnings.catch_warnings(record=True) as caught:
-        warnings.simplefilter(action)
+        warnings.simplefilter('always')
         _run(**kwargs)
     return [w for w in caught if 'Nakajima' in str(w.message)]
 
 
-def test_one_melt_warning_per_run_and_none_when_all_mergers_fit():
+def test_one_melt_warning_per_run_and_none_when_all_mergers_fit(tmp_path):
     """A run with a merger outside the fit range or above the critical speed warns once,
-    naming its seed and the counts; a run whose mergers all fit stays silent (seeds 7, 8
-    and 5). Two runs with different seeds in one process both warn under the default
-    filter."""
+    naming its seed, system, embryos and angle and the exact counts of the run's mergers;
+    a run whose mergers all fit stays silent (seeds 7 and 5). Runs that differ in seed or
+    in masses each warn under the default filter."""
+    from morrigan.driver import run_once
+
     caught = _melt_warnings()
     assert len(caught) == 1
     text = str(caught[0].message)
-    m = re.search(r'seed 7, system 0: (\d+) of (\d+) mergers .* and (\d+) exceed', text)
+    m = re.search(
+        r'seed 7, system 0 \(.*20 deg\): (\d+) of (\d+) mergers .* and (\d+) exceed', text
+    )
     assert m, text
-    n_out, n_all, n_fast = map(int, m.groups())
-    # every survivor merger is among the run's mergers, so the counts bound theirs
-    survivor = [r for chain in _run()['impacts'].values() for r in chain]
-    assert n_all >= len(survivor) and n_fast >= sum(r['above_v_cr'] for r in survivor) >= 1
-    assert n_out >= sum(not r['melt_in_range'] for r in survivor)
+    mergers = run_once(0, _file_config(tmp_path), collect=True)['mergers']
+    assert tuple(map(int, m.groups())) == (
+        sum(not x['melt_in_range'] for x in mergers),
+        len(mergers),
+        sum(x['above_v_cr'] for x in mergers),
+    )
     assert _melt_warnings(seed=5, masses=(0.4, 0.5, 0.6, 0.5)) == []
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter('default')
         _run(seed=7)
         _run(seed=8)
-    seeds = sorted(
-        re.search(r'seed (\d+)', str(w.message))[1]
-        for w in caught
-        if 'Nakajima' in str(w.message)
-    )
-    assert seeds == ['7', '8']
+        _run(seed=7, masses=[1.2 * x for x in _MASSES])
+    assert sum('Nakajima' in str(w.message) for w in caught) == 3
 
 
-@pytest.mark.parametrize('angle', [-10.0, 90.5, 270.0])
+@pytest.mark.parametrize(
+    'angle',
+    [-10.0, 90.5, 270.0, float('nan'), float('inf'), True, '20'],
+    ids=['negative', 'above-90', 'full-turn', 'nan', 'inf', 'bool', 'string'],
+)
 def test_impact_angle_outside_0_to_90_is_refused_before_the_run(angle, tmp_path):
-    """An impact angle outside [0, 90] deg has no impact parameter in [0, 1]; the run
-    refuses it by name before any dynamics, on the in-memory and the file path."""
+    """An impact angle that is not a number in [0, 90] deg has no impact parameter in
+    [0, 1]; the run refuses it by name before any dynamics and before writing anything,
+    on the in-memory path, the file path and the settings-file entry point."""
+    from morrigan.driver import main, run_once
+
     with pytest.raises(ValueError, match='impact_angle'):
         _run(impact_angle=angle)
-    from morrigan.driver import run_once
-
-    config = {
-        'run_simulation': {
-            't': 0.0,
-            't_ref': 0.0,
-            't_event': 0.0,
-            'flag_event': 1,
-            'a_min': 0.005,
-            'max_time': 1.0,
-            'random_seed': 7,
-            'save_directory': str(tmp_path),
-        },
-        'init_par': {
-            'N': 2,
-            'e': 0.05,
-            'impact_angle': angle,
-            'Mp': [0.5, 0.5],
-            'Ms': 1.0,
-            'rho_p': 5500.0,
-            'inner_edge': 0.05,
-            'spacing': 10,
-        },
-    }
     with pytest.raises(ValueError, match='impact_angle'):
-        run_once(0, config, collect=True)
+        run_once(0, _file_config(tmp_path / 'out', angle), collect=False)
+    assert not (tmp_path / 'out').exists()
+    if angle == -10.0:
+        settings = tmp_path / 'settings.toml'
+        settings.write_text(toml.dumps(_file_config(tmp_path / 'main', angle)))
+        with pytest.raises(ValueError, match='impact_angle'):
+            main(str(settings))
+        assert not (tmp_path / 'main').exists()
     # The bounds themselves are valid angles.
     assert set(_run(impact_angle=90.0)) == {'survivors', 'impacts'}
