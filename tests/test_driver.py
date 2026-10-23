@@ -642,7 +642,7 @@ def test_impact_angle_outside_0_to_90_is_refused_before_the_run(angle, tmp_path)
     with pytest.raises(ValueError, match='impact_angle'):
         run_once(0, _file_config(tmp_path / 'out', angle), collect=False)
     assert not (tmp_path / 'out').exists()
-    if angle == -10.0:
+    if isinstance(angle, float) and angle < 0:  # the settings-file path, once
         settings = tmp_path / 'settings.toml'
         settings.write_text(toml.dumps(_file_config(tmp_path / 'main', angle)))
         with pytest.raises(ValueError, match='impact_angle'):
