@@ -198,7 +198,7 @@ def melt_fraction(
         raise RuntimeError(f'non-positive fit factor: h {h}, IE {ie}, mantle {mantle}')
     d_ie = ie * energy
     f_raw = h * ie * energy / (F_MANTLE * mantle * m) / E_M
-    if not math.isfinite(f_raw):
+    if not (math.isfinite(f_raw) and f_raw > 0.0):
         raise ValueError(f'{inputs} overflow or underflow the melt fraction')
 
     # nearest simulated angle; a tie, within the round-off of asin(sin), goes to the lower
