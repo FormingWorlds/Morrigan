@@ -310,7 +310,7 @@ def test_merger_record_carries_the_melt_of_its_own_collision():
     contact speed and impact parameter, and the melt fraction is a fraction.
 
     Seed 9 on the nearly touching equal-mass pair, as in the merger test above: gamma 0.5
-    and 2 M_E (18.6 M_Mars) lie in the fitted range, so the flags are pinned too.
+    and 2 M_E (18.6 M_Mars) lie in the campaign range, so the flags are pinned too.
     """
     np.random.seed(9)
     ap, mp, rp, e, interact, live, pid = _pair(0.005, 0.05)

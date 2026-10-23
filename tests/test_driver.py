@@ -599,7 +599,7 @@ def _melt_warnings(**kwargs):
 
 
 def test_one_melt_warning_per_run_and_none_when_all_mergers_fit(tmp_path):
-    """A run with a merger outside the fit range or above the critical speed warns once,
+    """A run with a merger outside the campaign range or above the critical speed warns once,
     naming its seed, system, embryos and angle and the exact counts of the run's mergers;
     a run whose mergers all fit stays silent (seeds 7 and 5). Runs that differ in seed or
     in masses each warn under the default filter."""

@@ -6,7 +6,7 @@
 The law fits SPH giant impacts (Nakajima et al. 2021, EPSL 568, 116983,
 doi:10.1016/j.epsl.2021.116983); its merging coefficients come from the runs at
 v_imp = v_esc, the campaign reaches 2 v_esc. This module ports the bulk part, Eqs. 2-4,
-6, 7 and 14, with the coefficients of the reference code MeltScalingLaw at commit
+6, 7 and 14 (numbered as in arXiv:2004.04269v2), with the coefficients of the reference code MeltScalingLaw at commit
 2eca30f2 (https://github.com/mikinakajima/MeltScalingLaw, MIT), which add 45 degree
 impacts and differ from the paper's Tables S.5 and S.6; ``data/nakajima2021/`` holds them
 unchanged.
@@ -54,7 +54,8 @@ class MeltResult(NamedTuple):
     h : float
         Share of ``dIE`` deposited in the mantle, Eq. 6.
     in_range : bool
-        Whether the merger lies in the fitted mass, mass-ratio and speed range.
+        Whether the merger lies in the campaign's mass, mass-ratio and speed range (1 to 2
+        v_esc); the merging fit itself comes from the runs at v_imp = v_esc.
     above_v_cr : bool
         Whether the impact speed exceeds the Genda et al. (2012) critical speed, where the
         reference code switches to its hit-and-run fit.
@@ -121,7 +122,7 @@ def melt_fraction(
     mass (Eq. 7); the melt fraction is the mantle's energy gain over the mantle mass and
     E_M (Eq. 14). Every merger uses the merging coefficients, as Morrigan merges every
     collision; ``above_v_cr`` flags those the reference code would fit as hit-and-run.
-    Outside the fitted range the value is the fit's, flagged by ``in_range``. The 1-sigma
+    Outside the campaign range the value is the fit's, flagged by ``in_range``. The 1-sigma
     uses the fit errors of the simulated angle nearest to theta (ties to the lower one),
     a rule of this port: the reference code accepts only the five simulated angles.
 
