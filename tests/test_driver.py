@@ -55,12 +55,12 @@ _SCHEMA = (
 )
 
 
-def _run(seed=7, impact_angle=20.0, masses=_MASSES):
+def _run(seed=7, impact_angle=20.0, masses=_MASSES, eccentricity=0.05):
     """Evolve one reference system."""
     return morrigan.run_system(
         seed=seed,
         masses=[m * M_earth for m in masses],
-        eccentricity=0.05,
+        eccentricity=eccentricity,
         inner_edge=0.05 * au2m,
         spacing=10,
         density=_DENSITY,
@@ -498,10 +498,11 @@ def test_the_file_writing_path_produces_the_documented_tables(tmp_path):
     for row, m in zip(mergers, in_memory):
         for key in ('f_melt', 'f_melt_raw', 'f_melt_sigma', 'dIE'):
             assert row[key] == pytest.approx(m[key], rel=1e-15), key
-        assert (str(row['melt_in_range']), str(row['above_v_cr'])) == (
-            str(m['melt_in_range']),
-            str(m['above_v_cr']),
-        )
+        for key in ('melt_in_range', 'above_v_cr'):
+            assert row[key] == int(m[key]), key
+    # the flags read back as integers, so a False row is falsy
+    for key in ('melt_in_range', 'above_v_cr'):
+        assert np.issubdtype(mergers[key].dtype, np.integer), mergers[key].dtype
 
     survivors = astropy_ascii.read(
         tmp_path / 'data' / 'survivors' / 'survivors_00.csv', format='fixed_width'
@@ -624,6 +625,21 @@ def test_one_melt_warning_per_run_and_none_when_all_mergers_fit(tmp_path):
         _run(seed=8)
         _run(seed=7, masses=[1.2 * x for x in _MASSES])
     assert sum('Nakajima' in str(w.message) for w in caught) == 3
+
+
+def test_mergers_outside_the_fit_range_alone_warn():
+    """A run whose mergers all lie below 1 M_Mars but below the critical speed (small
+    bodies, eccentricity 1e-3, head-on) warns for the range alone, with 0 fast mergers."""
+    caught = _melt_warnings(
+        impact_angle=0.0, masses=[0.01 * m for m in _MASSES], eccentricity=1e-3
+    )
+    assert len(caught) == 1
+    m = re.search(
+        r'(\d+) of (\d+) mergers lie outside .* and (\d+) exceed', str(caught[0].message)
+    )
+    assert m, str(caught[0].message)
+    n_out, n, n_fast = map(int, m.groups())
+    assert (n_out, n_fast) == (n, 0) and n >= 1
 
 
 @pytest.mark.parametrize(

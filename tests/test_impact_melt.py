@@ -74,6 +74,29 @@ def test_port_equals_the_reference_code(row):
 
 
 @pytest.mark.reference_pinned
+@pytest.mark.parametrize(
+    'row', GOLDEN['grid'], ids=lambda r: '{theta}-{gamma}-{vel}-{Mtotal_Mmars}'.format(**r)
+)
+def test_above_v_cr_flips_at_the_reference_critical_speed(row):
+    """Just above the reference code's critical speed (in units of the mutual escape
+    speed, recomputed here with Morrigan's G) the merger is flagged, just below it is not,
+    so every term of the Genda et al. (2012) fit is pinned at every golden row."""
+    v_esc = math.sqrt(2.0 * G * (row['Mt'] + row['Mi']) / (row['Rt'] + row['Ri']))
+    b = math.sin(math.radians(row['theta']))
+    for factor, expected in ((1.0 + 1e-6, True), (1.0 - 1e-6, False)):
+        res = melt_fraction(
+            row['Mt'],
+            row['Mi'],
+            row['Rt'],
+            row['Ri'],
+            row['vcr'] * factor * v_esc,
+            b,
+            R_merged=row['Rti'],
+        )
+        assert res.above_v_cr is expected, (factor, row['vcr'])
+
+
+@pytest.mark.reference_pinned
 def test_issue_table_at_one_earth_mass():
     """The table of Morrigan issue 17 (1 M_E, v_imp = v_esc, reference radii) to its two
     decimals; the 90 deg, gamma 0.3 sigma is 0.3844 in the reference code itself, so that
